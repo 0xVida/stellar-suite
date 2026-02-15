@@ -1,0 +1,143 @@
+{
+  "name": "stellar-suite",
+  "displayName": "Stellar Suite",
+  "description": "Improves the developer experience when building smart contracts on Stellar. Build, deploy, and manage contracts directly from VS Code.",
+  "version": "0.1.0",
+  "publisher": "stellar-suite",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xVida/stellar-suite.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "stellar",
+    "soroban",
+    "developer-tools"
+  ],
+  "activationEvents": [
+    "onView:stellarSuite.contractsView",
+    "onCommand:stellarSuite.simulateTransaction",
+    "onCommand:stellarSuite.deployContract",
+    "onCommand:stellarSuite.buildContract",
+    "onCommand:stellarSuite.refreshContracts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "stellar-suite",
+          "title": "Stellar Suite",
+          "icon": "resources/stellar-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "stellar-suite": [
+        {
+          "id": "stellarSuite.contractsView",
+          "name": "Contracts",
+          "type": "webview",
+          "when": "true"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "stellarSuite.simulateTransaction",
+        "title": "Stellar Suite: Simulate Soroban Transaction"
+      },
+      {
+        "command": "stellarSuite.deployContract",
+        "title": "Stellar Suite: Deploy Contract"
+      },
+      {
+        "command": "stellarSuite.refreshContracts",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "stellarSuite.deployFromSidebar",
+        "title": "Deploy Contract",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "stellarSuite.simulateFromSidebar",
+        "title": "Simulate Transaction",
+        "icon": "$(play)"
+      },
+      {
+        "command": "stellarSuite.buildContract",
+        "title": "Stellar Suite: Build Contract"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "stellarSuite.refreshContracts",
+          "when": "view == stellarSuite.contractsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "stellarSuite.deployFromSidebar",
+          "when": "view == stellarSuite.contractsView",
+          "group": "inline"
+        },
+        {
+          "command": "stellarSuite.simulateFromSidebar",
+          "when": "view == stellarSuite.contractsView",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Stellar Suite",
+      "properties": {
+        "stellarSuite.rpcUrl": {
+          "type": "string",
+          "default": "https://soroban-testnet.stellar.org:443",
+          "description": "Stellar RPC endpoint URL for transaction simulation"
+        },
+        "stellarSuite.useLocalCli": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use local Stellar CLI instead of RPC endpoint"
+        },
+        "stellarSuite.cliPath": {
+          "type": "string",
+          "default": "stellar",
+          "description": "Path to Stellar CLI executable. Use full path if not in PATH (e.g., '/Users/username/.cargo/bin/stellar' or 'stellar' if in PATH)"
+        },
+        "stellarSuite.source": {
+          "type": "string",
+          "default": "dev",
+          "description": "Source identity to use for contract invocations (e.g., 'dev')"
+        },
+        "stellarSuite.network": {
+          "type": "string",
+          "default": "testnet",
+          "description": "Network to use for deployments and invocations (testnet, mainnet, etc.)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {}
+}

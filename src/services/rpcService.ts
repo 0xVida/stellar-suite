@@ -1,0 +1,144 @@
+import { formatError } from '../utils/errorFormatter';
+
+export interface SimulationResult {
+    success: boolean;
+    result?: any;
+    error?: string;
+    resourceUsage?: {
+        cpuInstructions?: number;
+        memoryBytes?: number;
+    };
+}
+
+/**
+ * Service for interacting with Stellar RPC endpoint to simulate transactions.
+ */
+export class RpcService {
+    private rpcUrl: string;
+
+    constructor(rpcUrl: string) {
+        // Ensure URL ends with / for proper path joining
+        this.rpcUrl = rpcUrl.endsWith('/') ? rpcUrl.slice(0, -1) : rpcUrl;
+    }
+
+    /**
+     * Simulate a Soroban contract function call using RPC.
+     * 
+     * @param contractId - Contract ID (address)
+     * @param functionName - Name of the function to call
+     * @param args - Function arguments as array
+     * @returns Simulation result with return value and resource usage
+     */
+    async simulateTransaction(
+        contractId: string,
+        functionName: string,
+        args: any[]
+    ): Promise<SimulationResult> {
+        try {
+            // Build the RPC request
+            // Using the simulateTransaction RPC method
+            const requestBody = {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'simulateTransaction',
+                params: {
+                    transaction: {
+                        contractId,
+                        functionName,
+                        args: args.map(arg => ({
+                            // Convert arguments to Soroban SCVal format
+                            // For MVP, we'll send as JSON and let RPC handle conversion
+                            value: arg
+                        }))
+                    }
+                }
+            };
+
+            // Make the RPC call
+            const response = await fetch(`${this.rpcUrl}/rpc`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody),
+                signal: AbortSignal.timeout(30000) // 30 second timeout
+            });
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    error: `RPC request failed with status ${response.status}: ${response.statusText}`
+                };
+            }
+
+            const data: any = await response.json();
+
+            // Handle RPC error response
+            if (data.error) {
+                return {
+                    success: false,
+                    error: data.error.message || 'RPC error occurred'
+                };
+            }
+
+            // Extract result from RPC response
+            const result = data.result || data;
+            
+            return {
+                success: true,
+                result: result.returnValue || result.result || result,
+                resourceUsage: result.resourceUsage || result.resource_usage
+            };
+        } catch (error) {
+            const formatted = formatError(error, 'RPC');
+            
+            // Handle network errors
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                return {
+                    success: false,
+                    error: `Network error: Unable to reach RPC endpoint at ${this.rpcUrl}. Check your connection and rpcUrl setting.`
+                };
+            }
+
+            if (error instanceof Error && error.name === 'AbortError') {
+                return {
+                    success: false,
+                    error: 'Request timed out. The RPC endpoint may be slow or unreachable.'
+                };
+            }
+
+            return {
+                success: false,
+                error: formatted.message
+            };
+        }
+    }
+
+    /**
+     * Check if RPC endpoint is reachable.
+     * 
+     * @returns True if endpoint is accessible
+     */
+    async isAvailable(): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.rpcUrl}/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000)
+            });
+            return response.ok;
+        } catch {
+            // If health endpoint doesn't exist, try a simple RPC call
+            try {
+                const response = await fetch(`${this.rpcUrl}/rpc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+                    signal: AbortSignal.timeout(5000)
+                });
+                return response.ok;
+            } catch {
+                return false;
+            }
+        }
+    }
+}

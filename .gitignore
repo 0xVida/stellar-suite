@@ -1,0 +1,9 @@
+node_modules/
+out/
+.vscode-test/
+*.vsix
+.DS_Store
+*.log
+.env
+.env.local
+stellar-suite-*.vsix

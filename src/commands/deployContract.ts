@@ -4,13 +4,21 @@ import { WasmDetector } from '../utils/wasmDetector';
 import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import * as path from 'path';
+import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 
 export async function deployContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
-        const config = vscode.workspace.getConfiguration('stellarSuite');
-        const cliPath = config.get<string>('cliPath', 'stellar');
-        const source = config.get<string>('source', 'dev');
-        const network = config.get<string>('network', 'testnet') || 'testnet';
+        const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
+        if (!resolvedCliConfig.validation.valid) {
+            vscode.window.showErrorMessage(
+                `CLI configuration is invalid: ${resolvedCliConfig.validation.errors.join(' ')}`
+            );
+            return;
+        }
+
+        const cliPath = resolvedCliConfig.configuration.cliPath;
+        const source = resolvedCliConfig.configuration.source;
+        const network = resolvedCliConfig.configuration.network;
 
         const outputChannel = vscode.window.createOutputChannel('Stellar Suite - Deployment');
         outputChannel.show(true);

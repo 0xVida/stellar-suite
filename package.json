@@ -24,6 +24,7 @@
     "onCommand:stellarSuite.simulateTransaction",
     "onCommand:stellarSuite.deployContract",
     "onCommand:stellarSuite.buildContract",
+    "onCommand:stellarSuite.configureCli",
     "onCommand:stellarSuite.refreshContracts"
   ],
   "main": "./out/extension.js",
@@ -74,6 +75,10 @@
       {
         "command": "stellarSuite.buildContract",
         "title": "Stellar Suite: Build Contract"
+      },
+      {
+        "command": "stellarSuite.configureCli",
+        "title": "Stellar Suite: Configure CLI"
       }
     ],
     "menus": {

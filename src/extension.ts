@@ -2,9 +2,12 @@ import * as vscode from 'vscode';
 import { simulateTransaction } from './commands/simulateTransaction';
 import { deployContract } from './commands/deployContract';
 import { buildContract } from './commands/buildContract';
+import { registerRpcLoggingCommands } from './commands/rpcLoggingCommands';
 import { SidebarViewProvider } from './ui/sidebarView';
+import { RpcLogger } from './services/rpcLogger';
 
 let sidebarProvider: SidebarViewProvider | undefined;
+let rpcLogger: RpcLogger | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
@@ -12,6 +15,22 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('[Stellar Suite] Extension activating...');
 
     try {
+        // Initialize RPC Logger
+        rpcLogger = new RpcLogger({
+            level: require('vscode').workspace.getConfiguration('stellarSuite').get('rpcLogLevel') || 'INFO',
+            maskSensitiveData: true,
+            enableConsoleOutput: true,
+            context,
+        });
+
+        rpcLogger.loadLogs().then(() => {
+            outputChannel.appendLine('[Extension] RPC Logger initialized and logs loaded');
+        });
+
+        // Register RPC logging commands
+        registerRpcLoggingCommands(context, rpcLogger);
+        outputChannel.appendLine('[Extension] RPC logging commands registered');
+
         sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider)

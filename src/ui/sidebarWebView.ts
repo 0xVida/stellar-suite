@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ContractInfo, DeploymentInfo } from './sidebarView';
+import { ContractInfo, DeploymentRecord } from './sidebarView';
 
 export class SidebarWebView {
     private webview: vscode.Webview;
@@ -8,12 +8,12 @@ export class SidebarWebView {
         this.webview = webview;
     }
 
-    public updateContent(contracts: ContractInfo[], deployments: DeploymentInfo[]) {
+    public updateContent(contracts: ContractInfo[], deployments: DeploymentRecord[]) {
         const html = this.getHtml(contracts, deployments);
         this.webview.html = html;
     }
 
-    private getHtml(contracts: ContractInfo[], deployments: DeploymentInfo[]): string {
+    private getHtml(contracts: ContractInfo[], deployments: DeploymentRecord[]): string {
         const contractsHtml = this.renderContracts(contracts);
         const deploymentsHtml = this.renderDeployments(deployments);
 
@@ -227,18 +227,26 @@ export class SidebarWebView {
         return contracts.map(contract => {
             const statusClass = contract.contractId ? 'status-deployed' : 'status-not-deployed';
             const statusText = contract.contractId ? 'Deployed' : 'Not Deployed';
-            const buildStatus = contract.hasWasm ? 'Built' : 'Not Built';
-            const buildStatusClass = contract.hasWasm ? 'status-deployed' : 'status-not-deployed';
+
+            // hasWasm mirrors isBuilt — fall back to isBuilt if hasWasm not populated
+            const isBuilt = contract.hasWasm ?? contract.isBuilt;
+            const buildStatus = isBuilt ? 'Built' : 'Not Built';
+            const buildStatusClass = isBuilt ? 'status-deployed' : 'status-not-deployed';
+
             const functionsHtml = contract.functions && contract.functions.length > 0
                 ? `<div class="functions-list">
                     ${contract.functions.map(fn => `
                         <div class="function-item">
                             <span class="function-name">${this.escapeHtml(fn.name)}</span>
-                            ${fn.parameters.length > 0 ? `(${fn.parameters.map(p => p.name).join(', ')})` : '()'}
+                            ${fn.parameters.length > 0
+                                ? `(${fn.parameters.map(p => this.escapeHtml(p.name)).join(', ')})`
+                                : '()'}
                         </div>
                     `).join('')}
                    </div>`
                 : '';
+
+            const deployedAt = contract.lastDeployed ?? contract.deployedAt;
 
             return `
                 <div class="contract-item">
@@ -248,31 +256,40 @@ export class SidebarWebView {
                         <span class="status-badge ${buildStatusClass}">${buildStatus}</span>
                     </div>
                     <div class="contract-path">${this.escapeHtml(contract.path)}</div>
-                    ${contract.contractId ? `<div class="contract-id">ID: ${this.escapeHtml(contract.contractId)}</div>` : ''}
-                    ${contract.lastDeployed ? `<div class="timestamp">Deployed: ${new Date(contract.lastDeployed).toLocaleString()}</div>` : ''}
+                    ${contract.contractId
+                        ? `<div class="contract-id">ID: ${this.escapeHtml(contract.contractId)}</div>`
+                        : ''}
+                    ${deployedAt
+                        ? `<div class="timestamp">Deployed: ${new Date(deployedAt).toLocaleString()}</div>`
+                        : ''}
                     ${functionsHtml}
                     <div class="contract-actions">
                         <button class="btn" onclick="build('${this.escapeHtml(contract.path)}')">Build</button>
-                        ${contract.hasWasm ? `<button class="btn" onclick="deploy('${this.escapeHtml(contract.path)}')">Deploy</button>` : ''}
-                        ${contract.contractId ? `<button class="btn btn-secondary" onclick="simulate('${this.escapeHtml(contract.contractId)}')">Simulate</button>` : ''}
-                        ${contract.contractId ? `<button class="btn btn-secondary" onclick="inspectContract('${this.escapeHtml(contract.contractId)}')">Inspect</button>` : ''}
+                        ${isBuilt
+                            ? `<button class="btn" onclick="deploy('${this.escapeHtml(contract.path)}')">Deploy</button>`
+                            : ''}
+                        ${contract.contractId
+                            ? `<button class="btn btn-secondary" onclick="simulate('${this.escapeHtml(contract.contractId)}')">Simulate</button>`
+                            : ''}
+                        ${contract.contractId
+                            ? `<button class="btn btn-secondary" onclick="inspectContract('${this.escapeHtml(contract.contractId)}')">Inspect</button>`
+                            : ''}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    private renderDeployments(deployments: DeploymentInfo[]): string {
+    private renderDeployments(deployments: DeploymentRecord[]): string {
         if (deployments.length === 0) {
             return '<div class="empty-state">No deployments yet</div>';
         }
 
         return deployments.map(deployment => {
-            const date = new Date(deployment.timestamp);
+            const date = new Date(deployment.deployedAt);
             return `
                 <div class="deployment-item">
                     <div class="contract-id">Contract ID: ${this.escapeHtml(deployment.contractId)}</div>
-                    ${deployment.transactionHash ? `<div class="contract-path">Tx: ${this.escapeHtml(deployment.transactionHash)}</div>` : ''}
                     <div class="timestamp">${date.toLocaleString()}</div>
                     <div class="timestamp">Network: ${this.escapeHtml(deployment.network)} | Source: ${this.escapeHtml(deployment.source)}</div>
                 </div>
@@ -289,3 +306,5 @@ export class SidebarWebView {
             .replace(/'/g, '&#039;');
     }
 }
+
+//ignore comme

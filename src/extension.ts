@@ -7,6 +7,12 @@ import * as vscode from 'vscode';
 import { simulateTransaction } from './commands/simulateTransaction';
 import { deployContract } from './commands/deployContract';
 import { buildContract } from './commands/buildContract';
+import { registerRpcLoggingCommands } from './commands/rpcLoggingCommands';
+import { SidebarViewProvider } from './ui/sidebarView';
+import { RpcLogger } from './services/rpcLogger';
+
+let sidebarProvider: SidebarViewProvider | undefined;
+let rpcLogger: RpcLogger | undefined;
 import { registerGroupCommands } from './commands/groupCommands';
 import { SidebarViewProvider } from './ui/sidebarView';
 import { ContractGroupService } from './services/contractGroupService';

@@ -20,22 +20,21 @@ export interface SimulationResult {
 
 /**
  * Service for interacting with Stellar RPC endpoint to simulate transactions.
- * Includes comprehensive logging via RpcLogger.
  */
 export class RpcService {
     private rpcUrl: string;
-    private logger: RpcLogger;
+    private logger?: any;
 
-    constructor(rpcUrl: string, logger?: RpcLogger) {
+    constructor(rpcUrl: string, logger?: any) {
         // Ensure URL ends with / for proper path joining
         this.rpcUrl = rpcUrl.endsWith('/') ? rpcUrl.slice(0, -1) : rpcUrl;
-        this.logger = logger || new RpcLogger();
+        this.logger = logger;
     }
 
     /**
-     * Get the logger instance
+     * Get the logger instance if available
      */
-    public getLogger(): RpcLogger {
+    public getLogger(): any {
         return this.logger;
     }
 
@@ -73,8 +72,8 @@ export class RpcService {
                 }
             };
 
-            // Log the request
-            requestId = this.logger.logRequest(method, url, requestBody);
+            // Log the request if logger available
+            const requestId = this.logger?.logRequest?.(method, url, requestBody);
 
             // Make the RPC call
             const response = await fetch(url, {
@@ -88,7 +87,7 @@ export class RpcService {
 
             if (!response.ok) {
                 const errorMessage = `RPC request failed with status ${response.status}: ${response.statusText}`;
-                this.logger.logError(requestId, method, errorMessage);
+                this.logger?.logError?.(requestId, method, errorMessage);
                 return {
                     success: false,
                     error: errorMessage
@@ -97,13 +96,13 @@ export class RpcService {
 
             const data: any = await response.json();
 
-            // Log the response
-            this.logger.logResponse(requestId, method, response.status, data);
+            // Log the response if logger available
+            this.logger?.logResponse?.(requestId, method, response.status, data);
 
             // Handle RPC error response
             if (data.error) {
                 const errorMessage = data.error.message || 'RPC error occurred';
-                this.logger.logError(requestId, method, errorMessage);
+                this.logger?.logError?.(requestId, method, errorMessage);
                 return {
                     success: false,
                     error: errorMessage
@@ -121,11 +120,9 @@ export class RpcService {
         } catch (error) {
             const errorMessage = this.formatErrorMessage(error);
 
-            // Log the error
+            // Log the error if logger available
             if (requestId) {
-                this.logger.logError(requestId, method, error instanceof Error ? error : errorMessage);
-            } else {
-                this.logger.logError('unknown', method, error instanceof Error ? error : errorMessage);
+                this.logger?.logError?.(requestId, method, error instanceof Error ? error.message : String(error));
             }
 
             // Handle network errors
@@ -158,7 +155,7 @@ export class RpcService {
      */
     async isAvailable(): Promise<boolean> {
         const method = 'health-check';
-        const requestId = this.logger.logRequest(method, `${this.rpcUrl}/health`, {});
+        const requestId = this.logger?.logRequest?.(method, `${this.rpcUrl}/health`, {});
 
         try {
             const response = await fetch(`${this.rpcUrl}/health`, {
@@ -166,7 +163,7 @@ export class RpcService {
                 signal: AbortSignal.timeout(5000)
             });
 
-            this.logger.logResponse(requestId, method, response.status, { available: response.ok });
+            this.logger?.logResponse?.(requestId, method, response.status, { available: response.ok });
             return response.ok;
         } catch {
             // If health endpoint doesn't exist, try a simple RPC call
@@ -178,10 +175,10 @@ export class RpcService {
                     signal: AbortSignal.timeout(5000)
                 });
 
-                this.logger.logResponse(requestId, method, response.status, { available: response.ok });
+                this.logger?.logResponse?.(requestId, method, response.status, { available: response.ok });
                 return response.ok;
             } catch (error) {
-                this.logger.logError(requestId, method, error instanceof Error ? error : 'health-check failed');
+                this.logger?.logError?.(requestId, method, error instanceof Error ? error.message : String(error));
                 return false;
             }
         }
@@ -190,7 +187,7 @@ export class RpcService {
     /**
      * Set a custom logger instance
      */
-    public setLogger(logger: RpcLogger): void {
+    public setLogger(logger: any): void {
         this.logger = logger;
     }
 
@@ -198,14 +195,14 @@ export class RpcService {
      * Get RPC timing statistics
      */
     public getTimingStats() {
-        return this.logger.getTimingStats();
+        return this.logger?.getTimingStats?.();
     }
 
     /**
      * Get RPC error statistics
      */
     public getErrorStats() {
-        return this.logger.getErrorStats();
+        return this.logger?.getErrorStats?.();
     }
 
     // Private helper methods

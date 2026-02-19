@@ -7,15 +7,23 @@ import { SimulationPanel } from '../ui/simulationPanel';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import { parseFunctionArgs } from '../utils/jsonParser';
 import { formatError } from '../utils/errorFormatter';
+import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 
 export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
-        const config = vscode.workspace.getConfiguration('stellarSuite');
-        const useLocalCli = config.get<boolean>('useLocalCli', true);
-        const cliPath = config.get<string>('cliPath', 'stellar');
-        const source = config.get<string>('source', 'dev');
-        const network = config.get<string>('network', 'testnet') || 'testnet';
-        const rpcUrl = config.get<string>('rpcUrl', 'https://soroban-testnet.stellar.org:443');
+        const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
+        if (!resolvedCliConfig.validation.valid) {
+            vscode.window.showErrorMessage(
+                `CLI configuration is invalid: ${resolvedCliConfig.validation.errors.join(' ')}`
+            );
+            return;
+        }
+
+        const useLocalCli = resolvedCliConfig.configuration.useLocalCli;
+        const cliPath = resolvedCliConfig.configuration.cliPath;
+        const source = resolvedCliConfig.configuration.source;
+        const network = resolvedCliConfig.configuration.network;
+        const rpcUrl = resolvedCliConfig.configuration.rpcUrl;
         
         const lastContractId = context.workspaceState.get<string>('lastContractId');
 

@@ -3,11 +3,21 @@ import { ContractDeployer } from '../services/contractDeployer';
 import { WasmDetector } from '../utils/wasmDetector';
 import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
+import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 
 export async function buildContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
-        const config = vscode.workspace.getConfiguration('stellarSuite');
-        const cliPath = config.get<string>('cliPath', 'stellar');
+        const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
+        if (!resolvedCliConfig.validation.valid) {
+            vscode.window.showErrorMessage(
+                `CLI configuration is invalid: ${resolvedCliConfig.validation.errors.join(' ')}`
+            );
+            return;
+        }
+
+        const cliPath = resolvedCliConfig.configuration.cliPath;
+        const source = resolvedCliConfig.configuration.source;
+        const network = resolvedCliConfig.configuration.network;
 
         const outputChannel = vscode.window.createOutputChannel('Stellar Suite - Build');
         outputChannel.show(true);
@@ -79,8 +89,7 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                 outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                 outputChannel.appendLine('Running: stellar contract build\n');
 
-                // Create deployer just for build (source/network not needed for build)
-                const deployer = new ContractDeployer(cliPath, 'dev', 'testnet');
+                const deployer = new ContractDeployer(cliPath, source, network);
                 const buildResult = await deployer.buildContract(contractDir);
 
                 progress.report({ increment: 90, message: 'Finalizing...' });

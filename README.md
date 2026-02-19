@@ -148,6 +148,17 @@ The extension will compile your contract and display build results.
 
 Results are displayed in a formatted panel with return values and resource usage.
 
+### CLI Configuration Management
+
+Use **Stellar Suite: Configure CLI** to manage CLI settings with profiles.
+
+You can:
+
+- Create and switch configuration profiles
+- Validate CLI/network/source/RPC settings
+- Apply active profile settings to workspace configuration
+- Export and import profiles as JSON
+
 ### Using the Sidebar
 
 The Stellar Suite sidebar provides a visual interface for managing contracts:

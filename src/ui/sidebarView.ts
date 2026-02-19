@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { SidebarWebView } from './sidebarWebView';
 import { WasmDetector } from '../utils/wasmDetector';
 import { ContractInspector, ContractFunction } from '../services/contractInspector';
+import { ContractGroupService } from '../services/contractGroupService';
 
 export interface ContractInfo {
     name: string;
@@ -26,9 +27,15 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private _webView?: SidebarWebView;
     private _context: vscode.ExtensionContext;
+    private _groupService: ContractGroupService;
 
-    constructor(private readonly _extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+    constructor(
+        private readonly _extensionUri: vscode.Uri,
+        context: vscode.ExtensionContext,
+        groupService: ContractGroupService
+    ) {
         this._context = context;
+        this._groupService = groupService;
     }
 
     public resolveWebviewView(
@@ -117,6 +124,26 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                             outputChannel.appendLine(`[Sidebar] Inspect requested for: ${message.contractId}`);
                             await this.inspectContract(message.contractId);
                             break;
+                        case 'toggleGroupCollapse':
+                            outputChannel.appendLine(`[Sidebar] Toggle group collapse: ${message.groupId}`);
+                            await vscode.commands.executeCommand('stellarSuite.toggleGroupCollapse', message.groupId);
+                            break;
+                        case 'renameGroup':
+                            outputChannel.appendLine(`[Sidebar] Rename group: ${message.groupId}`);
+                            await vscode.commands.executeCommand('stellarSuite.renameGroup', message.groupId);
+                            break;
+                        case 'deleteGroup':
+                            outputChannel.appendLine(`[Sidebar] Delete group: ${message.groupId}`);
+                            await vscode.commands.executeCommand('stellarSuite.deleteGroup', message.groupId);
+                            break;
+                        case 'createGroup':
+                            outputChannel.appendLine(`[Sidebar] Create group under: ${message.parentGroupId || 'root'}`);
+                            await vscode.commands.executeCommand('stellarSuite.createGroup', message.parentGroupId);
+                            break;
+                        case 'moveContractToGroup':
+                            outputChannel.appendLine(`[Sidebar] Move contract to group: ${message.contractPath} -> ${message.targetGroupId}`);
+                            // TODO: Implement contract to group assignment
+                            break;
                     }
                 } catch (error) {
                     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -140,7 +167,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
         const contracts = await this.getContracts();
         const deployments = this.getDeployments();
-        this._webView.updateContent(contracts, deployments);
+        const groupHierarchy = [this._groupService.getGroupHierarchy()];
+        this._webView.updateContent(contracts, deployments, groupHierarchy);
     }
 
     private async getContracts(): Promise<ContractInfo[]> {

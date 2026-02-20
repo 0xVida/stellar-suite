@@ -52,6 +52,80 @@ async function pickNetwork(currentValue: string): Promise<string | undefined> {
     });
 }
 
+async function promptRpcEndpoints(
+    initial: any[],
+    titlePrefix: string
+): Promise<any[] | undefined> {
+    const endpoints = [...initial];
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const items = [
+            ...endpoints.map((ep, i) => ({
+                label: `${ep.name || 'Endpoint'} (${ep.url})`,
+                description: `Priority: ${ep.priority}, ${ep.enabled ? 'Enabled' : 'Disabled'}`,
+                value: i
+            })),
+            { label: '$(add) Add Fallback Endpoint...', value: 'add' },
+            { label: '$(check) Done', value: 'done' }
+        ];
+
+        const selected = await vscode.window.showQuickPick(items, {
+            title: `${titlePrefix}: Fallback RPC Endpoints`,
+            placeHolder: 'Manage fallback endpoints for failover'
+        });
+
+        if (!selected || selected.value === 'done') {
+            break;
+        }
+
+        if (selected.value === 'add') {
+            const url = await vscode.window.showInputBox({
+                prompt: 'Enter RPC URL',
+                validateInput: v => v.match(/^https?:\/\/\S+$/) ? null : 'Invalid URL'
+            });
+            if (url) {
+                const name = await vscode.window.showInputBox({ prompt: 'Enter name (optional)' });
+                const priority = await vscode.window.showInputBox({
+                    prompt: 'Enter priority (lower is higher priority)',
+                    value: '10',
+                    validateInput: v => isNaN(parseInt(v)) ? 'Must be a number' : null
+                });
+
+                endpoints.push({
+                    url,
+                    name: name || undefined,
+                    priority: parseInt(priority || '10'),
+                    enabled: true
+                });
+            }
+        } else if (typeof selected.value === 'number') {
+            const idx = selected.value;
+            const ep = endpoints[idx];
+            const action = await vscode.window.showQuickPick([
+                { label: ep.enabled ? 'Disable' : 'Enable', value: 'toggle' },
+                { label: 'Edit URL', value: 'edit-url' },
+                { label: 'Edit Priority', value: 'edit-priority' },
+                { label: 'Remove', value: 'remove' }
+            ]);
+
+            if (action?.value === 'toggle') {
+                ep.enabled = !ep.enabled;
+            } else if (action?.value === 'edit-url') {
+                const newUrl = await vscode.window.showInputBox({ value: ep.url });
+                if (newUrl) ep.url = newUrl;
+            } else if (action?.value === 'edit-priority') {
+                const newPrio = await vscode.window.showInputBox({ value: String(ep.priority) });
+                if (newPrio) ep.priority = parseInt(newPrio);
+            } else if (action?.value === 'remove') {
+                endpoints.splice(idx, 1);
+            }
+        }
+    }
+
+    return endpoints;
+}
+
 async function promptConfiguration(
     initial: CliConfiguration,
     titlePrefix: string,
@@ -96,12 +170,31 @@ async function promptConfiguration(
     }
 
     const rpcUrl = await vscode.window.showInputBox({
-        title: `${titlePrefix}: RPC URL`,
-        prompt: 'RPC endpoint URL',
+        title: `${titlePrefix}: Primary RPC URL`,
+        prompt: 'Primary RPC endpoint URL',
         value: initial.rpcUrl,
         validateInput: (value: string) => value.trim().length > 0 ? null : 'RPC URL is required.',
     });
     if (rpcUrl === undefined) {
+        return undefined;
+    }
+
+    const rpcEndpoints = await promptRpcEndpoints(initial.rpcEndpoints || [], titlePrefix);
+    if (rpcEndpoints === undefined) {
+        return undefined;
+    }
+
+    const automaticFailover = await vscode.window.showQuickPick(
+        [
+            { label: 'Enabled', value: true },
+            { label: 'Disabled', value: false },
+        ],
+        {
+            title: `${titlePrefix}: Automatic Failover`,
+            placeHolder: 'Enable automatic failover to fallback endpoints?',
+        }
+    );
+    if (automaticFailover === undefined) {
         return undefined;
     }
 
@@ -111,6 +204,8 @@ async function promptConfiguration(
         network,
         useLocalCli: useLocalCli.value,
         rpcUrl,
+        rpcEndpoints,
+        automaticFailover: automaticFailover.value
     });
 
     const validationMessage = formatValidationProblems(config);

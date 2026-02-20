@@ -9,14 +9,16 @@ import { parseFunctionArgs } from '../utils/jsonParser';
 import { formatError } from '../utils/errorFormatter';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 import { SimulationValidationService } from '../services/simulationValidationService';
+import { SimulationHistoryService } from '../services/simulationHistoryService';
+import { RpcFallbackService } from '../services/rpcFallbackService';
 
 export async function simulateTransaction(
     context: vscode.ExtensionContext,
-    sidebarProvider?: SidebarViewProvider
+    sidebarProvider?: SidebarViewProvider,
+    historyService?: SimulationHistoryService,
+    fallbackService?: RpcFallbackService,
+    initialContractId?: string
 ) {
-import { SimulationHistoryService } from '../services/simulationHistoryService';
-
-export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider, historyService?: SimulationHistoryService) {
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
         if (!resolvedCliConfig.validation.valid) {
@@ -48,7 +50,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
 
         const contractId = await vscode.window.showInputBox({
             prompt: 'Enter contract ID',
-            value: defaultContractId
+            value: initialContractId || defaultContractId
         });
 
         if (!contractId) {
@@ -125,12 +127,8 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         ];
 
         if (!validationReport.valid) {
-            const validationErrorMessage = [
-                ...validationReport.errors,
-                ...(validationReport.suggestions.length > 0
-                    ? ['Suggestions:', ...validationReport.suggestions.map(s => `- ${s}`)]
-                    : [])
-            ].join('\n');
+            const validationErrorMessage = validationReport.errors.join('\n');
+            const suggestions = [...(validationReport.suggestions || [])];
 
             const panel = SimulationPanel.createOrShow(context);
             panel.updateResults(
@@ -138,7 +136,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     success: false,
                     error: `Simulation validation failed before execution.\n\n${validationErrorMessage}`,
                     errorSummary: validationReport.errors[0],
-                    errorSuggestions: validationReport.suggestions,
+                    errorSuggestions: suggestions,
                     validationWarnings
                 },
                 contractId,
@@ -216,14 +214,23 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     }
                 } else {
                     progress.report({ increment: 30, message: 'Connecting to RPC...' });
-                    const rpcService = new RpcService(rpcUrl);
 
-                    progress.report({ increment: 50, message: 'Executing simulation...' });
-                    result = await rpcService.simulateTransaction(
-                        contractId,
-                        functionName,
-                        args
-                    );
+                    if (fallbackService) {
+                        progress.report({ increment: 50, message: 'Executing simulation (with failover)...' });
+                        result = await fallbackService.simulateTransaction(
+                            contractId,
+                            functionName,
+                            args
+                        );
+                    } else {
+                        const rpcService = new RpcService(rpcUrl);
+                        progress.report({ increment: 50, message: 'Executing simulation...' });
+                        result = await rpcService.simulateTransaction(
+                            contractId,
+                            functionName,
+                            args
+                        );
+                    }
                 }
 
                 const durationMs = Date.now() - simulationStartTime;

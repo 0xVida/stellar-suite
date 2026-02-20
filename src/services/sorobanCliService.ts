@@ -19,7 +19,7 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     const homeDir = os.homedir();
     const cargoBin = path.join(homeDir, '.cargo', 'bin');
-    
+
     const additionalPaths = [
         cargoBin,
         path.join(homeDir, '.local', 'bin'),
@@ -27,11 +27,11 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
         '/opt/homebrew/bin',
         '/opt/homebrew/sbin'
     ];
-    
+
     const currentPath = env.PATH || env.Path || '';
     env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
     env.Path = env.PATH;
-    
+
     return env;
 }
 
@@ -49,6 +49,7 @@ export interface SimulationResult {
         cpuInstructions?: number;
         memoryBytes?: number;
     };
+    validationWarnings?: string[];
 }
 
 export class SorobanCliService {
@@ -104,7 +105,7 @@ export class SorobanCliService {
 
             // Get environment with proper PATH
             const env = getEnvironmentWithPath();
-            
+
             // Execute the command using execFile with proper argument array
             // This avoids shell injection and properly handles arguments
             const { stdout, stderr } = await execFileAsync(
@@ -135,7 +136,7 @@ export class SorobanCliService {
             // The official CLI outputs structured data, often in JSON format
             try {
                 const output = stdout.trim();
-                
+
                 // Try to parse as JSON first (CLI may output pure JSON)
                 try {
                     const parsed = JSON.parse(output);
@@ -227,7 +228,7 @@ export class SorobanCliService {
     /**
      * Check if Stellar CLI is available.
      * Uses the official CLI version command.
-     * 
+     *
      * @returns True if CLI is accessible
      */
     async isAvailable(): Promise<boolean> {
@@ -242,7 +243,7 @@ export class SorobanCliService {
 
     /**
      * Try to find Stellar CLI in common installation locations.
-     * 
+     *
      * @returns Path to CLI if found, or null
      */
     static async findCliPath(): Promise<string | null> {
@@ -276,7 +277,7 @@ export class SorobanCliService {
 
     /**
      * Set the source identity to use for transactions.
-     * 
+     *
      * @param source - Source identity name (e.g., 'dev')
      */
     setSource(source: string): void {

@@ -222,6 +222,23 @@
           "default": "https://soroban-testnet.stellar.org:443",
           "description": "Stellar RPC endpoint URL for transaction simulation"
         },
+        "stellarSuite.rpcEndpoints": {
+          "type": "array",
+          "default": [
+            {
+              "url": "https://soroban-testnet.stellar.org:443",
+              "priority": 0,
+              "enabled": true,
+              "name": "Default Testnet"
+            }
+          ],
+          "description": "List of Stellar RPC endpoints for fallback and health monitoring."
+        },
+        "stellarSuite.automaticFailover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically failover to the next healthy RPC endpoint if the current one fails."
+        },
         "stellarSuite.useLocalCli": {
           "type": "boolean",
           "default": true,
@@ -241,6 +258,21 @@
           "type": "string",
           "default": "testnet",
           "description": "Network to use for deployments and invocations (testnet, mainnet, etc.)"
+        },
+        "stellarSuite.rpc.rateLimit.maxRetries": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of times to retry an RPC request after hitting a rate limit."
+        },
+        "stellarSuite.rpc.rateLimit.initialBackoffMs": {
+          "type": "number",
+          "default": 1000,
+          "description": "Initial backoff time (in milliseconds) before the first retry."
+        },
+        "stellarSuite.rpc.rateLimit.maxBackoffMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Maximum backoff time (in milliseconds) when rate-limited."
         },
         "stellarSuite.signing.defaultMethod": {
           "type": "string",
@@ -272,10 +304,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth",
+    "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit",
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:cli-streaming": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/streamBuffer.ts src/services/cliOutputStreamingService.ts src/test/cliOutputStreamingService.test.ts && node out-test/test/cliOutputStreamingService.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
+    "test:cli-history": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliHistoryService.ts src/test/cliHistoryService.test.ts && node out-test/test/cliHistoryService.test.js",
     "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
     "test:cargo-metadata": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/test/cargoTomlParser.test.ts && node out-test/test/cargoTomlParser.test.js",
     "test:batch-deps": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/deploymentDependencyResolver.ts src/test/deploymentDependencyResolver.test.ts && node out-test/test/deploymentDependencyResolver.test.js",
@@ -287,15 +320,20 @@
     "test:state-backup": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/stateBackupService.ts src/test/stateBackup.test.ts && node out-test/test/stateBackup.test.js",
     "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js",
     "test:simulation-replay": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationReplay.test.ts && node out-test/test/simulationReplay.test.js",
+    "test:template-detection": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/templateDetection.test.ts && node out-test/test/templateDetection.test.js",
+    "test:soroban-cli": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sorobanCliService.ts src/services/cliHistoryService.ts src/test/sorobanCliService.test.ts && node out-test/test/sorobanCliService.test.js",
+    "test:cli-config": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliConfigurationService.ts src/test/cliConfigurationService.test.ts && node out-test/test/cliConfigurationService.test.js",
+    "test:sidebar-refresh": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sidebarAutoRefreshService.ts src/test/sidebarAutoRefreshService.test.ts && node out-test/test/sidebarAutoRefreshService.test.js",
     "test:transaction-signing": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/transactionSigningService.ts src/test/transactionSigningService.test.ts && node out-test/test/transactionSigningService.test.js",
     "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js",
     "test:resource-profiling": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/resourceProfile.ts src/services/resourceProfilingService.ts src/test/resourceProfiling.test.ts && node out-test/test/resourceProfiling.test.js",
     "test:rpc-auth": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcAuth.ts src/services/rpcAuthService.ts src/test/rpcAuth.test.ts && node out-test/test/rpcAuth.test.js",
     "test:env-variable": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/envVariable.ts src/services/envVariableService.ts src/test/envVariable.test.ts && node out-test/test/envVariable.test.js",
-    "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js"
+    "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js",
+    "test:rpc-rate-limit": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/test/rpcRateLimitService.test.ts && node out-test/test/rpcRateLimitService.test.js"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.33",
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0.0"
   },

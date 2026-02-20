@@ -33,6 +33,8 @@ import {
     ExistingContract,
 } from '../services/sidebarImportService';
 import { ImportSelection, ImportPreview } from '../types/sidebarExport';
+import { CliHistoryService, CliHistoryEntry } from '../services/cliHistoryService';
+import { CliReplayService } from '../services/cliReplayService';
 
 export interface ContractInfo {
     name: string;
@@ -100,7 +102,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _context: vscode.ExtensionContext
+        private readonly _context: vscode.ExtensionContext,
+        private readonly _cliHistoryService?: CliHistoryService,
+        private readonly _cliReplayService?: CliReplayService
     ) {
         this.outputChannel = vscode.window.createOutputChannel('Stellar Suite');
         this.contextMenuService = new ContractContextMenuService(
@@ -519,6 +523,66 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
 
+                // ── CLI history ──────────────────────────────────
+
+                case 'cliHistory:getAll': {
+                    if (!this._cliHistoryService) { break; }
+                    const filterObj = message['filter'] as Record<string, unknown> | undefined;
+                    const entries = this._cliHistoryService.queryHistory(filterObj as any);
+                    this._view?.webview.postMessage({
+                        type: 'cliHistory:data',
+                        entries
+                    });
+                    break;
+                }
+
+                case 'cliHistory:replay': {
+                    const entryId = message['entryId'] as string | undefined;
+                    if (entryId) {
+                        await vscode.commands.executeCommand('stellarSuite.replayCliCommand', entryId);
+                    }
+                    break;
+                }
+
+                case 'cliHistory:modify': {
+                    const entryId = message['entryId'] as string | undefined;
+                    if (entryId) {
+                        await vscode.commands.executeCommand('stellarSuite.modifyAndReplayCliCommand', entryId);
+                    }
+                    break;
+                }
+
+                case 'cliHistory:label': {
+                    if (!this._cliHistoryService) { break; }
+                    const entryId = message['entryId'] as string | undefined;
+                    const label = message['label'] as string | undefined;
+                    if (entryId && label) {
+                        await this._cliHistoryService.setLabel(entryId, label);
+                        this.refreshHistory();
+                    }
+                    break;
+                }
+
+                case 'cliHistory:delete': {
+                    if (!this._cliHistoryService) { break; }
+                    const entryId = message['entryId'] as string | undefined;
+                    if (entryId) {
+                        await this._cliHistoryService.deleteEntry(entryId);
+                        this.refreshHistory();
+                    }
+                    break;
+                }
+
+                case 'cliHistory:clear': {
+                    await vscode.commands.executeCommand('stellarSuite.clearCliHistory');
+                    break;
+                }
+
+                case 'cliHistory:export': {
+                    await vscode.commands.executeCommand('stellarSuite.exportCliHistory');
+                    break;
+                }
+
                 default:
                     this.outputChannel.appendLine(`[Sidebar] Unknown message type: ${message.type}`);
             }
@@ -538,6 +602,15 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const deployments = this._getDeploymentHistory();
         const versionStates = this._getVersionStates(ordered);
         this._view.webview.postMessage({ type: 'update', contracts: ordered, deployments, versionStates });
+        this.refreshHistory();
+    }
+
+    private refreshHistory() {
+        if (!this._view) { return; }
+        if (this._cliHistoryService) {
+            const entries = this._cliHistoryService.queryHistory();
+            this._view.webview.postMessage({ type: 'cliHistory:data', entries });
+        }
     }
 
     /** Expose versionTracker for use by commands (e.g. deployContract). */
@@ -546,12 +619,12 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     }
 
     public showDeploymentResult(deploymentInfo: unknown) {
-        this.outputChannel.appendLine(`[Sidebar] Deployment result: ${JSON.stringify(deploymentInfo)}`);
+        this.outputChannel.appendLine(`[Sidebar] Deployment result: ${JSON.stringify(deploymentInfo)} `);
         this.refresh();
     }
 
     public showSimulationResult(contractId: string, result: unknown) {
-        this.outputChannel.appendLine(`[Sidebar] Simulation result for ${contractId}: ${JSON.stringify(result)}`);
+        this.outputChannel.appendLine(`[Sidebar] Simulation result for ${contractId}: ${JSON.stringify(result)} `);
         this.refresh();
     }
 
@@ -574,7 +647,17 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const contracts: ContractInfo[] = [];
 
         for (const folder of workspaceFolders) {
-            const found = this._findContracts(folder.uri.fsPath, 0, deploymentHistory);
+            const templateConfig = this.templateService.loadTemplateConfiguration(folder.uri.fsPath);
+            if (templateConfig.warnings.length > 0) {
+                for (const warning of templateConfig.warnings) {
+                    this.outputChannel.appendLine(`[Template] ${warning} `);
+                }
+            }
+
+            const found = this._findContracts(folder.uri.fsPath, 0, deploymentHistory, {
+                customTemplates: templateConfig.templates,
+                manualTemplateAssignments,
+            });
             for (const c of found) {
                 if (hidden.includes(c.path)) { continue; }
                 if (aliases[c.path]) { c.name = aliases[c.path]; }
@@ -588,7 +671,15 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         return contracts;
     }
 
-    private _findContracts(rootPath: string, depth = 0, deploymentHistory: DeploymentRecord[] = []): ContractInfo[] {
+    private _findContracts(
+        rootPath: string,
+        depth = 0,
+        deploymentHistory: DeploymentRecord[] = [],
+        options?: {
+            customTemplates?: TemplateDefinition[];
+            manualTemplateAssignments?: Record<string, string>;
+        }
+    ): ContractInfo[] {
         if (depth > 4) { return []; }
         const results: ContractInfo[] = [];
 
@@ -698,611 +789,654 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     // ── HTML ──────────────────────────────────────────────────
 
     private _getHtmlForWebview(_webview: vscode.Webview): string {
-        return /* html */`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
-<title>Stellar Suite</title>
-<style>
-/* ── Reset & Variables ──────────────────────────────────── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+        return /* html */`< !DOCTYPE html >
+    <html lang="en" >
+        <head>
+        <meta charset="UTF-8" >
+            <meta name="viewport" content = "width=device-width, initial-scale=1.0" >
+                <meta http - equiv="Content-Security-Policy" content = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" >
+                    <title>Stellar Suite </title>
+                        <style>
+                        /* ── Reset & Variables ──────────────────────────────────── */
+                        * { box- sizing: border - box; margin: 0; padding: 0; }
 
 :root {
-    --color-bg:           var(--vscode-sideBar-background);
-    --color-fg:           var(--vscode-foreground);
-    --color-muted:        var(--vscode-descriptionForeground);
-    --color-accent:       var(--vscode-textLink-foreground);
-    --color-border:       var(--vscode-panel-border);
-    --color-card:         var(--vscode-editor-background);
-    --color-card-hover:   var(--vscode-list-hoverBackground);
-    --color-btn-bg:       var(--vscode-button-background);
-    --color-btn-fg:       var(--vscode-button-foreground);
-    --color-btn-hover:    var(--vscode-button-hoverBackground);
-    --color-danger:       var(--vscode-errorForeground, #f14c4c);
-    --color-success:      #3fb950;
-    --color-accent-dim:   rgba(88,166,255,0.15);
-    --radius:             6px;
-    --shadow:             0 4px 16px rgba(0,0,0,0.4);
+    --color - bg: var(--vscode - sideBar - background);
+    --color - fg: var(--vscode - foreground);
+    --color - muted: var(--vscode - descriptionForeground);
+    --color - accent: var(--vscode - textLink - foreground);
+    --color - border: var(--vscode - panel - border);
+    --color - card: var(--vscode - editor - background);
+    --color - card - hover: var(--vscode - list - hoverBackground);
+    --color - btn - bg: var(--vscode - button - background);
+    --color - btn - fg: var(--vscode - button - foreground);
+    --color - btn - hover: var(--vscode - button - hoverBackground);
+    --color - danger: var(--vscode - errorForeground, #f14c4c);
+    --color - success:      #3fb950;
+    --color - accent - dim: rgba(88, 166, 255, 0.15);
+    --radius: 6px;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 body {
-    font-family: var(--vscode-font-family);
-    font-size:   var(--vscode-font-size, 13px);
-    color:       var(--color-fg);
-    background:  var(--color-bg);
-    padding:     0;
-    user-select: none;
+    font - family: var(--vscode - font - family);
+    font - size: var(--vscode - font - size, 13px);
+    color: var(--color - fg);
+    background: var(--color - bg);
+    padding: 0;
+    user - select: none;
 }
 
 /* ── Header ─────────────────────────────────────────────── */
 .header {
-    display:         flex;
-    align-items:     center;
-    justify-content: space-between;
-    padding:         12px 14px 8px;
-    gap:             6px;
+    display: flex;
+    align - items: center;
+    justify - content: space - between;
+    padding: 12px 14px 8px;
+    gap: 6px;
 }
 .header h1 {
-    font-size:      13px;
-    font-weight:    700;
-    letter-spacing: 0.5px;
-    flex:           1;
+    font - size: 13px;
+    font - weight: 700;
+    letter - spacing: 0.5px;
+    flex: 1;
 }
-.header-actions { display: flex; gap: 4px; }
-.icon-btn {
-    background:    transparent;
-    border:        none;
-    cursor:        pointer;
-    color:         var(--color-muted);
-    padding:       4px 6px;
-    border-radius: 4px;
-    font-size:     12px;
-    white-space:   nowrap;
+.header - actions { display: flex; gap: 4px; }
+.icon - btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color - muted);
+    padding: 4px 6px;
+    border - radius: 4px;
+    font - size: 12px;
+    white - space: nowrap;
 }
-.icon-btn:hover { color: var(--color-fg); background: var(--color-card-hover); }
+.icon - btn:hover { color: var(--color - fg); background: var(--color - card - hover); }
 
 /* ── Section headings ───────────────────────────────────── */
-.section-label {
-    font-size:      11px;
-    font-weight:    700;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color:          var(--color-muted);
-    padding:        8px 14px 4px;
+.section - label {
+    font - size: 11px;
+    font - weight: 700;
+    letter - spacing: 0.8px;
+    text - transform: uppercase;
+    color: var(--color - muted);
+    padding: 8px 14px 4px;
 }
 
 /* ── Contract cards ─────────────────────────────────────── */
-#contracts-list { padding: 0 8px 8px; }
+#contracts - list { padding: 0 8px 8px; }
 
-.contract-card {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding:       10px 12px;
-    margin-bottom: 6px;
-    cursor:        grab;
-    transition:    border-color 0.15s, background 0.15s, opacity 0.15s, transform 0.15s;
-    position:      relative;
+.contract - card {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: var(--radius);
+    padding: 10px 12px;
+    margin - bottom: 6px;
+    cursor: grab;
+    transition: border - color 0.15s, background 0.15s, opacity 0.15s, transform 0.15s;
+    position: relative;
 }
-.contract-card:hover  { border-color: var(--color-accent); background: var(--color-card-hover); }
-.contract-card:active { cursor: grabbing; }
+.contract - card:hover  { border - color: var(--color - accent); background: var(--color - card - hover); }
+.contract - card:active { cursor: grabbing; }
 
-.contract-card.pinned::before {
-    content:       '';
-    position:      absolute;
+.contract - card.pinned::before {
+    content: '';
+    position: absolute;
     top: 0; left: 0;
-    width:         3px;
-    height:        100%;
-    background:    var(--color-accent);
-    border-radius: var(--radius) 0 0 var(--radius);
+    width: 3px;
+    height: 100 %;
+    background: var(--color - accent);
+    border - radius: var(--radius) 0 0 var(--radius);
 }
 
 /* ── Drag states ─────────────────────────────────────────── */
-.contract-card.dragging {
-    opacity:      0.4;
-    transform:    scale(0.98);
-    cursor:       grabbing;
-    border-style: dashed;
+.contract - card.dragging {
+    opacity: 0.4;
+    transform: scale(0.98);
+    cursor: grabbing;
+    border - style: dashed;
 }
-.contract-card.drop-target-above::before {
-    content:       '';
-    position:      absolute;
-    top:           -4px;
-    left:          0; right: 0;
-    height:        3px;
-    background:    var(--color-accent);
-    border-radius: 2px;
-    width:         100%;
-    z-index:       10;
+.contract - card.drop - target - above::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--color - accent);
+    border - radius: 2px;
+    width: 100 %;
+    z - index: 10;
 }
-.contract-card.drop-target-below::after {
-    content:       '';
-    position:      absolute;
-    bottom:        -4px;
-    left:          0; right: 0;
-    height:        3px;
-    background:    var(--color-accent);
-    border-radius: 2px;
-    z-index:       10;
+.contract - card.drop - target - below::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--color - accent);
+    border - radius: 2px;
+    z - index: 10;
 }
 
-.drag-handle {
-    display:       flex;
-    align-items:   center;
-    color:         var(--color-muted);
-    padding-right: 8px;
-    opacity:       0;
+.drag - handle {
+    display: flex;
+    align - items: center;
+    color: var(--color - muted);
+    padding - right: 8px;
+    opacity: 0;
     transition:    opacity 0.1s;
-    flex-shrink:   0;
-    font-size:     14px;
-    cursor:        grab;
-    line-height:   1;
+    flex - shrink: 0;
+    font - size: 14px;
+    cursor: grab;
+    line - height: 1;
 }
-.contract-card:hover .drag-handle          { opacity: 1; }
-.contract-card.pinned .drag-handle         { opacity: 0.3; cursor: not-allowed; }
+.contract - card: hover.drag - handle          { opacity: 1; }
+.contract - card.pinned.drag - handle         { opacity: 0.3; cursor: not - allowed; }
 
 /* ── Card layout ─────────────────────────────────────────── */
-.card-header {
-    display:       flex;
-    align-items:   center;
-    gap:           6px;
-    margin-bottom: 6px;
+.card - header {
+    display: flex;
+    align - items: center;
+    gap: 6px;
+    margin - bottom: 6px;
 }
-.contract-name {
-    font-weight:   600;
-    color:         var(--color-accent);
-    flex:          1;
-    overflow:      hidden;
-    text-overflow: ellipsis;
-    white-space:   nowrap;
+.contract - name {
+    font - weight: 600;
+    color: var(--color - accent);
+    flex: 1;
+    overflow: hidden;
+    text - overflow: ellipsis;
+    white - space: nowrap;
 }
 
 .badge {
-    font-size:     10px;
-    font-weight:   600;
-    padding:       1px 6px;
-    border-radius: 10px;
-    white-space:   nowrap;
+    font - size: 10px;
+    font - weight: 600;
+    padding: 1px 6px;
+    border - radius: 10px;
+    white - space: nowrap;
 }
-.badge-deployed  { background: rgba(63,185,80,.2);      color: var(--color-success); border: 1px solid rgba(63,185,80,.4); }
-.badge-built     { background: var(--color-accent-dim); color: var(--color-accent);  border: 1px solid rgba(88,166,255,.3); }
-.badge-not-built { background: rgba(255,255,255,.05);   color: var(--color-muted);   border: 1px solid var(--color-border); }
-.badge-version   { background: rgba(180,120,255,.15);   color: #b478ff;              border: 1px solid rgba(180,120,255,.35); }
-.badge-mismatch  { background: rgba(241,76,76,.15);     color: var(--color-danger);  border: 1px solid rgba(241,76,76,.4); }
-.badge-template-token   { background: rgba(60, 170, 255, .16); color: #6ec3ff; border: 1px solid rgba(60, 170, 255, .35); }
-.badge-template-escrow  { background: rgba(255, 164, 66, .14); color: #ffb86a; border: 1px solid rgba(255, 164, 66, .34); }
-.badge-template-voting  { background: rgba(100, 195, 110, .15); color: #72d67d; border: 1px solid rgba(100, 195, 110, .34); }
-.badge-template-custom  { background: rgba(187, 134, 252, .14); color: #c59bff; border: 1px solid rgba(187, 134, 252, .36); }
-.badge-template-unknown { background: rgba(255,255,255,.05); color: var(--color-muted); border: 1px solid var(--color-border); }
+.badge - deployed  { background: rgba(63, 185, 80, .2); color: var(--color - success); border: 1px solid rgba(63, 185, 80, .4); }
+.badge - built     { background: var(--color - accent - dim); color: var(--color - accent); border: 1px solid rgba(88, 166, 255, .3); }
+.badge - not - built { background: rgba(255, 255, 255, .05); color: var(--color - muted); border: 1px solid var(--color - border); }
+.badge - version   { background: rgba(180, 120, 255, .15); color: #b478ff; border: 1px solid rgba(180, 120, 255, .35); }
+.badge - mismatch  { background: rgba(241, 76, 76, .15); color: var(--color - danger); border: 1px solid rgba(241, 76, 76, .4); }
+.badge - template - token   { background: rgba(60, 170, 255, .16); color: #6ec3ff; border: 1px solid rgba(60, 170, 255, .35); }
+.badge - template - escrow  { background: rgba(255, 164, 66, .14); color: #ffb86a; border: 1px solid rgba(255, 164, 66, .34); }
+.badge - template - voting  { background: rgba(100, 195, 110, .15); color: #72d67d; border: 1px solid rgba(100, 195, 110, .34); }
+.badge - template - custom  { background: rgba(187, 134, 252, .14); color: #c59bff; border: 1px solid rgba(187, 134, 252, .36); }
+.badge - template - unknown { background: rgba(255, 255, 255, .05); color: var(--color - muted); border: 1px solid var(--color - border); }
 
-.contract-meta {
-    font-size:     11px;
-    color:         var(--color-muted);
-    margin-bottom: 8px;
-    line-height:   1.5;
+.contract - meta {
+    font - size: 11px;
+    color: var(--color - muted);
+    margin - bottom: 8px;
+    line - height: 1.5;
 }
-.contract-id {
-    font-family:   monospace;
-    font-size:     10px;
-    color:         var(--color-muted);
-    word-break:    break-all;
-    margin-bottom: 6px;
-    background:    rgba(255,255,255,.04);
-    padding:       3px 5px;
-    border-radius: 3px;
+.contract - id {
+    font - family: monospace;
+    font - size: 10px;
+    color: var(--color - muted);
+    word -break: break-all;
+    margin - bottom: 6px;
+    background: rgba(255, 255, 255, .04);
+    padding: 3px 5px;
+    border - radius: 3px;
 }
 
-.card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
-.action-btn {
-    background:    var(--color-btn-bg);
-    color:         var(--color-btn-fg);
-    border:        none;
-    border-radius: 4px;
-    padding:       4px 10px;
-    font-size:     11px;
-    font-weight:   500;
-    cursor:        pointer;
+.card - actions { display: flex; gap: 5px; flex - wrap: wrap; }
+.action - btn {
+    background: var(--color - btn - bg);
+    color: var(--color - btn - fg);
+    border: none;
+    border - radius: 4px;
+    padding: 4px 10px;
+    font - size: 11px;
+    font - weight: 500;
+    cursor: pointer;
     transition:    background 0.15s;
 }
-.action-btn:hover    { background: var(--color-btn-hover); }
-.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.action-btn.secondary {
+.action - btn:hover    { background: var(--color - btn - hover); }
+.action - btn:disabled { opacity: 0.4; cursor: not - allowed; }
+.action - btn.secondary {
     background: transparent;
-    border:     1px solid var(--color-border);
-    color:      var(--color-fg);
+    border: 1px solid var(--color - border);
+    color: var(--color - fg);
 }
-.action-btn.secondary:hover { background: var(--color-card-hover); }
+.action - btn.secondary:hover { background: var(--color - card - hover); }
 
 /* ── Context Menu ───────────────────────────────────────── */
-#context-menu {
-    position:      fixed;
-    background:    var(--vscode-menu-background, var(--color-card));
-    border:        1px solid var(--vscode-menu-border, var(--color-border));
-    border-radius: var(--radius);
-    box-shadow:    var(--shadow);
-    min-width:     200px;
-    max-width:     260px;
-    z-index:       1000;
-    overflow:      hidden;
-    padding:       4px 0;
-    display:       none;
+#context - menu {
+    position: fixed;
+    background: var(--vscode - menu - background, var(--color - card));
+    border: 1px solid var(--vscode - menu - border, var(--color - border));
+    border - radius: var(--radius);
+    box - shadow: var(--shadow);
+    min - width: 200px;
+    max - width: 260px;
+    z - index: 1000;
+    overflow: hidden;
+    padding: 4px 0;
+    display: none;
     animation:     menuIn 0.08s ease;
 }
 @keyframes menuIn {
     from { opacity: 0; transform: scale(0.96) translateY(-4px); }
-    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
-#context-menu.visible { display: block; }
+#context - menu.visible { display: block; }
 
-.menu-item {
-    display:     flex;
-    align-items: center;
-    gap:         8px;
-    padding:     6px 12px;
-    cursor:      pointer;
-    font-size:   13px;
-    color:       var(--vscode-menu-foreground, var(--color-fg));
-    white-space: nowrap;
+.menu - item {
+    display: flex;
+    align - items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font - size: 13px;
+    color: var(--vscode - menu - foreground, var(--color - fg));
+    white - space: nowrap;
 }
-.menu-item:hover             { background: var(--vscode-menu-selectionBackground, var(--color-card-hover)); }
-.menu-item.disabled          { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-.menu-item.destructive       { color: var(--color-danger); }
-.menu-item.destructive:hover { background: rgba(241,76,76,.12); }
-.menu-item .item-icon        { font-size: 14px; width: 16px; text-align: center; flex-shrink: 0; }
-.menu-item .item-label       { flex: 1; }
-.menu-item .item-shortcut    { font-size: 11px; color: var(--color-muted); margin-left: 8px; }
-.menu-separator              { height: 1px; background: var(--color-border); margin: 3px 0; }
+.menu - item:hover             { background: var(--vscode - menu - selectionBackground, var(--color - card - hover)); }
+.menu - item.disabled          { opacity: 0.4; cursor: not - allowed; pointer - events: none; }
+.menu - item.destructive       { color: var(--color - danger); }
+.menu - item.destructive:hover { background: rgba(241, 76, 76, .12); }
+.menu - item.item - icon        { font - size: 14px; width: 16px; text - align: center; flex - shrink: 0; }
+.menu - item.item - label       { flex: 1; }
+.menu - item.item - shortcut    { font - size: 11px; color: var(--color - muted); margin - left: 8px; }
+.menu - separator              { height: 1px; background: var(--color - border); margin: 3px 0; }
 
 /* ── Toast ──────────────────────────────────────────────── */
-#toast-container {
-    position:       fixed;
-    bottom:         16px;
-    left:           50%;
-    transform:      translateX(-50%);
-    z-index:        2000;
-    display:        flex;
-    flex-direction: column;
-    gap:            6px;
-    pointer-events: none;
+#toast - container {
+    position: fixed;
+    bottom: 16px;
+    left: 50 %;
+    transform: translateX(-50 %);
+    z - index: 2000;
+    display: flex;
+    flex - direction: column;
+    gap: 6px;
+    pointer - events: none;
 }
 .toast {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding:       8px 14px;
-    font-size:     12px;
-    display:       flex;
-    align-items:   center;
-    gap:           8px;
-    box-shadow:    var(--shadow);
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: var(--radius);
+    padding: 8px 14px;
+    font - size: 12px;
+    display: flex;
+    align - items: center;
+    gap: 8px;
+    box - shadow: var(--shadow);
     animation:     toastIn 0.2s ease;
-    white-space:   nowrap;
+    white - space: nowrap;
 }
 @keyframes toastIn {
     from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0);   }
+    to   { opacity: 1; transform: translateY(0); }
 }
-.toast.success { border-left: 3px solid var(--color-success); }
-.toast.error   { border-left: 3px solid var(--color-danger);  }
-.toast.info    { border-left: 3px solid var(--color-accent);  }
+.toast.success { border - left: 3px solid var(--color - success); }
+.toast.error   { border - left: 3px solid var(--color - danger); }
+.toast.info    { border - left: 3px solid var(--color - accent); }
 
 /* ── Import Preview Modal ──────────────────────────────────── */
-#import-modal-overlay {
-    position:   fixed;
-    inset:      0;
-    background: rgba(0,0,0,0.55);
-    z-index:    3000;
-    display:    none;
-    align-items: center;
-    justify-content: center;
+#import - modal - overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z - index: 3000;
+    display: none;
+    align - items: center;
+    justify - content: center;
 }
-#import-modal-overlay.visible { display: flex; }
+#import - modal - overlay.visible { display: flex; }
 
-#import-modal {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
-    border-radius: 8px;
-    box-shadow:    var(--shadow);
-    width:         320px;
-    max-height:    90vh;
-    display:       flex;
-    flex-direction: column;
-    overflow:      hidden;
+#import - modal {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: 8px;
+    box - shadow: var(--shadow);
+    width: 320px;
+    max - height: 90vh;
+    display: flex;
+    flex - direction: column;
+    overflow: hidden;
     animation:     menuIn 0.12s ease;
 }
-.import-modal-header {
-    display:        flex;
-    align-items:    center;
-    justify-content: space-between;
-    padding:        10px 14px;
-    border-bottom:  1px solid var(--color-border);
-    font-weight:    700;
-    font-size:      13px;
+.import -modal - header {
+    display: flex;
+    align - items: center;
+    justify - content: space - between;
+    padding: 10px 14px;
+    border - bottom: 1px solid var(--color - border);
+    font - weight: 700;
+    font - size: 13px;
 }
-.import-modal-body {
-    flex:       1;
-    overflow-y: auto;
-    padding:    10px 14px;
-    font-size:  12px;
+.import -modal - body {
+    flex: 1;
+    overflow - y: auto;
+    padding: 10px 14px;
+    font - size: 12px;
 }
-.import-modal-footer {
-    display:        flex;
-    justify-content: flex-end;
-    gap:            8px;
-    padding:        10px 14px;
-    border-top:     1px solid var(--color-border);
+.import -modal - footer {
+    display: flex;
+    justify - content: flex - end;
+    gap: 8px;
+    padding: 10px 14px;
+    border - top: 1px solid var(--color - border);
 }
-.import-section { margin-bottom: 10px; }
-.import-section-title {
-    font-weight:    700;
-    font-size:      11px;
-    color:          var(--color-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom:  4px;
+.import -section { margin - bottom: 10px; }
+.import -section - title {
+    font - weight: 700;
+    font - size: 11px;
+    color: var(--color - muted);
+    text - transform: uppercase;
+    letter - spacing: 0.5px;
+    margin - bottom: 4px;
 }
-.import-item {
-    display:       flex;
-    align-items:   center;
-    gap:           6px;
-    padding:       4px 0;
-    font-size:     12px;
+.import -item {
+    display: flex;
+    align - items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font - size: 12px;
 }
-.import-item label { flex: 1; cursor: pointer; }
-.import-item select {
-    font-size:     11px;
-    background:    var(--color-bg);
-    color:         var(--color-fg);
-    border:        1px solid var(--color-border);
-    border-radius: 4px;
-    padding:       2px 4px;
+.import -item label { flex: 1; cursor: pointer; }
+.import -item select {
+    font - size: 11px;
+    background: var(--color - bg);
+    color: var(--color - fg);
+    border: 1px solid var(--color - border);
+    border - radius: 4px;
+    padding: 2px 4px;
 }
-.import-stat {
-    display:     flex;
-    justify-content: space-between;
-    padding:     2px 0;
-    color:       var(--color-muted);
+.import -stat {
+    display: flex;
+    justify - content: space - between;
+    padding: 2px 0;
+    color: var(--color - muted);
 }
-.import-stat .val { color: var(--color-fg); font-weight: 600; }
-.import-error-box {
-    background:    rgba(241,76,76,.1);
-    border:        1px solid rgba(241,76,76,.4);
-    border-radius: var(--radius);
-    padding:       6px 10px;
-    font-size:     11px;
-    color:         var(--color-danger);
-    margin-bottom: 8px;
+.import -stat.val { color: var(--color - fg); font - weight: 600; }
+.import -error - box {
+    background: rgba(241, 76, 76, .1);
+    border: 1px solid rgba(241, 76, 76, .4);
+    border - radius: var(--radius);
+    padding: 6px 10px;
+    font - size: 11px;
+    color: var(--color - danger);
+    margin - bottom: 8px;
 }
-.import-warning-box {
-    background:    rgba(255,200,50,.1);
-    border:        1px solid rgba(255,200,50,.4);
-    border-radius: var(--radius);
-    padding:       6px 10px;
-    font-size:     11px;
-    color:         #d4a017;
-    margin-bottom: 8px;
+.import -warning - box {
+    background: rgba(255, 200, 50, .1);
+    border: 1px solid rgba(255, 200, 50, .4);
+    border - radius: var(--radius);
+    padding: 6px 10px;
+    font - size: 11px;
+    color: #d4a017;
+    margin - bottom: 8px;
 }
 
 /* ── Version history panel ──────────────────────────────── */
-#version-panel {
-    position:      fixed;
-    top:           0; right: 0; bottom: 0;
-    width:         280px;
-    background:    var(--color-card);
-    border-left:   1px solid var(--color-border);
-    box-shadow:    var(--shadow);
-    z-index:       900;
-    display:       none;
-    flex-direction: column;
-    overflow:      hidden;
+#version - panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 280px;
+    background: var(--color - card);
+    border - left: 1px solid var(--color - border);
+    box - shadow: var(--shadow);
+    z - index: 900;
+    display: none;
+    flex - direction: column;
+    overflow: hidden;
 }
-#version-panel.visible { display: flex; }
-.version-panel-header {
-    display:         flex;
-    align-items:     center;
-    justify-content: space-between;
-    padding:         10px 12px;
-    background:      var(--color-bg);
-    border-bottom:   1px solid var(--color-border);
-    font-size:       12px;
-    font-weight:     700;
+#version - panel.visible { display: flex; }
+.version - panel - header {
+    display: flex;
+    align - items: center;
+    justify - content: space - between;
+    padding: 10px 12px;
+    background: var(--color - bg);
+    border - bottom: 1px solid var(--color - border);
+    font - size: 12px;
+    font - weight: 700;
 }
-.version-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
-.version-entry {
-    background:    var(--color-bg);
-    border:        1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding:       7px 10px;
-    margin-bottom: 5px;
-    font-size:     11px;
+.version - panel - body { flex: 1; overflow - y: auto; padding: 8px; }
+.version - entry {
+    background: var(--color - bg);
+    border: 1px solid var(--color - border);
+    border - radius: var(--radius);
+    padding: 7px 10px;
+    margin - bottom: 5px;
+    font - size: 11px;
 }
-.version-entry-ver  { font-weight: 700; color: var(--color-accent); margin-bottom: 2px; }
-.version-entry-meta { color: var(--color-muted); margin-bottom: 3px; }
-.version-entry-tag  { font-size: 10px; color: #b478ff; margin-bottom: 3px; }
-.version-entry.deployed { border-left: 3px solid var(--color-success); }
-.version-mismatch-banner {
-    background:    rgba(241,76,76,.1);
-    border:        1px solid rgba(241,76,76,.4);
-    border-radius: var(--radius);
-    padding:       6px 10px;
-    font-size:     11px;
-    color:         var(--color-danger);
-    margin-bottom: 8px;
+.version - entry - ver  { font - weight: 700; color: var(--color - accent); margin - bottom: 2px; }
+.version - entry - meta { color: var(--color - muted); margin - bottom: 3px; }
+.version - entry - tag  { font - size: 10px; color: #b478ff; margin - bottom: 3px; }
+.version - entry.deployed { border - left: 3px solid var(--color - success); }
+.version - mismatch - banner {
+    background: rgba(241, 76, 76, .1);
+    border: 1px solid rgba(241, 76, 76, .4);
+    border - radius: var(--radius);
+    padding: 6px 10px;
+    font - size: 11px;
+    color: var(--color - danger);
+    margin - bottom: 8px;
 }
 
 /* ── Deployments ────────────────────────────────────────── */
-#deployments-list { padding: 0 8px 16px; }
-.deployment-card {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding:       8px 12px;
-    margin-bottom: 5px;
-    font-size:     12px;
+#deployments - list { padding: 0 8px 16px; }
+.deployment - card {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: var(--radius);
+    padding: 8px 12px;
+    margin - bottom: 5px;
+    font - size: 12px;
 }
-.deployment-id   { font-family: monospace; font-size: 10px; color: var(--color-muted); word-break: break-all; }
-.deployment-meta { color: var(--color-muted); margin-top: 2px; }
+.deployment - id   { font - family: monospace; font - size: 10px; color: var(--color - muted); word -break: break-all; }
+.deployment - meta { color: var(--color - muted); margin - top: 2px; }
 
 /* ── Empty state ────────────────────────────────────────── */
-.empty-state {
-    text-align:  center;
-    padding:     28px 16px;
-    color:       var(--color-muted);
-    font-size:   12px;
-    line-height: 1.6;
+.empty - state {
+    text - align: center;
+    padding: 28px 16px;
+    color: var(--color - muted);
+    font - size: 12px;
+    line - height: 1.6;
 }
-.empty-state .emoji { font-size: 28px; margin-bottom: 8px; }
+.empty - state.emoji { font - size: 28px; margin - bottom: 8px; }
 
 /* ── Simulation History ────────────────────────────────── */
-#sim-history-list { padding: 0 8px 16px; }
-.sim-history-stats {
-    font-size:     11px;
-    color:         var(--color-muted);
-    padding:       4px 14px 6px;
-    display:       flex;
-    gap:           10px;
-    flex-wrap:     wrap;
+#sim - history - list { padding: 0 8px 16px; }
+.sim - history - stats {
+    font - size: 11px;
+    color: var(--color - muted);
+    padding: 4px 14px 6px;
+    display: flex;
+    gap: 10px;
+    flex - wrap: wrap;
 }
-.sim-history-stats .stat-value { font-weight: 600; color: var(--color-fg); }
-.sim-history-card {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
+.sim - history - stats.stat - value { font - weight: 600; color: var(--color - fg); }
+.sim - history - card {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: var(--radius);
+    padding: 8px 12px;
+    margin - bottom: 5px;
+    font - size: 12px;
+    transition: border - color 0.15s;
+}
+.sim - history - card:hover { border - color: var(--color - accent); }
+.sim - history - card.success { border - left: 3px solid var(--color - success); }
+.sim - history - card.failure { border - left: 3px solid var(--color - danger); }
+.sim - history - fn   { font - weight: 600; color: var(--color - accent); }
+.sim - history - meta { font - size: 10px; color: var(--color - muted); margin - top: 2px; }
+.sim - history - label { font - size: 10px; color: #b478ff; margin - top: 2px; }
+.sim - history - error { font - size: 10px; color: var(--color - danger); margin - top: 2px; overflow: hidden; text - overflow: ellipsis; white - space: nowrap; max - width: 100 %; }
+.sim - history - actions { display: flex; gap: 4px; margin - top: 5px; }
+.sim - history - filter {
+    padding: 4px 8px;
+    display: flex;
+    gap: 4px;
+    align - items: center;
+}
+.sim - history - filter input {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: 3px;
+    color: var(--color - fg);
+    font - size: 11px;
+    padding: 3px 6px;
+    flex: 1;
+    outline: none;
+    font - family: inherit;
+}
+.sim - history - filter input:focus { border - color: var(--color - accent); }
+.sim - history - filter select {
+    background: var(--color - card);
+    border: 1px solid var(--color - border);
+    border - radius: 3px;
+    color: var(--color - fg);
+    font - size: 11px;
+    padding: 3px 4px;
+    outline: none;
+    font - family: inherit;
+}
+/* ── CLI History ────────────────────────────────────────── */
+#cli-history-list { padding: 0 8px 16px; }
+.cli-history-card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    padding:       8px 12px;
+    padding: 8px 12px;
     margin-bottom: 5px;
-    font-size:     12px;
-    transition:    border-color 0.15s;
+    font-size: 12px;
+    transition: border-color 0.15s;
 }
-.sim-history-card:hover { border-color: var(--color-accent); }
-.sim-history-card.success { border-left: 3px solid var(--color-success); }
-.sim-history-card.failure { border-left: 3px solid var(--color-danger); }
-.sim-history-fn   { font-weight: 600; color: var(--color-accent); }
-.sim-history-meta { font-size: 10px; color: var(--color-muted); margin-top: 2px; }
-.sim-history-label { font-size: 10px; color: #b478ff; margin-top: 2px; }
-.sim-history-error { font-size: 10px; color: var(--color-danger); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.sim-history-actions { display: flex; gap: 4px; margin-top: 5px; }
-.sim-history-filter {
-    padding:       4px 8px;
-    display:       flex;
-    gap:           4px;
-    align-items:   center;
-}
-.sim-history-filter input {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
+.cli-history-card:hover { border-color: var(--color-accent); }
+.cli-history-card.success { border-left: 3px solid var(--color-success); }
+.cli-history-card.failure { border-left: 3px solid var(--color-danger); }
+.cli-history-cmd   { font-family: monospace; font-weight: 600; color: var(--color-accent); word-break: break-all; margin-bottom: 4px; }
+.cli-history-meta { font-size: 10px; color: var(--color-muted); margin-top: 2px; }
+.cli-history-label { font-size: 10px; color: #b478ff; margin-top: 2px; }
+.cli-history-output {
+    font-family: monospace;
+    font-size: 9px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
     border-radius: 3px;
-    color:         var(--color-fg);
-    font-size:     11px;
-    padding:       3px 6px;
-    flex:          1;
-    outline:       none;
-    font-family:   inherit;
+    margin-top: 6px;
+    max-height: 60px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    border: 1px solid var(--color-border);
 }
-.sim-history-filter input:focus { border-color: var(--color-accent); }
-.sim-history-filter select {
-    background:    var(--color-card);
-    border:        1px solid var(--color-border);
-    border-radius: 3px;
-    color:         var(--color-fg);
-    font-size:     11px;
-    padding:       3px 4px;
-    outline:       none;
-    font-family:   inherit;
-}
+.cli-history-actions { display: flex; gap: 4px; margin-top: 6px; }
 </style>
-</head>
-<body>
+    </head>
+    < body >
 
-<!-- ── Header ─────────────────────────────────────────────── -->
-<div class="header">
-    <h1>Stellar Suite</h1>
-    <div class="header-actions">
-        <button class="icon-btn" id="export-btn"      title="Export contracts">📤 Export</button>
-        <button class="icon-btn" id="import-btn"      title="Import contracts">📥 Import</button>
-        <button class="icon-btn" id="reset-order-btn" title="Reset contract order to default">↺ Reset order</button>
-        <button class="icon-btn" id="refresh-btn"     title="Refresh contracts">↻ Refresh</button>
-    </div>
-</div>
+                                    < !-- ── Header ─────────────────────────────────────────────── -->
+                                        <div class="header" >
+                                            <h1>Stellar Suite </h1>
+                                                < div class="header-actions" >
+                                                    <button class="icon-btn" id = "export-btn"      title = "Export contracts" >📤 Export </button>
+                                                        < button class="icon-btn" id = "import-btn"      title = "Import contracts" >📥 Import </button>
+                                                            < button class="icon-btn" id = "reset-order-btn" title = "Reset contract order to default" >↺ Reset order </button>
+                                                                < button class="icon-btn" id = "refresh-btn"     title = "Refresh contracts" >↻ Refresh </button>
+                                                                    </div>
+                                                                    </div>
 
-<!-- ── Contracts section ─────────────────────────────────── -->
-<div class="section-label">Contracts</div>
-<div id="contracts-list">
-    <div class="empty-state"><div class="emoji">🔍</div>Scanning for contracts…</div>
-</div>
+                                                                    < !-- ── Contracts section ─────────────────────────────────── -->
+                                                                        <div class="section-label" > Contracts </div>
+                                                                            < div id = "contracts-list" >
+                                                                                <div class="empty-state" > <div class="emoji" >🔍</div>Scanning for contracts…</div >
+                                                                                    </div>
 
-<!-- ── Deployments section ───────────────────────────────── -->
-<div class="section-label">Deployments</div>
-<div id="deployments-list">
-    <div class="empty-state" style="padding:12px 16px">No deployments recorded.</div>
-</div>
+                                                                                    < !-- ── Deployments section ───────────────────────────────── -->
+                                                                                        <div class="section-label" > Deployments </div>
+                                                                                            < div id = "deployments-list" >
+                                                                                                <div class="empty-state" style = "padding:12px 16px" > No deployments recorded.</div>
+                                                                                                    </div>
 
-<!-- ── Simulation History section ──────────────────────── -->
-<div class="section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
-    Simulations
-    <span style="display:flex;gap:4px">
-        <button class="icon-btn" id="sim-history-load-btn" title="Load simulation history" style="font-size:11px;padding:2px 5px">↻</button>
-        <button class="icon-btn" id="sim-history-export-btn" title="Export simulation history" style="font-size:11px;padding:2px 5px">⤓</button>
-        <button class="icon-btn" id="sim-history-clear-btn" title="Clear simulation history" style="font-size:11px;padding:2px 5px;color:var(--color-danger)">✕</button>
-    </span>
-</div>
-<div class="sim-history-filter" id="sim-history-filter">
-    <input type="text" id="sim-history-search" placeholder="Search simulations…" />
-    <select id="sim-history-outcome-filter">
-        <option value="">All</option>
-        <option value="success">Success</option>
-        <option value="failure">Failure</option>
-    </select>
-</div>
-<div id="sim-history-stats-bar" class="sim-history-stats"></div>
-<div id="sim-history-list">
-    <div class="empty-state" style="padding:12px 16px">Click ↻ to load simulation history.</div>
-</div>
+                                                                                                    <!-- ── CLI History section ──────────────────────── -->
+                                                                                                    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
+                                                                                                        CLI History
+                                                                                                        <span style="display:flex;gap:4px">
+                                                                                                            <button class="icon-btn" id="cli-history-load-btn" title="Refresh history" style="font-size:11px;padding:2px 5px">↻</button>
+                                                                                                            <button class="icon-btn" id="cli-history-export-btn" title="Export history" style="font-size:11px;padding:2px 5px">⤓</button>
+                                                                                                            <button class="icon-btn" id="cli-history-clear-btn" title="Clear history" style="font-size:11px;padding:2px 5px;color:var(--color-danger)">✕</button>
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                    <div id="cli-history-list">
+                                                                                                        <div class="empty-state" style="padding:12px 16px">No history records found.</div>
+                                                                                                    </div>
 
-<!-- ── Version History Panel ────────────────────────────── -->
-<div id="version-panel" role="complementary" aria-label="Version history">
-    <div class="version-panel-header">
-        <span id="version-panel-title">Version History</span>
-        <button class="icon-btn" onclick="hideVersionPanel()" title="Close">✕</button>
-    </div>
-    <div class="version-panel-body" id="version-panel-body"></div>
-</div>
+                                                                                                    < !-- ── Simulation History section ──────────────────────── -->
+                                                                                                        <div class="section-label" style = "display:flex;align-items:center;justify-content:space-between;padding-right:14px" >
+                                                                                                            Simulations
+                                                                                                            < span style = "display:flex;gap:4px" >
+                                                                                                                <button class="icon-btn" id = "sim-history-load-btn" title = "Refresh simulations" style = "font-size:11px;padding:2px 5px" >↻</button>
+                                                                                                                    < button class="icon-btn" id = "sim-history-export-btn" title = "Export simulations" style = "font-size:11px;padding:2px 5px" >⤓</button>
+                                                                                                                        < button class="icon-btn" id = "sim-history-clear-btn" title = "Clear simulations" style = "font-size:11px;padding:2px 5px;color:var(--color-danger)" >✕</button>
+                                                                                                                            </span>
+                                                                                                                            </div>
+                                                                                            < div class="sim-history-filter" id = "sim-history-filter" >
+                                                                                                <input type="text" id = "sim-history-search" placeholder = "Search simulations…" />
+                                                                                                    <select id="sim-history-outcome-filter" >
+                                                                                                        <option value="" > All </option>
+                                                                                                            < option value = "success" > Success </option>
+                                                                                                                < option value = "failure" > Failure </option>
+                                                                                                                    </select>
+                                                                                                                    </div>
+                                                                                                                    < div id = "sim-history-stats-bar" class="sim-history-stats" > </div>
+                                                                                                                        < div id = "sim-history-list" >
+                                                                                                                            <div class="empty-state" style = "padding:12px 16px" > Click ↻ to load simulation history.</div>
+                                                                                                                                </div>
 
-<!-- ── Context Menu ──────────────────────────────────────── -->
-<div id="context-menu" role="menu" aria-label="Contract options"></div>
+                                                                                                                                < !-- ── Version History Panel ────────────────────────────── -->
+                                                                                                                                    <div id="version-panel" role = "complementary" aria - label="Version history" >
+                                                                                                                                        <div class="version-panel-header" >
+                                                                                                                                            <span id="version-panel-title" > Version History </span>
+                                                                                                                                                < button class="icon-btn" onclick = "hideVersionPanel()" title = "Close" >✕</button>
+                                                                                                                                                    </div>
+                                                                                                                                                    < div class="version-panel-body" id = "version-panel-body" > </div>
+                                                                                                                                                        </div>
 
-<!-- ── Toast Container ──────────────────────────────────── -->
-<div id="toast-container" aria-live="polite"></div>
+                                                                                                                                                        < !-- ── Context Menu ──────────────────────────────────────── -->
+                                                                                                                                                            <div id="context-menu" role = "menu" aria - label="Contract options" > </div>
 
-<!-- ── Import Preview Modal ────────────────────────────────── -->
-<div id="import-modal-overlay">
-    <div id="import-modal">
-        <div class="import-modal-header">
-            <span>Import Preview</span>
-            <button class="icon-btn" id="import-modal-close" title="Cancel">✕</button>
-        </div>
-        <div class="import-modal-body" id="import-modal-body"></div>
-        <div class="import-modal-footer">
-            <button class="action-btn secondary" id="import-cancel-btn">Cancel</button>
-            <button class="action-btn" id="import-apply-btn">Apply Import</button>
-        </div>
-    </div>
-</div>
+                                                                                                                                                                < !-- ── Toast Container ──────────────────────────────────── -->
+                                                                                                                                                                    <div id="toast-container" aria - live="polite" > </div>
 
-<script>
+                                                                                                                                                                        < !-- ── Import Preview Modal ────────────────────────────────── -->
+                                                                                                                                                                            <div id="import-modal-overlay" >
+                                                                                                                                                                                <div id="import-modal" >
+                                                                                                                                                                                    <div class="import-modal-header" >
+                                                                                                                                                                                        <span>Import Preview </span>
+                                                                                                                                                                                            < button class="icon-btn" id = "import-modal-close" title = "Cancel" >✕</button>
+                                                                                                                                                                                                </div>
+                                                                                                                                                                                                < div class="import-modal-body" id = "import-modal-body" > </div>
+                                                                                                                                                                                                    < div class="import-modal-footer" >
+                                                                                                                                                                                                        <button class="action-btn secondary" id = "import-cancel-btn" > Cancel </button>
+                                                                                                                                                                                                            < button class="action-btn" id = "import-apply-btn" > Apply Import </button>
+                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                </div>
+
+                                                                                                                                                                                                                <script>
 const vscode = acquireVsCodeApi();
 
 // ── State ─────────────────────────────────────────────────────
-let _contracts          = [];
-let _versionStates      = [];
+let _contracts = [];
+let _versionStates = [];
 let _activeMenuContract = null;
-let _dragPath           = null;
-let _dragEl             = null;
-let _dropTargetEl       = null;
+let _dragPath = null;
+let _dragEl = null;
+let _dropTargetEl = null;
 
 // ── Import state ──────────────────────────────────────────────
-let _importPreview   = null;
+let _importPreview = null;
 let _importValidation = null;
 
 // ── Message receiver ──────────────────────────────────────────
@@ -1310,8 +1444,8 @@ window.addEventListener('message', (event) => {
     const msg = event.data;
     switch (msg.type) {
         case 'update':
-            _contracts     = msg.contracts     || [];
-            _versionStates = msg.versionStates  || [];
+            _contracts = msg.contracts || [];
+            _versionStates = msg.versionStates || [];
             renderContracts(_contracts);
             renderDeployments(msg.deployments || []);
             renderVersionMismatches(_versionStates);
@@ -1328,9 +1462,12 @@ window.addEventListener('message', (event) => {
         case 'simHistory:data':
             renderSimulationHistory(msg.entries || [], msg.stats || {});
             break;
+        case 'cliHistory:data':
+            renderCliHistory(msg.entries || []);
+            break;
         case 'import:preview':
             _importValidation = msg.validation;
-            _importPreview    = msg.validation.preview;
+            _importPreview = msg.validation.preview;
             showImportPreviewModal(msg.validation);
             break;
     }
@@ -1823,6 +1960,74 @@ document.getElementById('sim-history-search').addEventListener('input', (e) => {
 document.getElementById('sim-history-outcome-filter').addEventListener('change', () => {
     loadSimulationHistory();
 });
+
+// ── CLI history ───────────────────────────────────────────────
+
+document.getElementById('cli-history-load-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'cliHistory:getAll' });
+});
+
+document.getElementById('cli-history-export-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'cliHistory:export' });
+});
+
+document.getElementById('cli-history-clear-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'cliHistory:clear' });
+});
+
+function renderCliHistory(entries) {
+    var listEl = document.getElementById('cli-history-list');
+    if (!entries.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:12px 16px">No CLI history found.</div>';
+        return;
+    }
+
+    listEl.innerHTML = entries.map(function(e) {
+        var icon = e.outcome === 'success' ? '✓' : '✕';
+        var duration = e.durationMs ? ' \u00b7 ' + e.durationMs + 'ms' : '';
+        var command = e.args && e.args.length > 0 ? e.command + ' ' + e.args.join(' ') : e.command;
+
+        var html = '<div class="cli-history-card ' + esc(e.outcome) + '" data-entry-id="' + esc(e.id) + '">';
+        html += '<div class="cli-history-cmd">' + icon + ' ' + esc(command) + '</div>';
+        html += '<div class="cli-history-meta">' + esc(e.source || 'manual') + ' \u00b7 ' + new Date(e.timestamp).toLocaleString() + duration + '</div>';
+
+        if (e.label) {
+            html += '<div class="cli-history-label">🏷 ' + esc(e.label) + '</div>';
+        }
+
+        if (e.outcome === 'failure' && e.stderr) {
+            html += '<div class="cli-history-output">' + esc(e.stderr) + '</div>';
+        } else if (e.stdout) {
+            html += '<div class="cli-history-output">' + esc(e.stdout) + '</div>';
+        }
+
+        html += '<div class="cli-history-actions">';
+        html += '<button class="action-btn" style="font-size:10px;padding:2px 7px" onclick="replayCliCommand(\'' + esc(e.id) + '\')">Replay</button>';
+        html += '<button class="action-btn secondary" style="font-size:10px;padding:2px 7px" onclick="modifyCliCommand(\'' + esc(e.id) + '\')">Modify</button>';
+        html += '<button class="action-btn secondary" style="font-size:10px;padding:2px 7px" onclick="promptLabelCli(\'' + esc(e.id) + '\')">Label</button>';
+        html += '<button class="action-btn secondary" style="font-size:10px;padding:2px 7px;color:var(--color-danger)" onclick="deleteCliEntry(\'' + esc(e.id) + '\')">Delete</button>';
+        html += '</div></div>';
+        return html;
+    }).join('');
+}
+
+function replayCliCommand(entryId) {
+    vscode.postMessage({ type: 'cliHistory:replay', entryId });
+}
+
+function modifyCliCommand(entryId) {
+    vscode.postMessage({ type: 'cliHistory:modify', entryId });
+}
+
+function promptLabelCli(entryId) {
+    const label = prompt('Enter a label for this CLI command:');
+    if (!label || !label.trim()) { return; }
+    vscode.postMessage({ type: 'cliHistory:label', entryId, label: label.trim() });
+}
+
+function deleteCliEntry(entryId) {
+    vscode.postMessage({ type: 'cliHistory:delete', entryId });
+}
 
 function loadSimulationHistory() {
     const searchText = document.getElementById('sim-history-search').value.trim();

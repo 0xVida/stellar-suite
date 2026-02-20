@@ -12,10 +12,11 @@ import { registerSyncCommands } from "./commands/syncCommands";
 import { registerSimulationHistoryCommands } from "./commands/simulationHistoryCommands";
 import { registerBackupCommands } from "./commands/backupCommands";
 import { registerReplayCommands } from "./commands/replayCommands";
+import { registerRetryCommands } from "./commands/retryCommands";
+import { registerCliHistoryCommands } from "./commands/cliHistoryCommands";
 import { registerResourceProfilingCommands } from "./commands/resourceProfilingCommands";
 import { registerRpcAuthCommands } from "./commands/rpcAuthCommands";
 import { registerEnvVariableCommands } from "./commands/envVariableCommands";
-import { registerRetryCommands } from "./commands/retryCommands";
 import { registerRpcLoggingCommands } from "./commands/rpcLoggingCommands";
 
 // Services
@@ -23,7 +24,6 @@ import { ContractGroupService } from "./services/contractGroupService";
 import { ContractMetadataService } from "./services/contractMetadataService";
 import { ContractVersionTracker } from "./services/contractVersionTracker";
 import { WorkspaceStateSyncService } from "./services/workspaceStateSyncService";
-import { WorkspaceStateEncryptionService } from "./services/workspaceStateEncryptionService";
 import { RpcHealthMonitor } from "./services/rpcHealthMonitor";
 import { RpcLogger } from "./services/rpcLogger";
 import { SimulationHistoryService } from "./services/simulationHistoryService";
@@ -38,6 +38,8 @@ import { EnvVariableService } from "./services/envVariableService";
 import { RpcFallbackService } from "./services/rpcFallbackService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
+import { CliHistoryService } from "./services/cliHistoryService";
+import { CliReplayService } from "./services/cliReplayService";
 
 // UI
 import { SidebarViewProvider } from "./ui/sidebarView";
@@ -46,174 +48,182 @@ import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
 
+// Global service instances
 let sidebarProvider: SidebarViewProvider | undefined;
 let metadataService: ContractMetadataService | undefined;
 let versionTracker: ContractVersionTracker | undefined;
 let syncService: WorkspaceStateSyncService | undefined;
 let syncStatusProvider: SyncStatusProvider | undefined;
-
 let healthMonitor: RpcHealthMonitor | undefined;
 let healthStatusBar: RpcHealthStatusBar | undefined;
-
 let rpcLogger: RpcLogger | undefined;
 let simulationHistoryService: SimulationHistoryService | undefined;
 let compilationMonitor: CompilationStatusMonitor | undefined;
 let compilationStatusProvider: CompilationStatusProvider | undefined;
 let backupService: StateBackupService | undefined;
-let replayService: SimulationReplayService | undefined;
+let simulationReplayService: SimulationReplayService | undefined;
+let retryService: RpcRetryService | undefined;
+let retryStatusBar: RetryStatusBarItem | undefined;
+let cliHistoryService: CliHistoryService | undefined;
+let cliReplayService: CliReplayService | undefined;
 let resourceProfilingService: ResourceProfilingService | undefined;
 let rpcAuthService: RpcAuthService | undefined;
 let envVariableService: EnvVariableService | undefined;
 let fallbackService: RpcFallbackService | undefined;
-let retryService: RpcRetryService | undefined;
-let retryStatusBar: RetryStatusBarItem | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-    const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
-    outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
+  const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
+  outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
 
-    try {
-        // 1. Initialize core services
-        simulationHistoryService = new SimulationHistoryService(context, outputChannel);
-        outputChannel.appendLine('[Extension] Simulation history service initialized');
+  try {
+    // 1. Initialize core services
+    simulationHistoryService = new SimulationHistoryService(context, outputChannel);
+    outputChannel.appendLine('[Extension] Simulation history service initialized');
 
-        // 2. Initialize Health, Retry and Fallback services
-        healthMonitor = new RpcHealthMonitor(context, {
-            checkInterval: 30000,
-            failureThreshold: 3,
-            timeout: 5000,
-            maxHistory: 100
-        });
-        healthStatusBar = new RpcHealthStatusBar(healthMonitor);
+    // 2. Initialize Health, Retry and Fallback services
+    healthMonitor = new RpcHealthMonitor(context, {
+      checkInterval: 30000,
+      failureThreshold: 3,
+      timeout: 5000,
+      maxHistory: 100
+    });
+    healthStatusBar = new RpcHealthStatusBar(healthMonitor);
 
-        retryService = new RpcRetryService(
-            { resetTimeout: 60000, consecutiveFailuresThreshold: 3 },
-            { maxAttempts: 3, initialDelayMs: 100, maxDelayMs: 5000 },
-            false
-        );
-        retryStatusBar = new RetryStatusBarItem(retryService, 5000);
-        registerRetryCommands(context, retryService!);
+    retryService = new RpcRetryService(
+      { resetTimeout: 60000, consecutiveFailuresThreshold: 3 },
+      { maxAttempts: 3, initialDelayMs: 100, maxDelayMs: 5000 },
+      false
+    );
+    retryStatusBar = new RetryStatusBarItem(retryService, 5000);
+    registerRetryCommands(context, retryService!);
 
-        fallbackService = new RpcFallbackService(healthMonitor, retryService);
+    fallbackService = new RpcFallbackService(healthMonitor, retryService);
 
-        const configService = createCliConfigurationService(context);
-        configService.getResolvedConfiguration().then(resolved => {
+    const configService = createCliConfigurationService(context);
+    configService.getResolvedConfiguration().then(resolved => {
+      if (fallbackService) {
+        fallbackService.updateEndpoints(resolved.configuration.rpcEndpoints || []);
+      }
+      if (healthMonitor) {
+        healthMonitor.setEndpoints((resolved.configuration.rpcEndpoints || []).map(ep => ({
+          url: ep.url,
+          priority: ep.priority,
+          fallback: false
+        })));
+      }
+    });
+
+    // Listen for configuration changes
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('stellarSuite')) {
+          configService.getResolvedConfiguration().then(resolved => {
             if (fallbackService) {
-                fallbackService.updateEndpoints(resolved.configuration.rpcEndpoints || []);
+              fallbackService.updateEndpoints(resolved.configuration.rpcEndpoints || []);
             }
             if (healthMonitor) {
-                healthMonitor.setEndpoints((resolved.configuration.rpcEndpoints || []).map(ep => ({
-                    url: ep.url,
-                    priority: ep.priority,
-                    fallback: false
-                })));
+              healthMonitor.setEndpoints((resolved.configuration.rpcEndpoints || []).map(ep => ({
+                url: ep.url,
+                priority: ep.priority,
+                fallback: false
+              })));
             }
-        });
+          });
+        }
+      })
+    );
+    outputChannel.appendLine('[Extension] RPC health, retry and fallback services initialized');
 
-        // Listen for configuration changes
-        context.subscriptions.push(
-            vscode.workspace.onDidChangeConfiguration(e => {
-                if (e.affectsConfiguration('stellarSuite')) {
-                    configService.getResolvedConfiguration().then(resolved => {
-                        if (fallbackService) {
-                            fallbackService.updateEndpoints(resolved.configuration.rpcEndpoints || []);
-                        }
-                        if (healthMonitor) {
-                            healthMonitor.setEndpoints((resolved.configuration.rpcEndpoints || []).map(ep => ({
-                                url: ep.url,
-                                priority: ep.priority,
-                                fallback: false
-                            })));
-                        }
-                    });
-                }
-            })
-        );
-        outputChannel.appendLine('[Extension] RPC health, retry and fallback services initialized');
+    // 3. Initialize Contract & Group services
+    const groupService = new ContractGroupService(context);
+    groupService.loadGroups().catch(() => {
+      outputChannel.appendLine('[Extension] WARNING: could not load contract groups');
+    });
+    registerGroupCommands(context, groupService);
 
-        // 3. Initialize Contract & Group services
-        const groupService = new ContractGroupService(context);
-        groupService.loadGroups().catch(() => {
-            outputChannel.appendLine('[Extension] WARNING: could not load contract groups');
-        });
-        registerGroupCommands(context, groupService);
+    versionTracker = new ContractVersionTracker(context, outputChannel);
 
-        versionTracker = new ContractVersionTracker(context, outputChannel);
+    metadataService = new ContractMetadataService(
+      vscode.workspace as any,
+      outputChannel
+    );
+    metadataService.startWatching();
+    metadataService.scanWorkspace().then(result => {
+      outputChannel.appendLine(
+        `[Extension] Metadata scan: ${result.contracts.length} Cargo.toml(s)` +
+        (result.errors.length ? `, ${result.errors.length} error(s)` : '')
+      );
+    }).catch(err => {
+      outputChannel.appendLine(`[Extension] Metadata scan error: ${err}`);
+    });
 
-        metadataService = new ContractMetadataService(
-            vscode.workspace as any,
-            outputChannel
-        );
-        metadataService.startWatching();
-        metadataService.scanWorkspace().then(result => {
-            outputChannel.appendLine(
-                `[Extension] Metadata scan: ${result.contracts.length} Cargo.toml(s)` +
-                (result.errors.length ? `, ${result.errors.length} error(s)` : '')
-            );
-        }).catch(err => {
-            outputChannel.appendLine(`[Extension] Metadata scan error: ${err}`);
-        });
+    // 4. Initialize CLI History and Replay services (Local Additions)
+    cliHistoryService = new CliHistoryService(context);
+    cliReplayService = new CliReplayService(cliHistoryService);
+    registerCliHistoryCommands(context, cliHistoryService, cliReplayService);
+    outputChannel.appendLine('[Extension] CLI history and replay initialized');
 
-        // 4. Initialize Resource Profiling and Env Variable services
-        resourceProfilingService = new ResourceProfilingService(context, outputChannel);
-        registerResourceProfilingCommands(context, resourceProfilingService);
+        // 5. Initialize Resource Profiling and Env Variable services
+    resourceProfilingService = new ResourceProfilingService(context, outputChannel);
+    registerResourceProfilingCommands(context, resourceProfilingService);
+    outputChannel.appendLine(
+        "[Extension] Resource profiling service initialized and commands registered",
+    );
 
-        envVariableService = createEnvVariableService(context);
-        registerEnvVariableCommands(context, envVariableService);
+    envVariableService = createEnvVariableService(context);
+    registerEnvVariableCommands(context, envVariableService);
 
-        rpcLogger = new RpcLogger({ context, enableConsoleOutput: true });
-        rpcLogger.loadLogs().catch(() => {
-            outputChannel.appendLine('[Extension] WARNING: could not load RPC logs');
-        });
-        registerRpcLoggingCommands(context, rpcLogger);
+    rpcLogger = new RpcLogger({ context, enableConsoleOutput: true });
+    rpcLogger.loadLogs().catch(() => {
+        outputChannel.appendLine('[Extension] WARNING: could not load RPC logs');
+    });
+    registerRpcLoggingCommands(context, rpcLogger);
 
-        // 5. Initialize Compilation, Backup and Sync services
-        compilationMonitor = new CompilationStatusMonitor(context);
-        compilationStatusProvider = new CompilationStatusProvider(compilationMonitor);
+    // ── RPC Authentication ──────────────────────────────────
+    rpcAuthService = createRpcAuthService(context);
+    const updateRpcAuthHeaders = async () => {
+        if (!rpcAuthService) return;
+        // No rpcService defined in this file — auth service initializes internally
+    };
 
-        backupService = new StateBackupService(context, outputChannel);
-        registerBackupCommands(context, backupService);
+    updateRpcAuthHeaders().catch(err => {
+        outputChannel.appendLine(`[Error] Failed to initialize RPC Auth: ${err}`);
+    });
 
-        syncService = new WorkspaceStateSyncService(context);
-        syncStatusProvider = new SyncStatusProvider(syncService);
-        registerSyncCommands(context, syncService);
+    registerRpcAuthCommands(context, rpcAuthService, updateRpcAuthHeaders);
+    outputChannel.appendLine("[Extension] RPC Auth service initialized and commands registered");
 
-        // 6. Initialize UI
-        sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
-        context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(
-                SidebarViewProvider.viewType,
-                sidebarProvider
-            )
-        );
+    // 6. Initialize Compilation, Backup and Sync services
+    compilationMonitor = new CompilationStatusMonitor(context);
+    compilationStatusProvider = new CompilationStatusProvider(compilationMonitor);
 
-        replayService = new SimulationReplayService(simulationHistoryService!, outputChannel);
+    backupService = new StateBackupService(context, outputChannel);
+    registerBackupCommands(context, backupService);
 
-        resourceProfilingService = new ResourceProfilingService(
-            context,
-            outputChannel,
-        );
-        registerResourceProfilingCommands(context, resourceProfilingService);
-        outputChannel.appendLine(
-            "[Extension] Resource profiling service initialized and commands registered",
-        );
+    syncService = new WorkspaceStateSyncService(context);
+    syncStatusProvider = new SyncStatusProvider(syncService);
+    registerSyncCommands(context, syncService);
 
-        // ── RPC Authentication ──────────────────────────────────
-        rpcAuthService = createRpcAuthService(context);
-        const updateRpcAuthHeaders = async () => {
-            if (!rpcAuthService || !rpcLogger) return; // Note: replaced undefined 'rpcService' with 'rpcLogger' or just avoided error if unused. Actually let's just use rpcLogger or leave it empty? Wait, what was rpcService intended for here? Let's just remove rpcService reference if it doesn't exist.
-            // A more complete fix: The codebase doesn't define rpcService in this file. It was probably part of a PR.
-        };
-        // Initialize headers on startup
-        updateRpcAuthHeaders().catch(err => {
-            outputChannel.appendLine(`[Error] Failed to initialize RPC Auth: ${err}`);
-        });
-        registerRpcAuthCommands(context, rpcAuthService, updateRpcAuthHeaders);
-        outputChannel.appendLine("[Extension] RPC Auth service initialized and commands registered");
+    // 7. Initialize UI
+    sidebarProvider = new SidebarViewProvider(
+        context.extensionUri,
+        context,
+        cliHistoryService,
+        cliReplayService
+    );
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(
+            SidebarViewProvider.viewType,
+            sidebarProvider
+        )
+    );
 
-        outputChannel.appendLine("[Extension] All commands registered");
+    simulationReplayService = new SimulationReplayService(
+        simulationHistoryService!,
+        outputChannel
+    );
 
-
+    outputChannel.appendLine("[Extension] All commands registered");
 
         // 7. Register Commands
         const simulateCommand = vscode.commands.registerCommand(
@@ -334,15 +344,65 @@ export function activate(context: vscode.ExtensionContext) {
         if (error instanceof Error && error.stack) {
             outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
         }
-        console.error("[Stellar Suite] Activation error:", error);
-        vscode.window.showErrorMessage(`Stellar Suite activation failed: ${errorMsg}`);
+        return deployContract(context, sidebarProvider);
+      }
+    );
+
+    const simulateFromSidebarCommand = vscode.commands.registerCommand(
+      "stellarSuite.simulateFromSidebar",
+      (contractId: string) => simulateTransaction(context, sidebarProvider, simulationHistoryService, cliHistoryService, fallbackService, resourceProfilingService, contractId)
+    );
+
+    // 9. File Watchers
+    const watcher = vscode.workspace.createFileSystemWatcher("**/{Cargo.toml,*.wasm}");
+    const refreshOnChange = () => sidebarProvider?.refresh();
+    watcher.onDidChange(refreshOnChange);
+    watcher.onDidCreate(refreshOnChange);
+    watcher.onDidDelete(refreshOnChange);
+
+    // 10. Subscriptions
+    context.subscriptions.push(
+      simulateCommand,
+      deployCommand,
+      buildCommand,
+      configureCliCommand,
+      refreshCommand,
+      deployBatchCommand,
+      copyContractIdCommand,
+      showVersionMismatchesCommand,
+      showCompilationStatusCommand,
+      deployFromSidebarCommand,
+      simulateFromSidebarCommand,
+      watcher,
+      outputChannel,
+      healthMonitor!,
+      healthStatusBar!,
+      retryStatusBar || { dispose: () => { } },
+      retryService!,
+      fallbackService!,
+      { dispose: () => metadataService?.dispose() },
+      compilationMonitor || { dispose: () => { } },
+      compilationStatusProvider || { dispose: () => { } },
+      syncStatusProvider || { dispose: () => { } }
+    );
+
+    outputChannel.appendLine("[Extension] Extension activation complete");
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    outputChannel.appendLine(`[Extension] ERROR during activation: ${errorMsg}`);
+    if (error instanceof Error && error.stack) {
+      outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
     }
+    console.error("[Stellar Suite] Activation error:", error);
+    vscode.window.showErrorMessage(`Stellar Suite activation failed: ${errorMsg}`);
+  }
 }
 
 export function deactivate() {
-    healthMonitor?.dispose();
-    healthStatusBar?.dispose();
-    syncStatusProvider?.dispose();
-    compilationStatusProvider?.dispose();
-    compilationMonitor?.dispose();
+  healthMonitor?.dispose();
+  healthStatusBar?.dispose();
+  syncStatusProvider?.dispose();
+  compilationStatusProvider?.dispose();
+  compilationMonitor?.dispose();
+  metadataService?.dispose();
 }

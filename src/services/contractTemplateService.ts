@@ -454,11 +454,14 @@ export class ContractTemplateService {
                 const raw = items[i];
                 if (typeof raw !== 'string' || !raw.trim()) { continue; }
                 const token = raw.trim();
+                const escaped = escapeRegex(token);
+                // boundary check that allows matches surrounded by word boundaries OR underscores
+                const regex = new RegExp(`(?:^|\\s|[^a-zA-Z0-9])(${escaped})(?:$|\\s|[^a-zA-Z0-9])`, 'i');
                 patterns.push(makePattern(
                     `${prefix}.${i}`,
                     `${prefix} contains "${token}"`,
                     weight,
-                    new RegExp(`\\b${escapeRegex(token)}\\b`, 'i'),
+                    regex,
                     source
                 ));
             }

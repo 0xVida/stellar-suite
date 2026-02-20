@@ -13,11 +13,13 @@ import { RpcFallbackService } from '../services/rpcFallbackService';
 import { ResourceProfilingService } from '../services/resourceProfilingService';
 import { StateCaptureService } from '../services/stateCaptureService';
 import { StateDiffService } from '../services/stateDiffService';
+import { CliHistoryService } from '../services/cliHistoryService';
 
 export async function simulateTransaction(
     context: vscode.ExtensionContext,
     sidebarProvider?: SidebarViewProvider,
     historyService?: SimulationHistoryService,
+    cliHistoryService?: CliHistoryService,
     fallbackService?: RpcFallbackService,
     profilingService?: ResourceProfilingService,
     initialContractId?: string
@@ -105,8 +107,7 @@ export async function simulateTransaction(
                 }
             } catch (error) {
                 vscode.window.showErrorMessage(
-                    `Invalid JSON: ${
-                        error instanceof Error ? error.message : 'Unknown error'
+                    `Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'
                     }`
                 );
                 return;
@@ -183,7 +184,7 @@ export async function simulateTransaction(
                 title: 'Simulating Soroban Transaction',
                 cancellable: false
             },
-            async progress => {
+            async (progress: vscode.Progress<{ message?: string; increment?: number }>) => {
                 progress.report({ increment: 0, message: 'Initializing...' });
 
                 const stateCaptureService = new StateCaptureService();
@@ -198,7 +199,7 @@ export async function simulateTransaction(
                     progress.report({ increment: 30, message: 'Using Stellar CLI...' });
 
                     let actualCliPath = cliPath;
-                    let cliService = new SorobanCliService(actualCliPath, source);
+                    let cliService = new SorobanCliService(actualCliPath, source, cliHistoryService);
 
                     try {
                         progress.report({ increment: 50, message: 'Executing simulation...' });

@@ -24,8 +24,10 @@ import { SimulationHistoryService } from "./services/simulationHistoryService";
 import { registerSimulationHistoryCommands } from "./commands/simulationHistoryCommands";
 import { CompilationStatusMonitor } from "./services/compilationStatusMonitor";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
-import { StateBackupService } from "./services/stateBackupService";
-import { registerBackupCommands } from "./commands/backupCommands";
+import { StateBackupService } from './services/stateBackupService';
+import { registerBackupCommands } from './commands/backupCommands';
+import { SimulationReplayService } from './services/simulationReplayService';
+import { registerReplayCommands } from './commands/replayCommands';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
@@ -40,6 +42,7 @@ let simulationHistoryService: SimulationHistoryService | undefined;
 let compilationMonitor: CompilationStatusMonitor | undefined;
 let compilationStatusProvider: CompilationStatusProvider | undefined;
 let backupService: StateBackupService | undefined;
+let replayService: SimulationReplayService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -241,7 +244,16 @@ export function activate(context: vscode.ExtensionContext) {
     if (backupService) {
       registerBackupCommands(context, backupService);
       outputChannel.appendLine(
-        "[Extension] Backup commands registered",
+        '[Extension] Backup commands registered',
+      );
+    }
+
+    // Initialize simulation replay service
+    if (simulationHistoryService) {
+      replayService = new SimulationReplayService(simulationHistoryService, outputChannel);
+      registerReplayCommands(context, simulationHistoryService, replayService, sidebarProvider);
+      outputChannel.appendLine(
+        '[Extension] Simulation replay service initialized and commands registered',
       );
     }
 

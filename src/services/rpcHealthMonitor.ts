@@ -68,6 +68,14 @@ export class RpcHealthMonitor {
      */
     addEndpoint(url: string, priority: number = 0, fallback: boolean = false): void {
         const normalizedUrl = this.normalizeUrl(url);
+        if (this.endpoints.has(normalizedUrl)) {
+            // Update priority and fallback if already exists
+            const existing = this.endpoints.get(normalizedUrl)!;
+            this.endpoints.set(normalizedUrl, { ...existing, priority, fallback });
+            this.log(`Endpoint updated: ${normalizedUrl} (priority: ${priority})`);
+            return;
+        }
+
         this.endpoints.set(normalizedUrl, { url: normalizedUrl, priority, fallback });
         this.healthStatus.set(normalizedUrl, {
             endpoint: normalizedUrl,
@@ -78,6 +86,46 @@ export class RpcHealthMonitor {
         });
         this.healthHistory.set(normalizedUrl, []);
         this.log(`Endpoint added: ${normalizedUrl} (priority: ${priority})`);
+
+        // If monitoring is already active for others, start for this one
+        if (this.checkIntervals.size > 0 && !this.checkIntervals.has(normalizedUrl)) {
+            this.startMonitoringForEndpoint(normalizedUrl);
+        }
+    }
+
+    /**
+     * Remove endpoint from monitor.
+     */
+    removeEndpoint(url: string): void {
+        const normalizedUrl = this.normalizeUrl(url);
+        if (this.checkIntervals.has(normalizedUrl)) {
+            clearInterval(this.checkIntervals.get(normalizedUrl)!);
+            this.checkIntervals.delete(normalizedUrl);
+        }
+        this.endpoints.delete(normalizedUrl);
+        this.healthStatus.delete(normalizedUrl);
+        this.healthHistory.delete(normalizedUrl);
+        this.log(`Endpoint removed: ${normalizedUrl}`);
+        this.healthChangeEmitter.fire();
+    }
+
+    /**
+     * Set multiple endpoints at once, removing any that aren't in the list.
+     */
+    setEndpoints(configs: { url: string, priority: number, fallback: boolean }[]): void {
+        const newUrls = new Set(configs.map(c => this.normalizeUrl(c.url)));
+
+        // Remove old ones
+        for (const url of this.endpoints.keys()) {
+            if (!newUrls.has(url)) {
+                this.removeEndpoint(url);
+            }
+        }
+
+        // Add/update new ones
+        for (const config of configs) {
+            this.addEndpoint(config.url, config.priority, config.fallback);
+        }
     }
 
     /**
@@ -85,14 +133,18 @@ export class RpcHealthMonitor {
      */
     startMonitoring(): void {
         for (const [url, config] of this.endpoints) {
-            if (!this.checkIntervals.has(url)) {
+            this.startMonitoringForEndpoint(url);
+        }
+    }
+
+    private startMonitoringForEndpoint(url: string): void {
+        if (!this.checkIntervals.has(url)) {
+            this.performHealthCheck(url).catch(err => this.log(`Check error: ${err}`));
+            const interval = setInterval(() => {
                 this.performHealthCheck(url).catch(err => this.log(`Check error: ${err}`));
-                const interval = setInterval(() => {
-                    this.performHealthCheck(url).catch(err => this.log(`Check error: ${err}`));
-                }, this.config.checkInterval);
-                this.checkIntervals.set(url, interval);
-                this.log(`Monitoring started: ${url}`);
-            }
+            }, this.config.checkInterval);
+            this.checkIntervals.set(url, interval);
+            this.log(`Monitoring started: ${url}`);
         }
     }
 
@@ -158,7 +210,7 @@ export class RpcHealthMonitor {
                 const healthOrder = { [EndpointHealth.HEALTHY]: 0, [EndpointHealth.DEGRADED]: 1, [EndpointHealth.UNHEALTHY]: 2, [EndpointHealth.UNKNOWN]: 3 };
                 const healthDiff = (healthOrder[a.status] ?? 3) - (healthOrder[b.status] ?? 3);
                 if (healthDiff !== 0) return healthDiff;
-                
+
                 const configA = this.endpoints.get(a.endpoint);
                 const configB = this.endpoints.get(b.endpoint);
                 return (configA?.priority ?? 999) - (configB?.priority ?? 999);
@@ -279,7 +331,7 @@ export class RpcHealthMonitor {
     }
 
     private createTimeout(ms: number): Promise<never> {
-        return new Promise((_, reject) => 
+        return new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Health check timeout')), ms)
         );
     }

@@ -1,8 +1,17 @@
+export interface RpcEndpoint {
+    url: string;
+    priority: number;
+    enabled: boolean;
+    name?: string;
+}
+
 export interface CliConfiguration {
     cliPath: string;
     source: string;
     network: string;
     rpcUrl: string;
+    rpcEndpoints: RpcEndpoint[];
+    automaticFailover: boolean;
     useLocalCli: boolean;
 }
 
@@ -54,6 +63,10 @@ export const DEFAULT_CLI_CONFIGURATION: CliConfiguration = {
     source: 'dev',
     network: 'testnet',
     rpcUrl: 'https://soroban-testnet.stellar.org:443',
+    rpcEndpoints: [
+        { url: 'https://soroban-testnet.stellar.org:443', priority: 0, enabled: true, name: 'Default Testnet' }
+    ],
+    automaticFailover: true,
     useLocalCli: true,
 };
 
@@ -63,6 +76,17 @@ export function normalizeCliConfiguration(config: Partial<CliConfiguration>): Cl
         source: (config.source || DEFAULT_CLI_CONFIGURATION.source).trim(),
         network: (config.network || DEFAULT_CLI_CONFIGURATION.network).trim(),
         rpcUrl: (config.rpcUrl || DEFAULT_CLI_CONFIGURATION.rpcUrl).trim(),
+        rpcEndpoints: Array.isArray(config.rpcEndpoints)
+            ? config.rpcEndpoints.map(ep => ({
+                url: ep.url.trim(),
+                priority: typeof ep.priority === 'number' ? ep.priority : 0,
+                enabled: typeof ep.enabled === 'boolean' ? ep.enabled : true,
+                name: ep.name?.trim()
+            }))
+            : [...DEFAULT_CLI_CONFIGURATION.rpcEndpoints],
+        automaticFailover: typeof config.automaticFailover === 'boolean'
+            ? config.automaticFailover
+            : DEFAULT_CLI_CONFIGURATION.automaticFailover,
         useLocalCli: typeof config.useLocalCli === 'boolean'
             ? config.useLocalCli
             : DEFAULT_CLI_CONFIGURATION.useLocalCli,
@@ -93,6 +117,19 @@ export function validateCliConfiguration(config: CliConfiguration): CliConfigura
         if (!rpcPattern.test(config.rpcUrl.trim())) {
             errors.push('RPC URL must be a valid http(s) URL.');
         }
+    }
+
+    if (config.rpcEndpoints) {
+        config.rpcEndpoints.forEach((ep, index) => {
+            if (!ep.url.trim()) {
+                errors.push(`RPC Endpoint ${index + 1} URL cannot be empty.`);
+            } else {
+                const rpcPattern = /^https?:\/\/\S+$/i;
+                if (!rpcPattern.test(ep.url.trim())) {
+                    errors.push(`RPC Endpoint ${index + 1} URL must be a valid http(s) URL.`);
+                }
+            }
+        });
     }
 
     if (config.network && !ALLOWED_NETWORKS.has(config.network.toLowerCase())) {

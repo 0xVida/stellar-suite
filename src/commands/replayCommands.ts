@@ -13,7 +13,8 @@ import {
     SimulationExecutor,
 } from '../services/simulationReplayService';
 import { SorobanCliService } from '../services/sorobanCliService';
-import { RpcService } from '../services/rpcService';
+import { RpcService, SimulationResult } from '../services/rpcService';
+import { RpcFallbackService } from '../services/rpcFallbackService';
 import { SimulationPanel } from '../ui/simulationPanel';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
@@ -27,20 +28,21 @@ export function registerReplayCommands(
     context: vscode.ExtensionContext,
     historyService: SimulationHistoryService,
     replayService: SimulationReplayService,
-    sidebarProvider?: SidebarViewProvider
+    sidebarProvider?: SidebarViewProvider,
+    fallbackService?: RpcFallbackService
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             'stellarSuite.replaySimulation',
-            () => replayFromHistory(context, historyService, replayService, sidebarProvider)
+            () => replayFromHistory(context, historyService, replayService, sidebarProvider, fallbackService)
         ),
         vscode.commands.registerCommand(
             'stellarSuite.replayWithModifications',
-            () => replayWithModifications(context, historyService, replayService, sidebarProvider)
+            () => replayWithModifications(context, historyService, replayService, sidebarProvider, fallbackService)
         ),
         vscode.commands.registerCommand(
             'stellarSuite.batchReplaySimulations',
-            () => batchReplaySimulations(context, historyService, replayService, sidebarProvider)
+            () => batchReplaySimulations(context, historyService, replayService, sidebarProvider, fallbackService)
         ),
         vscode.commands.registerCommand(
             'stellarSuite.exportReplayResults',
@@ -59,12 +61,13 @@ async function replayFromHistory(
     context: vscode.ExtensionContext,
     historyService: SimulationHistoryService,
     replayService: SimulationReplayService,
-    sidebarProvider?: SidebarViewProvider
+    sidebarProvider?: SidebarViewProvider,
+    fallbackService?: RpcFallbackService
 ): Promise<void> {
     const entry = await pickHistoryEntry(historyService, 'Select a simulation to replay');
     if (!entry) { return; }
 
-    const executor = await buildExecutor(context);
+    const executor = await buildExecutor(context, fallbackService);
     if (!executor) { return; }
 
     await executeReplay(context, replayService, entry, executor, {}, sidebarProvider);
@@ -74,7 +77,8 @@ async function replayWithModifications(
     context: vscode.ExtensionContext,
     historyService: SimulationHistoryService,
     replayService: SimulationReplayService,
-    sidebarProvider?: SidebarViewProvider
+    sidebarProvider?: SidebarViewProvider,
+    fallbackService?: RpcFallbackService
 ): Promise<void> {
     const entry = await pickHistoryEntry(historyService, 'Select a simulation to replay with modifications');
     if (!entry) { return; }
@@ -82,7 +86,7 @@ async function replayWithModifications(
     const overrides = await collectOverrides(entry);
     if (!overrides) { return; }
 
-    const executor = await buildExecutor(context);
+    const executor = await buildExecutor(context, fallbackService);
     if (!executor) { return; }
 
     await executeReplay(context, replayService, entry, executor, overrides, sidebarProvider);
@@ -92,13 +96,15 @@ async function batchReplaySimulations(
     context: vscode.ExtensionContext,
     historyService: SimulationHistoryService,
     replayService: SimulationReplayService,
-    sidebarProvider?: SidebarViewProvider
+    sidebarProvider?: SidebarViewProvider,
+    fallbackService?: RpcFallbackService
 ): Promise<void> {
     const entries = historyService.queryHistory({ limit: 50 });
     if (entries.length === 0) {
         vscode.window.showInformationMessage('Stellar Suite: No simulation history to replay.');
         return;
     }
+    // ... rest of implementation (using executor with fallbackService)
 
     const items = entries.map(entry => ({
         label: `$(${entry.outcome === 'success' ? 'check' : 'error'}) ${entry.functionName}()`,
@@ -125,7 +131,7 @@ async function batchReplaySimulations(
 
     if (confirm !== 'Replay All') { return; }
 
-    const executor = await buildExecutor(context);
+    const executor = await buildExecutor(context, fallbackService);
     if (!executor) { return; }
 
     const entryIds = selected.map(s => s.entry.id);
@@ -328,7 +334,8 @@ async function collectOverrides(
 }
 
 async function buildExecutor(
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
+    fallbackService?: RpcFallbackService
 ): Promise<SimulationExecutor | undefined> {
     const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
     if (!resolvedCliConfig.validation.valid) {
@@ -400,12 +407,21 @@ async function buildExecutor(
                 durationMs: Date.now() - startTime,
             };
         } else {
-            const rpcService = new RpcService(config.rpcUrl);
-            const result = await rpcService.simulateTransaction(
-                params.contractId,
-                params.functionName,
-                params.args as any[]
-            );
+            let result: SimulationResult;
+            if (fallbackService) {
+                result = await fallbackService.simulateTransaction(
+                    params.contractId,
+                    params.functionName,
+                    params.args as any[]
+                );
+            } else {
+                const rpcService = new RpcService(config.rpcUrl);
+                result = await rpcService.simulateTransaction(
+                    params.contractId,
+                    params.functionName,
+                    params.args as any[]
+                );
+            }
 
             const stateData = buildStateDiff(result.rawResult ?? result.result);
 

@@ -132,6 +132,23 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+        // ── Keyboard shortcut settings sync ─────────────────────
+        const sendSettings = () => {
+            const config = vscode.workspace.getConfiguration('stellarSuite');
+            this._view?.webview.postMessage({
+                type: 'settings:update',
+                showShortcutHints: config.get<boolean>('keyboard.showHints', true),
+            });
+        };
+        setTimeout(sendSettings, 100);
+
+        const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration('stellarSuite.keyboard')) {
+                sendSettings();
+            }
+        });
+        webviewView.onDidDispose(() => { configListener.dispose(); });
+
         webviewView.webview.onDidReceiveMessage(async (message: {
             type: string;
             [key: string]: unknown;
@@ -781,7 +798,47 @@ body {
     position:      relative;
 }
 .contract-card:hover  { border-color: var(--color-accent); background: var(--color-card-hover); }
+.contract-card:focus  {
+    outline:      2px solid var(--vscode-focusBorder);
+    border-color: var(--color-accent);
+    background:   var(--color-card-hover);
+}
 .contract-card:active { cursor: grabbing; }
+
+/* ── Shortcut hints ──────────────────────────────────────── */
+.shortcut-hints {
+    display:     none;
+    flex-wrap:   wrap;
+    gap:         6px;
+    margin-top:  6px;
+    font-size:   10px;
+    color:       var(--color-muted);
+}
+.shortcut-hints.visible { display: flex; }
+.shortcut-hint kbd {
+    display:        inline-block;
+    background:     rgba(255,255,255,.08);
+    border:         1px solid var(--color-border);
+    border-radius:  3px;
+    padding:        0 4px;
+    font-family:    inherit;
+    font-size:      10px;
+    line-height:    1.6;
+    margin-right:   2px;
+}
+
+/* ── Screen reader only ──────────────────────────────────── */
+.sr-only {
+    position:   absolute;
+    width:      1px;
+    height:     1px;
+    padding:    0;
+    margin:     -1px;
+    overflow:   hidden;
+    clip:       rect(0,0,0,0);
+    white-space: nowrap;
+    border:     0;
+}
 
 .contract-card.pinned::before {
     content:       '';
@@ -1222,7 +1279,7 @@ body {
 
 <!-- ── Contracts section ─────────────────────────────────── -->
 <div class="section-label">Contracts</div>
-<div id="contracts-list">
+<div id="contracts-list" role="listbox" aria-label="Contract list">
     <div class="empty-state"><div class="emoji">🔍</div>Scanning for contracts…</div>
 </div>
 
@@ -1284,6 +1341,8 @@ body {
     </div>
 </div>
 
+<div id="keyboard-announce" class="sr-only" role="status" aria-live="polite"></div>
+
 <script>
 const vscode = acquireVsCodeApi();
 
@@ -1294,6 +1353,10 @@ let _activeMenuContract = null;
 let _dragPath           = null;
 let _dragEl             = null;
 let _dropTargetEl       = null;
+
+// ── Keyboard navigation state ─────────────────────────────────
+let _focusedContractIndex = -1;
+let _showShortcutHints    = true;
 
 // ── Import state ──────────────────────────────────────────────
 let _importPreview   = null;
@@ -1326,6 +1389,14 @@ window.addEventListener('message', (event) => {
             _importValidation = msg.validation;
             _importPreview    = msg.validation.preview;
             showImportPreviewModal(msg.validation);
+            break;
+        case 'settings:update':
+            if (msg.showShortcutHints !== undefined) {
+                _showShortcutHints = !!msg.showShortcutHints;
+                document.querySelectorAll('.shortcut-hints').forEach(el => {
+                    el.classList.toggle('visible', _showShortcutHints);
+                });
+            }
             break;
     }
 });
@@ -1449,12 +1520,185 @@ function applyImportSelection() {
     hideImportModal();
 }
 
+// ── Keyboard navigation helpers ───────────────────────────────
+
+function announce(text) {
+    const el = document.getElementById('keyboard-announce');
+    if (el) { el.textContent = text; }
+}
+
+function getContractCards() {
+    return [...document.querySelectorAll('#contracts-list .contract-card')];
+}
+
+function focusContract(index) {
+    const cards = getContractCards();
+    if (cards.length === 0) { return; }
+    index = Math.max(0, Math.min(index, cards.length - 1));
+    // Clear previous selection
+    cards.forEach(c => c.setAttribute('aria-selected', 'false'));
+    _focusedContractIndex = index;
+    const card = cards[index];
+    card.setAttribute('aria-selected', 'true');
+    card.focus();
+    card.scrollIntoView({ block: 'nearest' });
+    announce(card.getAttribute('aria-label') || card.dataset.name || '');
+}
+
+function getFocusedCard() {
+    const cards = getContractCards();
+    if (_focusedContractIndex >= 0 && _focusedContractIndex < cards.length) {
+        return cards[_focusedContractIndex];
+    }
+    return null;
+}
+
+function cardToContract(card) {
+    if (!card) { return null; }
+    return {
+        contractName: card.dataset.name,
+        contractPath: card.dataset.path,
+        contractId:   card.dataset.contractId || undefined,
+        isBuilt:      card.dataset.isBuilt === 'true',
+        templateId:   card.dataset.templateId || undefined,
+        templateCategory: card.dataset.templateCategory || undefined,
+    };
+}
+
 // ── Keyboard ──────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+
+    // Always allow Escape from inputs
     if (e.key === 'Escape') {
-        if (_dragPath) { cancelDrag(); } else { hideContextMenu(); }
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
+            e.target.blur();
+            return;
+        }
+        // Priority: modal > menu > drag > focus
+        const importModal = document.getElementById('import-modal-overlay');
+        if (importModal && importModal.classList.contains('visible')) {
+            hideImportModal();
+            return;
+        }
+        const menu = document.getElementById('context-menu');
+        if (menu && menu.classList.contains('visible')) {
+            hideContextMenu();
+            return;
+        }
+        if (_dragPath) {
+            cancelDrag();
+            return;
+        }
+        // Clear keyboard focus
+        if (_focusedContractIndex >= 0) {
+            const cards = getContractCards();
+            cards.forEach(c => c.setAttribute('aria-selected', 'false'));
+            _focusedContractIndex = -1;
+            document.activeElement?.blur();
+            announce('');
+            return;
+        }
+        return;
     }
-    if (e.key === 'F2' && _activeMenuContract) { invokeAction('rename'); }
+
+    // Skip all shortcuts when in form inputs (except Escape handled above)
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') { return; }
+
+    // Skip navigation when menu or modal is visible
+    const menuVisible = document.getElementById('context-menu')?.classList.contains('visible');
+    const modalVisible = document.getElementById('import-modal-overlay')?.classList.contains('visible');
+
+    // Focus search
+    if (e.key === '/' || (e.ctrlKey && e.key === 'f') || (e.metaKey && e.key === 'f')) {
+        if (!menuVisible && !modalVisible) {
+            e.preventDefault();
+            const searchInput = document.getElementById('sim-history-search');
+            if (searchInput) { searchInput.focus(); }
+            return;
+        }
+    }
+
+    if (menuVisible || modalVisible) { return; }
+
+    const cards = getContractCards();
+    const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
+
+    // Arrow / j/k navigation
+    if (e.key === 'ArrowDown' || (!hasModifier && e.key === 'j')) {
+        e.preventDefault();
+        if (_focusedContractIndex < 0) { focusContract(0); }
+        else { focusContract(_focusedContractIndex + 1); }
+        return;
+    }
+    if (e.key === 'ArrowUp' || (!hasModifier && e.key === 'k')) {
+        e.preventDefault();
+        if (_focusedContractIndex < 0) { focusContract(cards.length - 1); }
+        else { focusContract(_focusedContractIndex - 1); }
+        return;
+    }
+    if (e.key === 'Home') {
+        e.preventDefault();
+        focusContract(0);
+        return;
+    }
+    if (e.key === 'End') {
+        e.preventDefault();
+        focusContract(cards.length - 1);
+        return;
+    }
+
+    // Actions on focused card
+    const focused = getFocusedCard();
+    if (!focused) { return; }
+
+    // Enter / Space / Shift+F10 — open context menu
+    if (e.key === 'Enter' || e.key === ' ' || (e.shiftKey && e.key === 'F10')) {
+        e.preventDefault();
+        const contract = cardToContract(focused);
+        if (contract) {
+            _activeMenuContract = contract;
+            const rect = focused.getBoundingClientRect();
+            vscode.postMessage({
+                type: 'contextMenu:open',
+                ...contract,
+                x: rect.left + 20,
+                y: rect.bottom,
+            });
+        }
+        return;
+    }
+
+    // F2 — rename
+    if (e.key === 'F2') {
+        e.preventDefault();
+        _activeMenuContract = cardToContract(focused);
+        invokeAction('rename');
+        return;
+    }
+
+    // Delete — remove
+    if (e.key === 'Delete') {
+        e.preventDefault();
+        _activeMenuContract = cardToContract(focused);
+        invokeAction('delete');
+        return;
+    }
+
+    // Single-letter shortcuts (no modifiers)
+    if (!hasModifier && !e.shiftKey) {
+        const letter = e.key.toUpperCase();
+        if (letter === 'B') { e.preventDefault(); sendAction('build', focused); return; }
+        if (letter === 'D') { e.preventDefault(); sendAction('deploy', focused); return; }
+        if (letter === 'S') { e.preventDefault(); sendAction('simulate', focused); return; }
+        if (letter === 'I') { e.preventDefault(); sendAction('inspect', focused); return; }
+        if (letter === 'P') {
+            e.preventDefault();
+            _activeMenuContract = cardToContract(focused);
+            invokeAction('pinContract');
+            return;
+        }
+    }
 });
 
 document.addEventListener('click', (e) => {
@@ -1492,8 +1736,16 @@ function renderContracts(contracts) {
         return;
     }
 
-    el.innerHTML = contracts.map((c, idx) => \`
+    el.innerHTML = contracts.map((c, idx) => {
+        const builtLabel = c.isBuilt ? 'built' : 'not built';
+        const deployLabel = c.contractId ? 'deployed' : 'not deployed';
+        const ariaLabel = esc(c.name) + ', ' + builtLabel + ', ' + deployLabel;
+        return \`
         <div class="contract-card\${c.isPinned ? ' pinned' : ''}"
+             tabindex="0"
+             role="option"
+             aria-selected="false"
+             aria-label="\${ariaLabel}"
              draggable="\${!c.isPinned}"
              data-path="\${esc(c.path)}"
              data-name="\${esc(c.name)}"
@@ -1548,8 +1800,29 @@ function renderContracts(contracts) {
                         \${(!c.templateCategory || c.templateCategory === 'unknown') ? 'disabled' : ''}
                         title="\${templateActionTitle(c)}">Template</button>
             </div>
+            <div class="shortcut-hints\${_showShortcutHints ? ' visible' : ''}">
+                <span class="shortcut-hint"><kbd>Enter</kbd> Menu</span>
+                <span class="shortcut-hint"><kbd>B</kbd> Build</span>
+                \${c.contractId ? '<span class="shortcut-hint"><kbd>S</kbd> Simulate</span>' : ''}
+                \${c.contractId ? '<span class="shortcut-hint"><kbd>I</kbd> Inspect</span>' : ''}
+                <span class="shortcut-hint"><kbd>P</kbd> Pin</span>
+                <span class="shortcut-hint"><kbd>Del</kbd> Remove</span>
+            </div>
         </div>
-    \`).join('');
+    \`}).join('');
+
+    // Restore focus after re-render
+    if (_focusedContractIndex >= 0) {
+        const cards = getContractCards();
+        if (cards.length > 0) {
+            const idx = Math.min(_focusedContractIndex, cards.length - 1);
+            _focusedContractIndex = idx;
+            cards[idx].setAttribute('aria-selected', 'true');
+            cards[idx].focus();
+        } else {
+            _focusedContractIndex = -1;
+        }
+    }
 }
 
 function sendAction(actionId, card) {

@@ -214,6 +214,32 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "stellarSuite.buildContract",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.deployContract",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.simulateTransaction",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.refreshContracts",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      }
+    ],
     "configuration": {
       "title": "Stellar Suite",
       "properties": {
@@ -257,6 +283,11 @@
           "default": 30000,
           "description": "Maximum backoff time (in milliseconds) when rate-limited."
         },
+        "stellarSuite.keyboard.showHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show keyboard shortcut hints on contract cards in the sidebar."
+        },
         "stellarSuite.signing.defaultMethod": {
           "type": "string",
           "enum": [
@@ -287,7 +318,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit",
+    "test": "npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:keyboard-shortcuts",
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:cli-streaming": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/streamBuffer.ts src/services/cliOutputStreamingService.ts src/test/cliOutputStreamingService.test.ts && node out-test/test/cliOutputStreamingService.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
@@ -308,7 +339,8 @@
     "test:rpc-auth": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcAuth.ts src/services/rpcAuthService.ts src/test/rpcAuth.test.ts && node out-test/test/rpcAuth.test.js",
     "test:env-variable": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/envVariable.ts src/services/envVariableService.ts src/test/envVariable.test.ts && node out-test/test/envVariable.test.js",
     "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js",
-    "test:rpc-rate-limit": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/test/rpcRateLimitService.test.ts && node out-test/test/rpcRateLimitService.test.js"
+    "test:rpc-rate-limit": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/test/rpcRateLimitService.test.ts && node out-test/test/rpcRateLimitService.test.js",
+    "test:keyboard-shortcuts": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/contextMenu.ts src/types/keyboardShortcuts.ts src/services/contractTemplateService.ts src/services/contextMenuService.ts src/test/keyboardShortcuts.test.ts && node out-test/test/keyboardShortcuts.test.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

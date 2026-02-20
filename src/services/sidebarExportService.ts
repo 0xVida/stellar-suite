@@ -26,6 +26,9 @@ export interface ExportableContract {
     isPinned?: boolean;
     localVersion?: string;
     deployedVersion?: string;
+    templateId?: string;
+    templateCategory?: string;
+    templateSource?: string;
 }
 
 // ── Private Helpers ───────────────────────────────────────────
@@ -53,6 +56,9 @@ function stripRuntimeFields(contract: ExportableContract): ExportedContractConfi
     if (contract.isPinned) { config.isPinned = contract.isPinned; }
     if (contract.localVersion) { config.localVersion = contract.localVersion; }
     if (contract.deployedVersion) { config.deployedVersion = contract.deployedVersion; }
+    if (contract.templateId) { config.templateId = contract.templateId; }
+    if (contract.templateCategory) { config.templateCategory = contract.templateCategory; }
+    if (contract.templateSource) { config.templateSource = contract.templateSource; }
     return config;
 }
 

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { RpcMetricsService } from '../services/rpcMetricsService';
+import * as path from 'path';
 
 /**
  * Displays RPC performance metrics in the UI
@@ -36,7 +37,7 @@ export class MetricsPanel {
             vscode.ViewColumn.Beside,
             {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'assets')]
+                localResourceRoots: [vscode.Uri.file(path.join(this.extensionUri.fsPath, 'assets'))]
             }
         );
 

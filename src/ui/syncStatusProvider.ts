@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { WorkspaceStateSyncService, SyncStatus } from '../services/workspaceStateSyncService';
+import { WorkspaceStateSyncService, SyncEvent, SyncStatus } from '../services/workspaceStateSyncService';
 
 /**
  * Manages synchronization status display in VS Code status bar and sidebar.
@@ -25,7 +25,7 @@ export class SyncStatusProvider {
     private initializeListeners(): void {
         // Listen to sync status changes
         this.disposables.push(
-            this.syncService.onSyncStatusChange(event => {
+            this.syncService.onSyncStatusChange((event: SyncEvent) => {
                 this.handleSyncEvent(event);
             })
         );

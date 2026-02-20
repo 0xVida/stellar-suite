@@ -388,7 +388,7 @@ export class WorkspaceStateEncryptionService {
 
     private async generateMasterKey(): Promise<string> {
         return new Promise((resolve, reject) => {
-            crypto.randomBytes(SALT_LENGTH, (err, salt) => {
+            crypto.randomBytes(SALT_LENGTH, (err: Error | null, salt: Buffer) => {
                 if (err) {
                     reject(err);
                     return;
@@ -401,7 +401,7 @@ export class WorkspaceStateEncryptionService {
                     KEY_DERIVATION_ITERATIONS,
                     KEY_LENGTH,
                     'sha256',
-                    async (err, derivedKey) => {
+                    async (err: Error | null, derivedKey: Buffer) => {
                         if (err) {
                             reject(err);
                             return;

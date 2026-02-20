@@ -361,6 +361,6 @@ async function withProgressIndicator<T>(
 ): Promise<T> {
     return vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title, cancellable: true },
-        (progress, token) => operation()
+        (_progress: vscode.Progress<{ message?: string; increment?: number }>, _token: vscode.CancellationToken) => operation()
     );
 }

@@ -42,6 +42,38 @@ export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
   outputChannel.appendLine('[Extension] Activating Stellar Suite extension...');
 
+        // Register group commands
+        registerGroupCommands(context, groupService);
+        outputChannel.appendLine('[Extension] Group commands registered');
+
+        // Initialize version tracker
+        versionTracker = new ContractVersionTracker(context, outputChannel);
+        outputChannel.appendLine('[Extension] Contract version tracker initialized');
+
+        // Initialize RPC retry service with circuit breaker
+        retryService = new RpcRetryService(
+            { resetTimeout: 60000, consecutiveFailuresThreshold: 3 },
+            { maxAttempts: 3, initialDelayMs: 100, maxDelayMs: 5000 },
+            false
+        );
+        retryStatusBar = new RetryStatusBarItem(retryService, 5000);
+        registerRetryCommands(context, retryService);
+        outputChannel.appendLine('[Extension] RPC retry service with circuit breaker initialized');
+
+        // Initialize workspace state synchronization
+        syncService = new WorkspaceStateSyncService(context);
+        syncStatusProvider = new SyncStatusProvider(syncService);
+        outputChannel.appendLine('[Extension] Workspace state sync service initialized');
+
+        // ── Sidebar ───────────────────────────────────────────
+        sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
+        context.subscriptions.push(
+            vscode.window.registerWebviewViewProvider(
+                SidebarViewProvider.viewType,
+                sidebarProvider
+            )
+        );
+        outputChannel.appendLine('[Extension] Sidebar view provider registered');
   try {
     // ── Services ──────────────────────────────────────────────
     const groupService = new ContractGroupService(context);
@@ -182,6 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
       simulateFromSidebarCommand,
       copyContractIdCommand,
       showVersionMismatchesCommand,
+      showCompilationStatusCommand,
       watcher,
       { dispose: () => metadataService?.dispose() },
       syncStatusProvider,
@@ -205,5 +238,7 @@ export function deactivate() {
   healthMonitor?.dispose();
   healthStatusBar?.dispose();
   syncStatusProvider?.dispose();
+  compilationStatusProvider?.dispose();
+  compilationMonitor?.dispose();
 }
 

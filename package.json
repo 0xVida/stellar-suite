@@ -85,6 +85,78 @@
       {
         "command": "stellarSuite.configureCli",
         "title": "Stellar Suite: Configure CLI"
+      },
+      {
+        "command": "stellarSuite.showSimulationHistory",
+        "title": "Stellar Suite: Show Simulation History"
+      },
+      {
+        "command": "stellarSuite.clearSimulationHistory",
+        "title": "Stellar Suite: Clear Simulation History"
+      },
+      {
+        "command": "stellarSuite.exportSimulationHistory",
+        "title": "Stellar Suite: Export Simulation History"
+      },
+      {
+        "command": "stellarSuite.importSimulationHistory",
+        "title": "Stellar Suite: Import Simulation History"
+      },
+      {
+        "command": "stellarSuite.searchSimulationHistory",
+        "title": "Stellar Suite: Search Simulation History"
+      },
+      {
+        "command": "stellarSuite.showCompilationStatus",
+        "title": "Stellar Suite: Show Compilation Status"
+      },
+      {
+        "command": "stellarSuite.createBackup",
+        "title": "Stellar Suite: Create State Backup"
+      },
+      {
+        "command": "stellarSuite.restoreBackup",
+        "title": "Stellar Suite: Restore State from Backup"
+      },
+      {
+        "command": "stellarSuite.showBackupHistory",
+        "title": "Stellar Suite: Show Backup History"
+      },
+      {
+        "command": "stellarSuite.deleteBackup",
+        "title": "Stellar Suite: Delete Backup"
+      },
+      {
+        "command": "stellarSuite.validateBackups",
+        "title": "Stellar Suite: Validate Backups"
+      },
+      {
+        "command": "stellarSuite.clearAllBackups",
+        "title": "Stellar Suite: Clear All Backups"
+      },
+      {
+        "command": "stellarSuite.exportBackups",
+        "title": "Stellar Suite: Export Backups"
+      },
+      {
+        "command": "stellarSuite.importBackups",
+        "title": "Stellar Suite: Import Backups"
+      },
+      {
+        "command": "stellarSuite.replaySimulation",
+        "title": "Stellar Suite: Replay Simulation"
+      },
+      {
+        "command": "stellarSuite.replayWithModifications",
+        "title": "Stellar Suite: Replay Simulation with Modifications"
+      },
+      {
+        "command": "stellarSuite.batchReplaySimulations",
+        "title": "Stellar Suite: Batch Replay Simulations"
+      },
+      {
+        "command": "stellarSuite.exportReplayResults",
+        "title": "Stellar Suite: Export Replay Results"
       }
     ],
     "menus": {

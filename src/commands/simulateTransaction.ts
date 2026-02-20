@@ -15,8 +15,9 @@ export async function simulateTransaction(
     sidebarProvider?: SidebarViewProvider
 ) {
 import { SimulationHistoryService } from '../services/simulationHistoryService';
+import { ResourceProfilingService } from '../services/resourceProfilingService';
 
-export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider, historyService?: SimulationHistoryService) {
+export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider, historyService?: SimulationHistoryService, profilingService?: ResourceProfilingService) {
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
         if (!resolvedCliConfig.validation.valid) {
@@ -236,9 +237,10 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     args
                 );
                 // Record simulation in history
+                let historyEntryId: string | undefined;
                 if (historyService) {
                     try {
-                        await historyService.recordSimulation({
+                        const entry = await historyService.recordSimulation({
                             contractId,
                             functionName,
                             args,
@@ -252,9 +254,27 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                             method: simulationMethod,
                             durationMs,
                         });
+                        historyEntryId = entry.id;
                     } catch (historyError) {
                         // History recording should never block the simulation flow
                         console.warn('[Stellar Suite] Failed to record simulation history:', historyError);
+                    }
+                }
+
+                // Record resource profile
+                if (profilingService && result.success) {
+                    try {
+                        await profilingService.recordProfile({
+                            simulationId: historyEntryId,
+                            contractId,
+                            functionName,
+                            network,
+                            cpuInstructions: result.resourceUsage?.cpuInstructions,
+                            memoryBytes: result.resourceUsage?.memoryBytes,
+                            executionTimeMs: durationMs,
+                        });
+                    } catch (profilingError) {
+                        console.warn('[Stellar Suite] Failed to record resource profile:', profilingError);
                     }
                 }
 

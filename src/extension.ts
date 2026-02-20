@@ -28,6 +28,8 @@ import { StateBackupService } from './services/stateBackupService';
 import { registerBackupCommands } from './commands/backupCommands';
 import { SimulationReplayService } from './services/simulationReplayService';
 import { registerReplayCommands } from './commands/replayCommands';
+import { ResourceProfilingService } from './services/resourceProfilingService';
+import { registerResourceProfilingCommands } from './commands/resourceProfilingCommands';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
@@ -43,44 +45,13 @@ let compilationMonitor: CompilationStatusMonitor | undefined;
 let compilationStatusProvider: CompilationStatusProvider | undefined;
 let backupService: StateBackupService | undefined;
 let replayService: SimulationReplayService | undefined;
+let resourceProfilingService: ResourceProfilingService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
   outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
   console.log("[Stellar Suite] Extension activating...");
 
-        // Register group commands
-        registerGroupCommands(context, groupService);
-        outputChannel.appendLine('[Extension] Group commands registered');
-
-        // Initialize version tracker
-        versionTracker = new ContractVersionTracker(context, outputChannel);
-        outputChannel.appendLine('[Extension] Contract version tracker initialized');
-
-        // Initialize RPC retry service with circuit breaker
-        retryService = new RpcRetryService(
-            { resetTimeout: 60000, consecutiveFailuresThreshold: 3 },
-            { maxAttempts: 3, initialDelayMs: 100, maxDelayMs: 5000 },
-            false
-        );
-        retryStatusBar = new RetryStatusBarItem(retryService, 5000);
-        registerRetryCommands(context, retryService);
-        outputChannel.appendLine('[Extension] RPC retry service with circuit breaker initialized');
-
-        // Initialize workspace state synchronization
-        syncService = new WorkspaceStateSyncService(context);
-        syncStatusProvider = new SyncStatusProvider(syncService);
-        outputChannel.appendLine('[Extension] Workspace state sync service initialized');
-
-        // ── Sidebar ───────────────────────────────────────────
-        sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
-        context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(
-                SidebarViewProvider.viewType,
-                sidebarProvider
-            )
-        );
-        outputChannel.appendLine('[Extension] Sidebar view provider registered');
   try {
     // Initialize simulation history service
     simulationHistoryService = new SimulationHistoryService(context, outputChannel);
@@ -163,7 +134,7 @@ export function activate(context: vscode.ExtensionContext) {
     // ── Core commands ─────────────────────────────────────
     const simulateCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateTransaction",
-      () => simulateTransaction(context, sidebarProvider, simulationHistoryService),
+      () => simulateTransaction(context, sidebarProvider, simulationHistoryService, resourceProfilingService),
     );
 
     const deployCommand = vscode.commands.registerCommand(
@@ -194,30 +165,15 @@ export function activate(context: vscode.ExtensionContext) {
       },
     );
 
-        outputChannel.appendLine('[Extension] All commands registered');
+    const deployFromSidebarCommand = vscode.commands.registerCommand(
+      "stellarSuite.deployFromSidebar",
+      () => deployContract(context, sidebarProvider),
+    );
 
-        // ── File watcher ──────────────────────────────────────
-        const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
-        const refreshOnChange = () => sidebarProvider?.refresh();
-        watcher.onDidChange(refreshOnChange);
-        watcher.onDidCreate(refreshOnChange);
-        watcher.onDidDelete(refreshOnChange);
-
-        context.subscriptions.push(
-            simulateCommand,
-            deployCommand,
-            buildCommand,
-            configureCliCommand,
-            refreshCommand,
-            deployFromSidebarCommand,
-            simulateFromSidebarCommand,
-            copyContractIdCommand,
-            showVersionMismatchesCommand,
-            watcher,
-            syncStatusProvider || { dispose: () => {} },
-            retryStatusBar || { dispose: () => {} },
-            retryService
-        );
+    const simulateFromSidebarCommand = vscode.commands.registerCommand(
+      "stellarSuite.simulateFromSidebar",
+      () => simulateTransaction(context, sidebarProvider, simulationHistoryService, resourceProfilingService),
+    );
 
     const copyContractIdCommand = vscode.commands.registerCommand(
       "stellarSuite.copyContractId",
@@ -298,6 +254,13 @@ export function activate(context: vscode.ExtensionContext) {
         '[Extension] Simulation replay service initialized and commands registered',
       );
     }
+
+    // Initialize resource profiling service
+    resourceProfilingService = new ResourceProfilingService(context, outputChannel);
+    registerResourceProfilingCommands(context, resourceProfilingService);
+    outputChannel.appendLine(
+      '[Extension] Resource profiling service initialized and commands registered',
+    );
 
     outputChannel.appendLine("[Extension] All commands registered");
 

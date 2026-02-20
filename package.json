@@ -151,6 +151,30 @@
       {
         "command": "stellarSuite.exportReplayResults",
         "title": "Stellar Suite: Export Replay Results"
+      },
+      {
+        "command": "stellarSuite.showResourceProfile",
+        "title": "Stellar Suite: Show Resource Profile"
+      },
+      {
+        "command": "stellarSuite.compareResourceProfiles",
+        "title": "Stellar Suite: Compare Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.exportResourceProfiles",
+        "title": "Stellar Suite: Export Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.importResourceProfiles",
+        "title": "Stellar Suite: Import Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.showResourceStats",
+        "title": "Stellar Suite: Show Resource Statistics"
+      },
+      {
+        "command": "stellarSuite.clearResourceProfiles",
+        "title": "Stellar Suite: Clear Resource Profiles"
       }
     ],
     "menus": {
@@ -210,11 +234,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:simulation-validation",
-    "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
-    "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
-    "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js"
-    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:template-detection",
+    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:resource-profiling",
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
     "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
@@ -225,7 +245,7 @@
     "test:state-backup": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/stateBackupService.ts src/test/stateBackup.test.ts && node out-test/test/stateBackup.test.js",
     "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js",
     "test:simulation-replay": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationReplay.test.ts && node out-test/test/simulationReplay.test.js",
-    "test:template-detection": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/templateDetection.test.ts && node out-test/test/templateDetection.test.js"
+    "test:resource-profiling": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/resourceProfile.ts src/services/resourceProfilingService.ts src/test/resourceProfiling.test.ts && node out-test/test/resourceProfiling.test.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

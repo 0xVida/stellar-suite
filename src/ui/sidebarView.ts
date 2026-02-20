@@ -19,6 +19,15 @@ import {
 import { ReorderingService } from '../services/reorderingService';
 import { ContractVersionTracker, ContractVersionState } from '../services/contractVersionTracker';
 import { SimulationHistoryService, SimulationHistoryEntry, SimulationHistoryStats } from '../services/simulationHistoryService';
+import { buildExportPayload, serializeExport, ExportableContract } from '../services/sidebarExportService';
+import {
+    parseExportFile,
+    validateAndPreview,
+    applyImport,
+    formatImportPreview,
+    ExistingContract,
+} from '../services/sidebarImportService';
+import { ImportSelection, ImportPreview } from '../types/sidebarExport';
 
 export interface ContractInfo {
     name: string;
@@ -124,7 +133,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     break;
 
                 case 'refresh':
-                   this.refresh();
+                    this.refresh();
                     break;
 
                 // ── Context menu ──────────────────────────────
@@ -139,7 +148,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         actions,
                         contractName: req.contractName,
                         contractPath: req.contractPath,
-                        contractId:   req.contractId,
+                        contractId: req.contractId,
                         x: req.x,
                         y: req.y,
                     });
@@ -163,7 +172,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
                 case 'dnd:reorder': {
                     const fromPath = message['fromPath'] as string | undefined;
-                    const toPath   = message['toPath']   as string | undefined;
+                    const toPath = message['toPath'] as string | undefined;
 
                     if (!fromPath || !toPath) {
                         this.outputChannel.appendLine('[Reordering] ERROR: missing fromPath or toPath');
@@ -184,8 +193,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         this._lastContracts = reordered;
                         this._view?.webview.postMessage({
                             type: 'update',
-                            contracts:     reordered,
-                            deployments:   this._getDeploymentHistory(),
+                            contracts: reordered,
+                            deployments: this._getDeploymentHistory(),
                             versionStates: this._getVersionStates(reordered),
                         });
                     } catch (err) {
@@ -197,8 +206,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         });
                         this._view?.webview.postMessage({
                             type: 'update',
-                            contracts:     this._lastContracts,
-                            deployments:   this._getDeploymentHistory(),
+                            contracts: this._lastContracts,
+                            deployments: this._getDeploymentHistory(),
                             versionStates: this._getVersionStates(this._lastContracts),
                         });
                     }
@@ -209,8 +218,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     this.outputChannel.appendLine('[Reordering] Drag cancelled — restoring order');
                     this._view?.webview.postMessage({
                         type: 'update',
-                        contracts:     this._lastContracts,
-                        deployments:   this._getDeploymentHistory(),
+                        contracts: this._lastContracts,
+                        deployments: this._getDeploymentHistory(),
                         versionStates: this._getVersionStates(this._lastContracts),
                     });
                     break;
@@ -238,15 +247,15 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
                 case 'version:tag': {
                     const contractPath = message['contractPath'] as string | undefined;
-                    const entryId     = message['entryId']      as string | undefined;
-                    const label       = message['label']        as string | undefined;
+                    const entryId = message['entryId'] as string | undefined;
+                    const label = message['label'] as string | undefined;
                     if (!contractPath || !entryId || !label) { break; }
                     const ok = await this.versionTracker.tagVersion(contractPath, entryId, label);
                     this._view?.webview.postMessage({
                         type: 'actionFeedback',
                         feedback: ok
                             ? { type: 'success', message: `Version tagged as "${label}".` }
-                            : { type: 'error',   message: 'Failed to tag version — entry not found.' },
+                            : { type: 'error', message: 'Failed to tag version — entry not found.' },
                     });
                     break;
                 }
@@ -286,14 +295,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     const historyService = this._getSimulationHistoryService();
                     if (!historyService) { break; }
                     const entryId = message['entryId'] as string | undefined;
-                    const label   = message['label']   as string | undefined;
+                    const label = message['label'] as string | undefined;
                     if (!entryId || !label) { break; }
                     const ok = await historyService.labelEntry(entryId, label);
                     this._view?.webview.postMessage({
                         type: 'actionFeedback',
                         feedback: ok
                             ? { type: 'success', message: `Simulation labeled "${label}".` }
-                            : { type: 'error',   message: 'Failed to label — entry not found.' },
+                            : { type: 'error', message: 'Failed to label — entry not found.' },
                     });
                     break;
                 }
@@ -308,7 +317,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         type: 'actionFeedback',
                         feedback: deleted
                             ? { type: 'success', message: 'Simulation entry deleted.' }
-                            : { type: 'error',   message: 'Entry not found.' },
+                            : { type: 'error', message: 'Entry not found.' },
                     });
                     // Refresh the history panel
                     if (deleted) {
@@ -344,6 +353,151 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
 
+                // ── Export / Import ────────────────────────────
+
+                case 'sidebar:export': {
+                    this.outputChannel.appendLine('[Export] Starting sidebar export…');
+                    try {
+                        const workspaceId = vscode.workspace.workspaceFolders?.[0]?.name || 'unknown';
+                        const payload = buildExportPayload({
+                            contracts: this._lastContracts as ExportableContract[],
+                            workspaceId,
+                        });
+                        const json = serializeExport(payload);
+
+                        const uri = await vscode.window.showSaveDialog({
+                            defaultUri: vscode.Uri.file(`stellar-suite-export-${Date.now()}.json`),
+                            filters: { 'JSON Files': ['json'] },
+                            title: 'Export Sidebar Contracts',
+                        });
+                        if (uri) {
+                            await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
+                            this._view?.webview.postMessage({
+                                type: 'actionFeedback',
+                                feedback: { type: 'success', message: `Exported ${payload.contracts.length} contract(s).` },
+                            });
+                            this.outputChannel.appendLine(`[Export] Saved to ${uri.fsPath}`);
+                        }
+                    } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.outputChannel.appendLine(`[Export] ERROR: ${msg}`);
+                        this._view?.webview.postMessage({
+                            type: 'actionFeedback',
+                            feedback: { type: 'error', message: `Export failed: ${msg}` },
+                        });
+                    }
+                    break;
+                }
+
+                case 'sidebar:import': {
+                    this.outputChannel.appendLine('[Import] Starting sidebar import…');
+                    try {
+                        const uris = await vscode.window.showOpenDialog({
+                            canSelectMany: false,
+                            filters: { 'JSON Files': ['json'] },
+                            title: 'Import Sidebar Contracts',
+                        });
+                        if (!uris || uris.length === 0) { break; }
+
+                        const rawBytes = await vscode.workspace.fs.readFile(uris[0]);
+                        const raw = Buffer.from(rawBytes).toString('utf-8');
+                        const parsed = parseExportFile(raw);
+
+                        const existing: ExistingContract[] = this._lastContracts.map(c => ({
+                            id: c.contractId || `local:${c.name}`,
+                            name: c.name,
+                            address: c.contractId || '',
+                            network: c.network || 'testnet',
+                        }));
+
+                        const validation = validateAndPreview(parsed, existing);
+
+                        this._view?.webview.postMessage({
+                            type: 'import:preview',
+                            validation,
+                            formattedPreview: formatImportPreview(validation.preview),
+                        });
+
+                        this.outputChannel.appendLine(
+                            `[Import] Preview ready: ${validation.preview.newContracts.length} new, ` +
+                            `${validation.preview.conflicts.length} conflict(s)`
+                        );
+                    } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.outputChannel.appendLine(`[Import] ERROR: ${msg}`);
+                        this._view?.webview.postMessage({
+                            type: 'actionFeedback',
+                            feedback: { type: 'error', message: `Import failed: ${msg}` },
+                        });
+                    }
+                    break;
+                }
+
+                case 'import:apply': {
+                    this.outputChannel.appendLine('[Import] Applying import selection…');
+                    try {
+                        const preview = message['preview'] as ImportPreview;
+                        const selection = message['selection'] as ImportSelection;
+
+                        if (!preview || !selection) {
+                            this._view?.webview.postMessage({
+                                type: 'actionFeedback',
+                                feedback: { type: 'error', message: 'Import apply: missing preview or selection.' },
+                            });
+                            break;
+                        }
+
+                        const existing: ExistingContract[] = this._lastContracts.map(c => ({
+                            id: c.contractId || `local:${c.name}`,
+                            name: c.name,
+                            address: c.contractId || '',
+                            network: c.network || 'testnet',
+                        }));
+
+                        const result = await applyImport(
+                            preview,
+                            selection,
+                            {
+                                currentContracts: existing,
+                                applyContracts: async (contracts) => {
+                                    const deployed: Record<string, string> = {};
+                                    for (const c of contracts) {
+                                        if (c.address) { deployed[c.id] = c.address; }
+                                    }
+                                    await this._context.workspaceState.update('stellarSuite.importedContracts', contracts);
+                                },
+                            },
+                        );
+
+                        if (result.success) {
+                            this._view?.webview.postMessage({
+                                type: 'actionFeedback',
+                                feedback: {
+                                    type: 'success',
+                                    message: `Import complete: ${result.importedCount} imported, ` +
+                                        `${result.overwrittenCount} overwritten, ` +
+                                        `${result.renamedCount} renamed, ` +
+                                        `${result.skippedCount} skipped.`,
+                                },
+                            });
+                            this.refresh();
+                        } else {
+                            this._view?.webview.postMessage({
+                                type: 'actionFeedback',
+                                feedback: { type: 'error', message: `Import failed: ${result.errors.join(', ')}` },
+                            });
+                        }
+                    } catch (err) {
+                        const msg = err instanceof Error ? err.message : String(err);
+                        this.outputChannel.appendLine(`[Import] Apply ERROR: ${msg}`);
+                        this._view?.webview.postMessage({
+                            type: 'actionFeedback',
+                            feedback: { type: 'error', message: `Import apply failed: ${msg}` },
+                        });
+                    }
+                    break;
+                }
+
                 default:
                     this.outputChannel.appendLine(`[Sidebar] Unknown message type: ${message.type}`);
             }
@@ -356,12 +510,12 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         if (!this._view) { return; }
         this.outputChannel.appendLine('[Sidebar] Refreshing contract data…');
 
-        const discovered    = this._discoverContracts();
-        const ordered       = this.reorderingService.applyOrder(discovered);
+        const discovered = this._discoverContracts();
+        const ordered = this.reorderingService.applyOrder(discovered);
         this._lastContracts = ordered;
 
-        const deployments    = this._getDeploymentHistory();
-        const versionStates  = this._getVersionStates(ordered);
+        const deployments = this._getDeploymentHistory();
+        const versionStates = this._getVersionStates(ordered);
         this._view.webview.postMessage({ type: 'update', contracts: ordered, deployments, versionStates });
     }
 
@@ -386,9 +540,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) { return []; }
 
-        const hidden          = this._context.workspaceState.get<string[]>('stellarSuite.hiddenContracts', []);
-        const aliases         = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
-        const pinned          = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
+        const hidden = this._context.workspaceState.get<string[]>('stellarSuite.hiddenContracts', []);
+        const aliases = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
+        const pinned = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
         const networkOverrides = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractNetworkOverrides', {});
 
         const contracts: ContractInfo[] = [];
@@ -396,10 +550,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         for (const folder of workspaceFolders) {
             const found = this._findContracts(folder.uri.fsPath);
             for (const c of found) {
-                if (hidden.includes(c.path))          { continue; }
-                if (aliases[c.path])                  { c.name    = aliases[c.path]; }
+                if (hidden.includes(c.path)) { continue; }
+                if (aliases[c.path]) { c.name = aliases[c.path]; }
                 c.isPinned = pinned.includes(c.path);
-                if (networkOverrides[c.path])          { c.network = networkOverrides[c.path]; }
+                if (networkOverrides[c.path]) { c.network = networkOverrides[c.path]; }
                 contracts.push(c);
             }
         }
@@ -422,22 +576,22 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const hasCargoToml = entries.some(e => e.isFile() && e.name === 'Cargo.toml');
 
         if (hasCargoToml) {
-            const cargoPath    = path.join(rootPath, 'Cargo.toml');
+            const cargoPath = path.join(rootPath, 'Cargo.toml');
             const cargoContent = fs.readFileSync(cargoPath, 'utf-8');
 
             if (cargoContent.includes('soroban-sdk')) {
-                const nameMatch    = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
+                const nameMatch = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
                 const contractName = nameMatch ? nameMatch[1] : path.basename(rootPath);
 
                 const wasmPath = path.join(rootPath, 'target', 'wasm32-unknown-unknown', 'release');
-                const isBuilt  = fs.existsSync(wasmPath) &&
+                const isBuilt = fs.existsSync(wasmPath) &&
                     fs.readdirSync(wasmPath).some(f => f.endsWith('.wasm'));
 
                 const deployedContracts = this._context.workspaceState.get<Record<string, string>>(
                     'stellarSuite.deployedContracts', {}
                 );
                 const contractId = deployedContracts[rootPath];
-                const config     = vscode.workspace.getConfiguration('stellarSuite');
+                const config = vscode.workspace.getConfiguration('stellarSuite');
 
                 // ── Version info ──────────────────────────────
                 const versionState = this.versionTracker.getContractVersionState(
@@ -445,16 +599,16 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                 );
 
                 results.push({
-                    name:                 contractName,
-                    path:                 cargoPath,
+                    name: contractName,
+                    path: cargoPath,
                     contractId,
                     isBuilt,
-                    hasWasm:              isBuilt,
-                    network:              config.get<string>('network', 'testnet'),
-                    source:               config.get<string>('source',  'dev'),
-                    localVersion:         versionState.localVersion,
-                    deployedVersion:      versionState.deployedVersion,
-                    hasVersionMismatch:   versionState.hasMismatch,
+                    hasWasm: isBuilt,
+                    network: config.get<string>('network', 'testnet'),
+                    source: config.get<string>('source', 'dev'),
+                    localVersion: versionState.localVersion,
+                    deployedVersion: versionState.deployedVersion,
+                    hasVersionMismatch: versionState.hasMismatch,
                     versionMismatchMessage: versionState.mismatch?.message,
                 });
                 return results;
@@ -779,6 +933,103 @@ body {
 .toast.error   { border-left: 3px solid var(--color-danger);  }
 .toast.info    { border-left: 3px solid var(--color-accent);  }
 
+/* ── Import Preview Modal ──────────────────────────────────── */
+#import-modal-overlay {
+    position:   fixed;
+    inset:      0;
+    background: rgba(0,0,0,0.55);
+    z-index:    3000;
+    display:    none;
+    align-items: center;
+    justify-content: center;
+}
+#import-modal-overlay.visible { display: flex; }
+
+#import-modal {
+    background:    var(--color-card);
+    border:        1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow:    var(--shadow);
+    width:         320px;
+    max-height:    90vh;
+    display:       flex;
+    flex-direction: column;
+    overflow:      hidden;
+    animation:     menuIn 0.12s ease;
+}
+.import-modal-header {
+    display:        flex;
+    align-items:    center;
+    justify-content: space-between;
+    padding:        10px 14px;
+    border-bottom:  1px solid var(--color-border);
+    font-weight:    700;
+    font-size:      13px;
+}
+.import-modal-body {
+    flex:       1;
+    overflow-y: auto;
+    padding:    10px 14px;
+    font-size:  12px;
+}
+.import-modal-footer {
+    display:        flex;
+    justify-content: flex-end;
+    gap:            8px;
+    padding:        10px 14px;
+    border-top:     1px solid var(--color-border);
+}
+.import-section { margin-bottom: 10px; }
+.import-section-title {
+    font-weight:    700;
+    font-size:      11px;
+    color:          var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom:  4px;
+}
+.import-item {
+    display:       flex;
+    align-items:   center;
+    gap:           6px;
+    padding:       4px 0;
+    font-size:     12px;
+}
+.import-item label { flex: 1; cursor: pointer; }
+.import-item select {
+    font-size:     11px;
+    background:    var(--color-bg);
+    color:         var(--color-fg);
+    border:        1px solid var(--color-border);
+    border-radius: 4px;
+    padding:       2px 4px;
+}
+.import-stat {
+    display:     flex;
+    justify-content: space-between;
+    padding:     2px 0;
+    color:       var(--color-muted);
+}
+.import-stat .val { color: var(--color-fg); font-weight: 600; }
+.import-error-box {
+    background:    rgba(241,76,76,.1);
+    border:        1px solid rgba(241,76,76,.4);
+    border-radius: var(--radius);
+    padding:       6px 10px;
+    font-size:     11px;
+    color:         var(--color-danger);
+    margin-bottom: 8px;
+}
+.import-warning-box {
+    background:    rgba(255,200,50,.1);
+    border:        1px solid rgba(255,200,50,.4);
+    border-radius: var(--radius);
+    padding:       6px 10px;
+    font-size:     11px;
+    color:         #d4a017;
+    margin-bottom: 8px;
+}
+
 /* ── Version history panel ──────────────────────────────── */
 #version-panel {
     position:      fixed;
@@ -913,6 +1164,8 @@ body {
 <div class="header">
     <h1>Stellar Suite</h1>
     <div class="header-actions">
+        <button class="icon-btn" id="export-btn"      title="Export contracts">📤 Export</button>
+        <button class="icon-btn" id="import-btn"      title="Import contracts">📥 Import</button>
         <button class="icon-btn" id="reset-order-btn" title="Reset contract order to default">↺ Reset order</button>
         <button class="icon-btn" id="refresh-btn"     title="Refresh contracts">↻ Refresh</button>
     </div>
@@ -967,6 +1220,21 @@ body {
 <!-- ── Toast Container ──────────────────────────────────── -->
 <div id="toast-container" aria-live="polite"></div>
 
+<!-- ── Import Preview Modal ────────────────────────────────── -->
+<div id="import-modal-overlay">
+    <div id="import-modal">
+        <div class="import-modal-header">
+            <span>Import Preview</span>
+            <button class="icon-btn" id="import-modal-close" title="Cancel">✕</button>
+        </div>
+        <div class="import-modal-body" id="import-modal-body"></div>
+        <div class="import-modal-footer">
+            <button class="action-btn secondary" id="import-cancel-btn">Cancel</button>
+            <button class="action-btn" id="import-apply-btn">Apply Import</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const vscode = acquireVsCodeApi();
 
@@ -977,6 +1245,10 @@ let _activeMenuContract = null;
 let _dragPath           = null;
 let _dragEl             = null;
 let _dropTargetEl       = null;
+
+// ── Import state ──────────────────────────────────────────────
+let _importPreview   = null;
+let _importValidation = null;
 
 // ── Message receiver ──────────────────────────────────────────
 window.addEventListener('message', (event) => {
@@ -1001,6 +1273,11 @@ window.addEventListener('message', (event) => {
         case 'simHistory:data':
             renderSimulationHistory(msg.entries || [], msg.stats || {});
             break;
+        case 'import:preview':
+            _importValidation = msg.validation;
+            _importPreview    = msg.validation.preview;
+            showImportPreviewModal(msg.validation);
+            break;
     }
 });
 
@@ -1011,6 +1288,117 @@ document.getElementById('refresh-btn').addEventListener('click', () => {
 document.getElementById('reset-order-btn').addEventListener('click', () => {
     vscode.postMessage({ type: 'dnd:reset' });
 });
+document.getElementById('export-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'sidebar:export' });
+});
+document.getElementById('import-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'sidebar:import' });
+});
+document.getElementById('import-modal-close').addEventListener('click', hideImportModal);
+document.getElementById('import-cancel-btn').addEventListener('click', hideImportModal);
+document.getElementById('import-apply-btn').addEventListener('click', applyImportSelection);
+
+// ── Import Preview Modal Logic ────────────────────────────────
+
+function hideImportModal() {
+    document.getElementById('import-modal-overlay').classList.remove('visible');
+    _importPreview = null;
+    _importValidation = null;
+}
+
+function showImportPreviewModal(validation) {
+    const preview = validation.preview;
+    const body = document.getElementById('import-modal-body');
+    let html = '';
+
+    html += '<div class="import-section">';
+    html += '<div class="import-section-title">Summary</div>';
+    html += \`<div class="import-stat"><span>Total in file</span><span class="val">\${preview.totalContracts}</span></div>\`;
+    html += \`<div class="import-stat"><span>New</span><span class="val">\${preview.newContracts.length}</span></div>\`;
+    html += \`<div class="import-stat"><span>Conflicts</span><span class="val">\${preview.conflicts.length}</span></div>\`;
+    html += \`<div class="import-stat"><span>Invalid</span><span class="val">\${preview.invalidEntries.length}</span></div>\`;
+    html += '</div>';
+
+    if (!validation.valid) {
+        html += '<div class="import-error-box">File has validation errors — some entries cannot be imported.</div>';
+    }
+    if (preview.warnings.length > 0) {
+        html += '<div class="import-warning-box">' + preview.warnings.map(w => esc(w.message)).join('<br>') + '</div>';
+    }
+
+    if (preview.newContracts.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">New Contracts</div>';
+        for (const c of preview.newContracts) {
+            html += \`<div class="import-item">\`;
+            html += \`<input type="checkbox" id="imp-\${esc(c.id)}" data-import-id="\${esc(c.id)}" checked />\`;
+            html += \`<label for="imp-\${esc(c.id)}">\${esc(c.name)} <small style="color:var(--color-muted)">(\${esc(c.network)})</small></label>\`;
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    if (preview.conflicts.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">Conflicts</div>';
+        for (const cf of preview.conflicts) {
+            const cid = cf.importedContract.id;
+            html += \`<div class="import-item">\`;
+            html += \`<input type="checkbox" id="imp-\${esc(cid)}" data-import-id="\${esc(cid)}" />\`;
+            html += \`<label for="imp-\${esc(cid)}">\${esc(cf.importedContract.name)} <small style="color:var(--color-danger)">⚠ \${cf.reason === 'duplicate_id' ? 'ID conflict' : 'Address conflict'}</small></label>\`;
+            html += \`<select data-conflict-id="\${esc(cid)}">\`;
+            html += '<option value="skip">Skip</option>';
+            html += '<option value="overwrite">Overwrite</option>';
+            html += '<option value="rename">Rename</option>';
+            html += '</select>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    if (preview.invalidEntries.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">Invalid (skipped)</div>';
+        for (const inv of preview.invalidEntries) {
+            const name = inv.contract.name || '#' + (inv.index + 1);
+            html += \`<div class="import-item" style="color:var(--color-muted)">✘ \${esc(name)}: \${inv.issues.map(i => esc(i.message)).join('; ')}</div>\`;
+        }
+        html += '</div>';
+    }
+
+    body.innerHTML = html;
+    document.getElementById('import-modal-overlay').classList.add('visible');
+}
+
+function applyImportSelection() {
+    if (!_importPreview) { return; }
+
+    const checkboxes = document.querySelectorAll('[data-import-id]');
+    const selectedIds = [];
+    checkboxes.forEach(cb => {
+        if (cb.checked) { selectedIds.push(cb.dataset.importId); }
+    });
+
+    const conflictResolutions = {};
+    const renamedNames = {};
+    const selects = document.querySelectorAll('[data-conflict-id]');
+    selects.forEach(sel => {
+        const cid = sel.dataset.conflictId;
+        conflictResolutions[cid] = sel.value;
+        if (sel.value === 'rename') {
+            const conflict = _importPreview.conflicts.find(c => c.importedContract.id === cid);
+            renamedNames[cid] = (conflict ? conflict.importedContract.name : 'contract') + ' (imported)';
+        }
+    });
+
+    vscode.postMessage({
+        type: 'import:apply',
+        preview: _importPreview,
+        selection: { selectedIds, conflictResolutions, renamedNames },
+    });
+
+    hideImportModal();
+}
 
 // ── Keyboard ──────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {

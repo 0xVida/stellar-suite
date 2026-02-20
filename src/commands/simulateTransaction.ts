@@ -5,9 +5,9 @@ import { ContractInspector, ContractFunction } from '../services/contractInspect
 import { WorkspaceDetector } from '../utils/workspaceDetector';
 import { SimulationPanel } from '../ui/simulationPanel';
 import { SidebarViewProvider } from '../ui/sidebarView';
-import { parseFunctionArgs } from '../utils/jsonParser';
 import { formatError } from '../utils/errorFormatter';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
+import { SimulationCacheService } from '../services/simulationCacheService';
 
 export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     try {
@@ -24,7 +24,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         const source = resolvedCliConfig.configuration.source;
         const network = resolvedCliConfig.configuration.network;
         const rpcUrl = resolvedCliConfig.configuration.rpcUrl;
-        
+
         const lastContractId = context.workspaceState.get<string>('lastContractId');
 
         let defaultContractId = lastContractId || '';
@@ -35,7 +35,8 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     defaultContractId = detectedId;
                 }
             }
-        } catch (error) {
+        } catch {
+            // ignore
         }
 
         const contractId = await vscode.window.showInputBox({
@@ -68,7 +69,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             const inspector = new ContractInspector(cliPath, source);
             try {
                 contractFunctions = await inspector.getContractFunctions(contractId);
-            } catch (error) {
+            } catch {
                 // If inspection fails, continue with manual input
                 console.log('Contract inspection failed, using manual input');
             }
@@ -79,7 +80,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             const functionItems = contractFunctions.map(fn => ({
                 label: fn.name,
                 description: fn.description || '',
-                detail: fn.parameters.length > 0 
+                detail: fn.parameters.length > 0
                     ? `Parameters: ${fn.parameters.map(p => p.name).join(', ')}`
                     : 'No parameters'
             }));
@@ -122,11 +123,11 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
 
         // Collect function arguments based on parameters
         let args: any[] = [];
-        
+
         if (selectedFunction && selectedFunction.parameters.length > 0) {
             // Build arguments object from parameters
             const argsObj: any = {};
-            
+
             for (const param of selectedFunction.parameters) {
                 const paramValue = await vscode.window.showInputBox({
                     prompt: `Enter value for parameter: ${param.name}${param.type ? ` (${param.type})` : ''}${param.required ? '' : ' (optional)'}`,
@@ -154,7 +155,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                 }
             }
 
-            // Convert to array format expected by CLI service
+            // Convert to array format expected by services
             args = [argsObj];
         } else {
             // No parameters or couldn't get function info - use manual input
@@ -185,11 +186,15 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         // Create and show the simulation panel
         const panel = SimulationPanel.createOrShow(context);
         panel.updateResults(
-            { success: false, error: 'Running simulation...' },
+            { success: false, error: 'Running simulation...' } as any,
             contractId,
             functionName,
             args
         );
+
+        // Cache service (shared)
+        const cache = SimulationCacheService.getInstance(context);
+        const cacheParamsBase = { contractId, functionName, args };
 
         // Show progress indicator
         await vscode.window.withProgress(
@@ -201,19 +206,40 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             async (progress: vscode.Progress<{ message?: string; increment?: number }>) => {
                 progress.report({ increment: 0, message: 'Initializing...' });
 
-                let result;
+                let result: any;
 
                 if (useLocalCli) {
+                    // Cache lookup (CLI)
+                    const cached = cache.tryGet({
+                        backend: 'cli',
+                        ...cacheParamsBase,
+                        network,
+                        source
+                    });
+
+                    if (cached) {
+                        result = cached;
+                        progress.report({ increment: 100, message: 'Complete (cache hit)' });
+
+                        panel.updateResults(result, contractId, functionName, args);
+                        if (sidebarProvider) {
+                            sidebarProvider.showSimulationResult(contractId, result);
+                        }
+
+                        vscode.window.showInformationMessage('Simulation loaded from cache');
+                        return;
+                    }
+
                     // Use local CLI
                     progress.report({ increment: 30, message: 'Using Stellar CLI...' });
-                    
+
                     // Try to find CLI if configured path doesn't work
                     let actualCliPath = cliPath;
                     let cliService = new SorobanCliService(actualCliPath, source);
-                    
+
                     // Check if CLI is available at configured path
                     let cliAvailable = await cliService.isAvailable();
-                    
+
                     // If not available and using default, try to auto-detect
                     if (!cliAvailable && cliPath === 'stellar') {
                         progress.report({ increment: 35, message: 'Auto-detecting Stellar CLI...' });
@@ -224,13 +250,13 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                             cliAvailable = await cliService.isAvailable();
                         }
                     }
-                    
+
                     if (!cliAvailable) {
                         const foundPath = await SorobanCliService.findCliPath();
-                        const suggestion = foundPath 
+                        const suggestion = foundPath
                             ? `\n\nFound Stellar CLI at: ${foundPath}\nUpdate your stellarSuite.cliPath setting to: "${foundPath}"`
                             : '\n\nCommon locations:\n- ~/.cargo/bin/stellar\n- /usr/local/bin/stellar\n\nOr install Stellar CLI: https://developers.stellar.org/docs/tools/cli';
-                        
+
                         result = {
                             success: false,
                             error: `Stellar CLI not found at "${cliPath}".${suggestion}`
@@ -239,13 +265,46 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                         progress.report({ increment: 50, message: 'Executing simulation...' });
                         result = await cliService.simulateTransaction(contractId, functionName, args, network);
                     }
+
+                    // Cache store (CLI) — cache both success & failure to avoid repeated identical sims.
+                    // If you only want to cache successes, wrap this with: if (result?.success) { ... }
+                    cache.set(
+                        { backend: 'cli', ...cacheParamsBase, network, source },
+                        result
+                    );
                 } else {
+                    // Cache lookup (RPC)
+                    const cached = cache.tryGet({
+                        backend: 'rpc',
+                        ...cacheParamsBase,
+                        rpcUrl
+                    });
+
+                    if (cached) {
+                        result = cached;
+                        progress.report({ increment: 100, message: 'Complete (cache hit)' });
+
+                        panel.updateResults(result, contractId, functionName, args);
+                        if (sidebarProvider) {
+                            sidebarProvider.showSimulationResult(contractId, result);
+                        }
+
+                        vscode.window.showInformationMessage('Simulation loaded from cache');
+                        return;
+                    }
+
                     // Use RPC
                     progress.report({ increment: 30, message: 'Connecting to RPC...' });
                     const rpcService = new RpcService(rpcUrl);
-                    
+
                     progress.report({ increment: 50, message: 'Executing simulation...' });
                     result = await rpcService.simulateTransaction(contractId, functionName, args);
+
+                    // Cache store (RPC)
+                    cache.set(
+                        { backend: 'rpc', ...cacheParamsBase, rpcUrl },
+                        result
+                    );
                 }
 
                 progress.report({ increment: 100, message: 'Complete' });

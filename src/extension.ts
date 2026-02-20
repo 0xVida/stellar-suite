@@ -16,6 +16,7 @@ import { manageCliConfiguration } from "./commands/manageCliConfiguration";
 import { registerSyncCommands } from "./commands/syncCommands";
 import { WorkspaceStateSyncService } from "./services/workspaceStateSyncService";
 import { SyncStatusProvider } from "./ui/syncStatusProvider";
+import { registerSimulationCacheCommands } from './commands/simulationCacheCommands';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
@@ -29,6 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
   outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
   console.log("[Stellar Suite] Extension activating...");
+  registerSimulationCacheCommands(context);
 
   try {
     // Initialize contract group service

@@ -25,7 +25,9 @@
     "onCommand:stellarSuite.deployContract",
     "onCommand:stellarSuite.buildContract",
     "onCommand:stellarSuite.configureCli",
-    "onCommand:stellarSuite.refreshContracts"
+    "onCommand:stellarSuite.refreshContracts",
+    "onCommand:stellarSuite.clearSimulationCache",
+    "onCommand:stellarSuite.showSimulationCacheStats"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -62,6 +64,16 @@
         "title": "Refresh",
         "icon": "$(refresh)"
       },
+      {
+  "command": "stellarSuite.clearSimulationCache",
+  "title": "Stellar Suite: Clear Simulation Cache",
+  "icon": "$(trash)"
+},
+{
+  "command": "stellarSuite.showSimulationCacheStats",
+  "title": "Stellar Suite: Simulation Cache Stats",
+  "icon": "$(info)"
+},
       {
         "command": "stellarSuite.deployFromSidebar",
         "title": "Deploy Contract",
@@ -110,6 +122,23 @@
           "default": "https://soroban-testnet.stellar.org:443",
           "description": "Stellar RPC endpoint URL for transaction simulation"
         },
+        "stellarSuite.simulationCacheEnabled": {
+  "type": "boolean",
+  "default": true,
+  "description": "Enable caching for simulation results."
+},
+"stellarSuite.simulationCacheTtlSeconds": {
+  "type": "number",
+  "default": 60,
+  "minimum": 0,
+  "description": "Simulation cache TTL in seconds. 0 disables caching via immediate expiry."
+},
+"stellarSuite.simulationCacheMaxEntries": {
+  "type": "number",
+  "default": 200,
+  "minimum": 0,
+  "description": "Maximum number of cached simulation results. 0 disables caching."
+},
         "stellarSuite.useLocalCli": {
           "type": "boolean",
           "default": true,

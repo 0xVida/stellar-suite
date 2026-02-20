@@ -225,6 +225,28 @@
           "type": "string",
           "default": "testnet",
           "description": "Network to use for deployments and invocations (testnet, mainnet, etc.)"
+        },
+        "stellarSuite.signing.defaultMethod": {
+          "type": "string",
+          "enum": [
+            "interactive",
+            "keypairFile",
+            "storedKeypair",
+            "hardwareWallet",
+            "sourceAccount"
+          ],
+          "default": "interactive",
+          "description": "Default signing method for deployment transactions."
+        },
+        "stellarSuite.signing.requireValidatedSignature": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require successful signature validation before deployment is submitted."
+        },
+        "stellarSuite.signing.enableSecureKeyStorage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow storing deployment keypairs in VS Code SecretStorage."
         }
       }
     }
@@ -234,7 +256,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:resource-profiling",
+    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling",
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
     "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
@@ -245,6 +267,8 @@
     "test:state-backup": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/stateBackupService.ts src/test/stateBackup.test.ts && node out-test/test/stateBackup.test.js",
     "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js",
     "test:simulation-replay": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationReplay.test.ts && node out-test/test/simulationReplay.test.js",
+    "test:transaction-signing": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/transactionSigningService.ts src/test/transactionSigningService.test.ts && node out-test/test/transactionSigningService.test.js",
+    "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js"
     "test:resource-profiling": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/resourceProfile.ts src/services/resourceProfilingService.ts src/test/resourceProfiling.test.ts && node out-test/test/resourceProfiling.test.js"
   },
   "devDependencies": {

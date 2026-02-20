@@ -47,9 +47,18 @@ export interface DeploymentResult {
     rawError?: string;
     buildOutput?: string;
     deployOutput?: string;
+    signing?: {
+        method?: string;
+        status?: string;
+        validated?: boolean;
+        payloadHash?: string;
+        publicKey?: string;
+        signature?: string;
+        signedAt?: string;
+    };
 }
 
-interface BuildResult {
+export interface BuildResult {
     success: boolean;
     output: string;
     wasmPath?: string;

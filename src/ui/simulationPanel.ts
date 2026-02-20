@@ -176,7 +176,17 @@ export class SimulationPanel {
             </ul>
             `
             : '';
-
+    
+     const validationWarningsHtml = result.validationWarnings && result.validationWarnings.length > 0
+            ? `
+            <div class="section">
+                <h3>Pre-execution Warnings</h3>
+                <ul class="validation-warnings">
+                    ${result.validationWarnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join('')}
+                </ul>
+            </div>
+            `
+            : '';
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -262,6 +272,14 @@ export class SimulationPanel {
         .error-suggestions li {
             margin-bottom: 6px;
         }
+         .validation-warnings {
+            margin-top: 12px;
+            padding-left: 20px;
+            color: var(--vscode-editorWarning-foreground);
+        }
+        .validation-warnings li {
+            margin-bottom: 6px;
+        }
         .result-value {
             background-color: var(--vscode-textCodeBlock-background);
             padding: 12px;
@@ -284,6 +302,7 @@ export class SimulationPanel {
         </table>
     </div>
 
+      ${validationWarningsHtml}
     ${result.success
         ? `
         <div class="section">

@@ -25,7 +25,8 @@
     "onCommand:stellarSuite.deployContract",
     "onCommand:stellarSuite.buildContract",
     "onCommand:stellarSuite.configureCli",
-    "onCommand:stellarSuite.refreshContracts"
+    "onCommand:stellarSuite.refreshContracts",
+    "onCommand:stellarSuite.deployBatch"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -61,6 +62,11 @@
         "command": "stellarSuite.refreshContracts",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "stellarSuite.deployBatch",
+        "title": "Stellar Suite: Deploy Batch",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "stellarSuite.deployFromSidebar",
@@ -261,6 +267,8 @@
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
     "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
     "test:cargo-metadata": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/test/cargoTomlParser.test.ts && node out-test/test/cargoTomlParser.test.js",
+    "test:batch-deps": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/deploymentDependencyResolver.ts src/test/deploymentDependencyResolver.test.ts && node out-test/test/deploymentDependencyResolver.test.js",
+    "test:batch-deploy": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/batchDeploymentService.ts src/test/batchDeploymentService.test.ts && node out-test/test/batchDeploymentService.test.js",
     "test:compilation-status": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/compilationStatus.ts src/services/compilationStatusMonitor.ts src/test/compilationStatus.test.ts && node out-test/test/compilationStatus.test.js",
     "test:cli-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/cliValidation.ts src/services/parameterValidator.ts src/services/environmentValidator.ts src/services/fileValidator.ts src/services/networkValidator.ts src/services/cliValidationService.ts src/services/preFlightCheckService.ts src/test/cliValidation.test.ts && node out-test/test/cliValidation.test.js",
     "test:simulation-history": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/test/simulationHistory.test.ts && node out-test/test/simulationHistory.test.js",
@@ -268,7 +276,7 @@
     "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js",
     "test:simulation-replay": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationReplay.test.ts && node out-test/test/simulationReplay.test.js",
     "test:transaction-signing": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/transactionSigningService.ts src/test/transactionSigningService.test.ts && node out-test/test/transactionSigningService.test.js",
-    "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js"
+    "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js",
     "test:resource-profiling": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/resourceProfile.ts src/services/resourceProfilingService.ts src/test/resourceProfiling.test.ts && node out-test/test/resourceProfiling.test.js"
   },
   "devDependencies": {
@@ -276,5 +284,7 @@
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "vscode": "^1.1.37"
+  }
 }

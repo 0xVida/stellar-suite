@@ -277,8 +277,12 @@ export class WorkspaceStateSyncService {
         const globalDeployments = this.globalState.get<DeploymentRecord[]>(WorkspaceStateSyncService.DEPLOYMENTS_KEY, []);
 
         // Build maps for efficient lookup
-        const localMap = new Map((localDeployments || []).map(d => [d.contractId, d]));
-        const globalMap = new Map((globalDeployments || []).map(d => [d.contractId, d]));
+        const localMap = new Map<string, DeploymentRecord>(
+            (localDeployments || []).map((d: DeploymentRecord): [string, DeploymentRecord] => [d.contractId, d])
+        );
+        const globalMap = new Map<string, DeploymentRecord>(
+            (globalDeployments || []).map((d: DeploymentRecord): [string, DeploymentRecord] => [d.contractId, d])
+        );
 
         // Detect conflicts and new items
         const processed = new Set<string>();
@@ -379,7 +383,9 @@ export class WorkspaceStateSyncService {
     private async importDeployments(remote: Map<string, DeploymentRecord>, strategy: ConflictResolutionStrategy): Promise<SyncResult> {
         const result = new SyncResult('deployment');
         const local = this.workspaceState.get<DeploymentRecord[]>(WorkspaceStateSyncService.DEPLOYMENTS_KEY, []) || [];
-        const localMap = new Map(local.map(d => [d.contractId, d]));
+        const localMap = new Map<string, DeploymentRecord>(
+            local.map((d: DeploymentRecord): [string, DeploymentRecord] => [d.contractId, d])
+        );
 
         for (const [id, remoteRecord] of remote) {
             const localRecord = localMap.get(id);

@@ -34,7 +34,7 @@ export class WorkspaceDetector {
                     '**/node_modules/**',
                     10
                 );
-                contractFiles.push(...files.map(f => f.fsPath));
+                contractFiles.push(...files.map((f: { fsPath: string }) => f.fsPath));
             }
         }
 

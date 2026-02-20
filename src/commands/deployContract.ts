@@ -247,12 +247,36 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                 let signingResult: DeploymentSigningResult | undefined;
                 let deployableWasmPath: string | undefined = wasmPath || undefined;
                 let resolvedContractDir = contractDir || undefined;
+                let contractRootDir: string | undefined;
+                let contractNameForRecord: string | undefined;
 
-                if (!deployFromWasm && contractDir) {
-                    // Build first so signing can target concrete WASM artifact.
+                if (deployFromWasm && wasmPath) {
+                    // Deploy directly from provided WASM (no build)
+                    contractRootDir = path.dirname(wasmPath);
+
+                    // Best-effort: walk up to find Cargo.toml
+                    try {
+                        const fs = require('fs');
+                        let dir = path.dirname(wasmPath);
+                        for (let i = 0; i < 8; i++) {
+                            const cargo = path.join(dir, 'Cargo.toml');
+                            if (fs.existsSync(cargo)) {
+                                contractRootDir = dir;
+                                break;
+                            }
+                            const parent = path.dirname(dir);
+                            if (parent === dir) break;
+                            dir = parent;
+                        }
+                    } catch {
+                        // ignore
+                    }
+                } else if (contractDir) {
+                    // Build first so signing targets actual WASM
                     progress.report({ increment: 20, message: 'Building contract...' });
                     outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                     outputChannel.appendLine('Running: stellar contract build\n');
+
                     const buildResult = await deployer.buildContract(contractDir);
 
                     if (!buildResult.success) {
@@ -268,11 +292,15 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                         };
                     } else {
                         deployableWasmPath = buildResult.wasmPath;
+                        contractRootDir = contractDir;
+
                         if (buildResult.output) {
                             outputChannel.appendLine('=== Build Output ===');
                             outputChannel.appendLine(buildResult.output);
                             outputChannel.appendLine('');
                         }
+                    }
+                }
                     }
                 }
 
@@ -358,31 +386,36 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     // Store contract ID in workspace state
                     if (result.contractId) {
                         const deployedAt = new Date().toISOString();
-                        const deploymentInfo = {
-                            contractId: result.contractId,
-                            transactionHash: result.transactionHash,
-                            deployedAt,
-                            timestamp: deployedAt,
-                            network,
-                            source,
-                            signing: signingResult
-                        };
 
-                        const deployedContracts = context.workspaceState.get<Record<string, string>>(
-                            'stellarSuite.deployedContracts',
-                            {}
-                        );
-                        if (resolvedContractDir) {
-                            deployedContracts[resolvedContractDir] = result.contractId;
+                        // Best-effort contract name (Cargo.toml name if available, else directory name).
+                        let contractNameForRecord: string;
+                        const effectiveContractDir = contractRootDir || resolvedContractDir;
+
+                        if (effectiveContractDir) {
+                            try {
+                                const fs = require('fs');
+                                const cargoPath = path.join(effectiveContractDir, 'Cargo.toml');
+                                if (fs.existsSync(cargoPath)) {
+                                    const content = fs.readFileSync(cargoPath, 'utf-8');
+                                    const match = content.match(/^\s*name\s*=\s*"([^"]+)"/m);
+                                    contractNameForRecord = match
+                                        ? match[1]
+                                        : path.basename(effectiveContractDir);
+                                } else {
+                                    contractNameForRecord = path.basename(effectiveContractDir);
+                                }
+                            } catch {
+                                contractNameForRecord = path.basename(effectiveContractDir);
+                            }
+                        } else if (deployableWasmPath) {
+                            contractNameForRecord = path.basename(deployableWasmPath);
+                        } else {
+                            contractNameForRecord = 'unknown';
                         }
 
-                        const deploymentHistory = context.workspaceState.get<Record<string, unknown>[]>(
-                            'stellarSuite.deploymentHistory',
-                            []
-                        );
-                        deploymentHistory.push({
+                        const deploymentRecord = {
                             contractId: result.contractId,
-                            contractName: resolvedContractDir ? path.basename(resolvedContractDir) : path.basename(deployableWasmPath || 'contract'),
+                            contractName: contractNameForRecord,
                             deployedAt,
                             network,
                             source,
@@ -391,16 +424,63 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             signingValidated: signingResult?.validated,
                             signerPublicKey: signingResult?.publicKey,
                             payloadHash: signingResult?.payloadHash,
-                        });
+                        };
+
+                        const deploymentInfo = {
+                            contractId: result.contractId,
+                            transactionHash: result.transactionHash,
+                            deployedAt,
+                            timestamp: deployedAt,
+                            network,
+                            source,
+                            signing: signingResult,
+                          };
 
                         await context.workspaceState.update('lastContractId', result.contractId);
                         await context.workspaceState.update('lastDeployment', deploymentInfo);
+
+                        // Update deployedContracts index
+                        const deployedContracts = context.workspaceState.get<Record<string, string>>(
+                            'stellarSuite.deployedContracts',
+                            {}
+                        );
+                        if (effectiveContractDir) {
+                            deployedContracts[effectiveContractDir] = result.contractId;
+                        }
                         await context.workspaceState.update('stellarSuite.deployedContracts', deployedContracts);
+
+                        const deploymentHistory = context.workspaceState.get<any[]>(
+                            'stellarSuite.deploymentHistory',
+                            []
+                        );
+                        deploymentHistory.push(deploymentRecord);
                         await context.workspaceState.update('stellarSuite.deploymentHistory', deploymentHistory);
+
+                        try {
+                            const tracker = sidebarProvider?.getVersionTracker();
+                            if (tracker && effectiveContractDir) {
+                                const localVersion = tracker.getLocalVersion(effectiveContractDir);
+                                if (localVersion) {
+                                    await tracker.recordDeployedVersion(
+                                        path.join(effectiveContractDir, 'Cargo.toml'),
+                                        contractNameForRecord,
+                                        localVersion,
+                                        {
+                                            contractId: result.contractId,
+                                            network,
+                                            source,
+                                        }
+                                    );
+                                }
+                            }
+                        } catch {
+                            // ignore
+                        }
+
 
                         // Update sidebar view
                         if (sidebarProvider) {
-                            sidebarProvider.showDeploymentResult(deploymentInfo);
+                            sidebarProvider.showDeploymentResult(deploymentRecord);
                         }
 
                         // Show success notification with contract ID

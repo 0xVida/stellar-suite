@@ -234,11 +234,13 @@ export class ContractContextMenuService {
     // ── Individual handlers ───────────────────────────────────
 
     private async handleBuild(contract: ContractInfo): Promise<ActionFeedback> {
+        await this.context.workspaceState.update('selectedContractPath', path.dirname(contract.path));
         await vscode.commands.executeCommand('stellarSuite.buildContract');
         return { type: 'info', message: `Building ${contract.name}…`, refresh: true };
     }
 
     private async handleDeploy(contract: ContractInfo): Promise<ActionFeedback> {
+        await this.context.workspaceState.update('selectedContractPath', path.dirname(contract.path));
         await vscode.commands.executeCommand('stellarSuite.deployContract');
         return { type: 'info', message: `Deploying ${contract.name}…`, refresh: true };
     }
@@ -300,7 +302,7 @@ export class ContractContextMenuService {
             title: 'Rename Contract',
             prompt: 'Enter a new display name for this contract',
             value: contract.name,
-            validateInput: (v) => {
+            validateInput: (v: string) => {
                 if (!v.trim()) { return 'Name cannot be empty.'; }
                 if (v.length > 64) { return 'Name must be 64 characters or fewer.'; }
                 return undefined;
@@ -336,7 +338,7 @@ export class ContractContextMenuService {
             title: 'Duplicate Contract',
             prompt: 'Enter a name for the duplicated contract folder',
             value: `${baseName}-copy`,
-            validateInput: (v) => {
+            validateInput: (v: string) => {
                 if (!v.trim()) { return 'Name cannot be empty.'; }
                 const dest = path.join(parentDir, v.trim());
                 if (fs.existsSync(dest)) { return `Directory "${v.trim()}" already exists.`; }

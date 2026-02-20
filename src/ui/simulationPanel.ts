@@ -21,7 +21,7 @@ export class SimulationPanel {
 
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
-            message => {
+            (message: any) => {
                 switch (message.command) {
                     case 'refresh':
                         this._update();

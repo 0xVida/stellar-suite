@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { RpcLogger, LogLevel } from '../services/rpcLogger';
+import * as path from 'path';
 
 /**
  * Register RPC logging commands
@@ -49,7 +50,7 @@ export function registerRpcLoggingCommands(context: vscode.ExtensionContext, log
                     return;
                 }
 
-                const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+                const filePath = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, fileName));
                 await vscode.workspace.fs.writeFile(filePath, Buffer.from(json, 'utf8'));
                 vscode.window.showInformationMessage(`RPC logs exported to ${fileName}`);
             } catch (error) {
@@ -73,7 +74,7 @@ export function registerRpcLoggingCommands(context: vscode.ExtensionContext, log
                     return;
                 }
 
-                const filePath = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+                const filePath = vscode.Uri.file(path.join(workspaceFolder.uri.fsPath, fileName));
                 await vscode.workspace.fs.writeFile(filePath, Buffer.from(csv, 'utf8'));
                 vscode.window.showInformationMessage(`RPC logs exported to ${fileName}`);
             } catch (error) {

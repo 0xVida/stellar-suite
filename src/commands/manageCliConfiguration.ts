@@ -48,7 +48,7 @@ async function pickNetwork(currentValue: string): Promise<string | undefined> {
     return vscode.window.showInputBox({
         prompt: 'Enter custom network',
         value: currentValue,
-        validateInput: value => value.trim().length > 0 ? null : 'Network cannot be empty.',
+        validateInput: (value: string) => value.trim().length > 0 ? null : 'Network cannot be empty.',
     });
 }
 

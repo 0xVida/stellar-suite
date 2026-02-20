@@ -182,7 +182,7 @@ ${
 
             const percentileStr = await vscode.window.showInputBox({
                 placeHolder: 'Enter percentile (e.g., 95)',
-                validateInput: (value) => {
+                validateInput: (value: string) => {
                     const num = parseFloat(value);
                     if (isNaN(num) || num < 0 || num > 100) {
                         return 'Enter a number between 0 and 100';
@@ -222,7 +222,7 @@ ${
             const windowStr = await vscode.window.showInputBox({
                 placeHolder: 'Enter time window in seconds (default: 60)',
                 value: '60',
-                validateInput: (value) => {
+                validateInput: (value: string) => {
                     const num = parseFloat(value);
                     if (isNaN(num) || num <= 0) {
                         return 'Enter a positive number';

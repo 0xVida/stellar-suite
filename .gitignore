@@ -8,3 +8,4 @@ out-test/
 .env
 .env.local
 stellar-suite-*.vsix
+out-test/

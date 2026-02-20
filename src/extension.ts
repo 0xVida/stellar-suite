@@ -40,6 +40,8 @@ import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
 import { CliHistoryService } from "./services/cliHistoryService";
 import { CliReplayService } from "./services/cliReplayService";
+import { StateMigrationService } from "./services/stateMigrationService";
+import { migrations } from "./migrations";
 
 // UI
 import { SidebarViewProvider } from "./ui/sidebarView";
@@ -76,6 +78,15 @@ export function activate(context: vscode.ExtensionContext) {
   outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
 
   try {
+    // 0. Run state migrations
+    const migrationService = new StateMigrationService(context.workspaceState, outputChannel);
+    migrationService.registerMigrations(migrations);
+    migrationService.runMigrations().then(success => {
+      if (!success) {
+        outputChannel.appendLine("[Extension] WARNING: State migration failed. Some data might be inconsistent.");
+      }
+    });
+
     // 1. Initialize core services
     simulationHistoryService = new SimulationHistoryService(context, outputChannel);
     outputChannel.appendLine('[Extension] Simulation history service initialized');

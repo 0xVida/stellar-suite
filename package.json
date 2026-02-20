@@ -161,6 +161,42 @@
         "title": "Stellar Suite: Export Replay Results"
       },
       {
+        "command": "stellarSuite.compareSimulations",
+        "title": "Stellar Suite: Compare Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSelected",
+        "title": "Stellar Suite: Compare Selected Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLastN",
+        "title": "Stellar Suite: Compare Last N Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSameContract",
+        "title": "Stellar Suite: Compare Simulations (Same Contract)"
+      },
+      {
+        "command": "stellarSuite.compareSameFunction",
+        "title": "Stellar Suite: Compare Simulations (Same Function)"
+      },
+      {
+        "command": "stellarSuite.showSimulationDiff",
+        "title": "Stellar Suite: Show Simulation Diff"
+      },
+      {
+        "command": "stellarSuite.compareWithPrevious",
+        "title": "Stellar Suite: Compare With Previous Simulation"
+      },
+      {
+        "command": "stellarSuite.compareTwoSimulations",
+        "title": "Stellar Suite: Compare Two Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLatestWithAny",
+        "title": "Stellar Suite: Compare Latest With Any"
+      },
+      {
         "command": "stellarSuite.showResourceProfile",
         "title": "Stellar Suite: Show Resource Profile"
       },
@@ -371,7 +407,11 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
+<<<<<<< feature/simulation-export
     "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:keyboard-shortcuts",
+=======
+    "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:keyboard-shortcuts && npm run test:simulation-comparison && npm run test:simulation-diff",
+>>>>>>> main
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:cli-streaming": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/streamBuffer.ts src/services/cliOutputStreamingService.ts src/test/cliOutputStreamingService.test.ts && node out-test/test/cliOutputStreamingService.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
@@ -398,7 +438,9 @@
     "test:env-variable": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/envVariable.ts src/services/envVariableService.ts src/test/envVariable.test.ts && node out-test/test/envVariable.test.js",
     "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js",
     "test:rpc-rate-limit": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/test/rpcRateLimitService.test.ts && node out-test/test/rpcRateLimitService.test.js",
-    "test:keyboard-shortcuts": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/contextMenu.ts src/types/keyboardShortcuts.ts src/services/contractTemplateService.ts src/services/contextMenuService.ts src/test/keyboardShortcuts.test.ts && node out-test/test/keyboardShortcuts.test.js"
+    "test:keyboard-shortcuts": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/contextMenu.ts src/types/keyboardShortcuts.ts src/services/contractTemplateService.ts src/services/contextMenuService.ts src/test/keyboardShortcuts.test.ts && node out-test/test/keyboardShortcuts.test.js",
+    "test:simulation-comparison": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationComparisonService.ts src/test/simulationComparison.test.ts && node out-test/test/simulationComparison.test.js",
+    "test:simulation-diff": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationDiffService.ts src/test/simulationDiff.test.ts && node out-test/test/simulationDiff.test.js"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",

@@ -362,19 +362,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     registerSimulationHistoryCommands(context, simulationHistoryService!);
     // FIX: Use simulationReplayService (was incorrectly replayService in the old broken copy)
-<<<<<<< feature/simulation-export
-    registerReplayCommands(
-      context,
-      simulationHistoryService!,
-      simulationReplayService!,
-      sidebarProvider,
-      fallbackService,
-    );
-=======
     registerReplayCommands(context, simulationHistoryService!, simulationReplayService!, sidebarProvider, fallbackService);
     registerSimulationComparisonCommands(context, simulationHistoryService!);
     registerSimulationDiffCommands(context, simulationHistoryService!);
->>>>>>> main
     registerHealthCommands(context, healthMonitor!);
 
     // Sidebar actions

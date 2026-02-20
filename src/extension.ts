@@ -197,7 +197,7 @@ export function activate(context: vscode.ExtensionContext) {
       .then((result) => {
         outputChannel.appendLine(
           `[Extension] Metadata scan: ${result.contracts.length} Cargo.toml(s)` +
-            (result.errors.length ? `, ${result.errors.length} error(s)` : ""),
+          (result.errors.length ? `, ${result.errors.length} error(s)` : ""),
         );
       })
       .catch((err) => {
@@ -362,19 +362,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     registerSimulationHistoryCommands(context, simulationHistoryService!);
     // FIX: Use simulationReplayService (was incorrectly replayService in the old broken copy)
-<<<<<<< feature/simulation-export
-    registerReplayCommands(
-      context,
-      simulationHistoryService!,
-      simulationReplayService!,
-      sidebarProvider,
-      fallbackService,
-    );
-=======
     registerReplayCommands(context, simulationHistoryService!, simulationReplayService!, sidebarProvider, fallbackService);
     registerSimulationComparisonCommands(context, simulationHistoryService!);
     registerSimulationDiffCommands(context, simulationHistoryService!);
->>>>>>> main
     registerHealthCommands(context, healthMonitor!);
 
     // Sidebar actions
@@ -429,13 +419,13 @@ export function activate(context: vscode.ExtensionContext) {
       outputChannel,
       healthMonitor!,
       healthStatusBar!,
-      retryStatusBar || { dispose: () => {} },
+      retryStatusBar || { dispose: () => { } },
       retryService!,
       fallbackService!,
       { dispose: () => metadataService?.dispose() },
-      compilationMonitor || { dispose: () => {} },
-      compilationStatusProvider || { dispose: () => {} },
-      syncStatusProvider || { dispose: () => {} },
+      compilationMonitor || { dispose: () => { } },
+      compilationStatusProvider || { dispose: () => { } },
+      syncStatusProvider || { dispose: () => { } },
     );
 
     outputChannel.appendLine("[Extension] Extension activation complete");

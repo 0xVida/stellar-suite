@@ -24,6 +24,8 @@ import { SimulationHistoryService } from "./services/simulationHistoryService";
 import { registerSimulationHistoryCommands } from "./commands/simulationHistoryCommands";
 import { CompilationStatusMonitor } from "./services/compilationStatusMonitor";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
+import { StateBackupService } from "./services/stateBackupService";
+import { registerBackupCommands } from "./commands/backupCommands";
 
 let sidebarProvider: SidebarViewProvider | undefined;
 let groupService: ContractGroupService | undefined;
@@ -37,6 +39,7 @@ let healthStatusBar: RpcHealthStatusBar | undefined;
 let simulationHistoryService: SimulationHistoryService | undefined;
 let compilationMonitor: CompilationStatusMonitor | undefined;
 let compilationStatusProvider: CompilationStatusProvider | undefined;
+let backupService: StateBackupService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -79,6 +82,12 @@ export function activate(context: vscode.ExtensionContext) {
     compilationStatusProvider = new CompilationStatusProvider(compilationMonitor);
     outputChannel.appendLine(
       "[Extension] Compilation status monitor initialized",
+    );
+
+    // Initialize state backup service
+    backupService = new StateBackupService(context, outputChannel);
+    outputChannel.appendLine(
+      "[Extension] State backup service initialized",
     );
 
     // Initialize contract metadata service
@@ -225,6 +234,14 @@ export function activate(context: vscode.ExtensionContext) {
       registerSimulationHistoryCommands(context, simulationHistoryService);
       outputChannel.appendLine(
         "[Extension] Simulation history commands registered",
+      );
+    }
+
+    // Register backup commands
+    if (backupService) {
+      registerBackupCommands(context, backupService);
+      outputChannel.appendLine(
+        "[Extension] Backup commands registered",
       );
     }
 

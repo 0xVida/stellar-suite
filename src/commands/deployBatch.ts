@@ -7,12 +7,23 @@ import { BatchDeploymentItem, BatchMode } from '../types/batchDeployment';
 import { formatError } from '../utils/errorFormatter';
 import { ContractMetadataService } from '../services/contractMetadataService';
 import { resolveDeploymentDependencies } from '../services/deploymentDependencyResolver';
+import { ProgressIndicatorService } from '../services/progressIndicatorService';
+import { formatProgressMessage, OperationProgressStatusBar } from '../ui/progressComponents';
 
 function mkId(i: number, base: string): string {
   return `${i + 1}-${base.replace(/[^a-z0-9_-]/gi, '').slice(0, 24)}`;
 }
 
 export async function deployBatch(context: vscode.ExtensionContext) {
+  const progressService = new ProgressIndicatorService();
+  const operation = progressService.createOperation({
+    id: `batch-${Date.now()}`,
+    title: 'Batch Deployment',
+    cancellable: true,
+  });
+  const statusBar = new OperationProgressStatusBar();
+  statusBar.bind(operation);
+
   const output = vscode.window.createOutputChannel('Stellar Suite - Batch Deployment');
   output.show(true);
   output.appendLine('=== Stellar Batch Deployment ===\n');
@@ -184,6 +195,24 @@ export async function deployBatch(context: vscode.ExtensionContext) {
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: 'Batch deploying contracts', cancellable: true },
       async (progress, token) => {
+        operation.start('Starting batch deployment...');
+        operation.bindCancellationToken(token);
+        const lastPercentage = { value: 0 };
+        const progressSubscription = operation.onUpdate((snapshot) => {
+          const message = formatProgressMessage(snapshot);
+          if (typeof snapshot.percentage === 'number') {
+            const next = Math.max(lastPercentage.value, Math.round(snapshot.percentage));
+            const increment = next - lastPercentage.value;
+            if (increment > 0) {
+              progress.report({ message, increment });
+              lastPercentage.value = next;
+              return;
+            }
+          }
+          progress.report({ message });
+        });
+
+        try {
         const res = await svc.runBatch({
           batchId,
           mode: modePick.value,
@@ -200,7 +229,11 @@ export async function deployBatch(context: vscode.ExtensionContext) {
             }
             if (ev.overall) {
               const pct = Math.floor((ev.overall.done / Math.max(1, ev.overall.total)) * 100);
-              progress.report({ message: `${ev.overall.done}/${ev.overall.total}`, increment: pct });
+              operation.report({
+                percentage: pct,
+                message: `${ev.overall.done}/${ev.overall.total} completed`,
+                details: ev.message ?? ev.itemId,
+              });
             }
           },
         });
@@ -226,23 +259,33 @@ export async function deployBatch(context: vscode.ExtensionContext) {
         const skipped = counts['skipped'] ?? 0;
 
         if (res.cancelled) {
+          operation.cancel('Batch deployment cancelled');
           vscode.window.showWarningMessage(
             `Batch cancelled. Succeeded: ${succeeded}, Failed: ${failed}, Skipped: ${skipped}`
           );
         } else if (failed > 0) {
+          operation.fail('Batch deployment finished with failures');
           vscode.window.showErrorMessage(
             `Batch finished with failures. Succeeded: ${succeeded}, Failed: ${failed}, Skipped: ${skipped}`
           );
         } else {
+          operation.succeed('Batch deployment completed successfully');
           vscode.window.showInformationMessage(
             `Batch finished successfully. Succeeded: ${succeeded}, Skipped: ${skipped}`
           );
+        }
+        } finally {
+          progressSubscription.dispose();
         }
       }
     );
   } catch (error) {
     const formatted = formatError(error, 'Batch Deployment');
+    operation.fail(formatted.message, formatted.title);
     vscode.window.showErrorMessage(`${formatted.title}: ${formatted.message}`);
     output.appendLine(`\n[Error] ${formatted.title}: ${formatted.message}`);
+  } finally {
+    operation.dispose();
+    statusBar.dispose();
   }
 }

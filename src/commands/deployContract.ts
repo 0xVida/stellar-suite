@@ -10,8 +10,38 @@ import {
     DeploymentSigningMethod,
     DeploymentSigningResult,
 } from '../services/transactionSigningService';
+import { ProgressIndicatorService } from '../services/progressIndicatorService';
+import { formatProgressMessage, OperationProgressStatusBar } from '../ui/progressComponents';
+
+function reportNotificationProgress(
+    progress: vscode.Progress<{ message?: string; increment?: number }>,
+    percentage: number | undefined,
+    message: string,
+    lastPercentage: { value: number }
+): void {
+    if (typeof percentage === 'number') {
+        const next = Math.max(lastPercentage.value, Math.round(percentage));
+        const increment = next - lastPercentage.value;
+        if (increment > 0) {
+            progress.report({ increment, message });
+            lastPercentage.value = next;
+            return;
+        }
+    }
+
+    progress.report({ message });
+}
 
 export async function deployContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
+    const progressService = new ProgressIndicatorService();
+    const operation = progressService.createOperation({
+        id: `deploy-${Date.now()}`,
+        title: 'Deploy Contract',
+        cancellable: true,
+    });
+    const statusBar = new OperationProgressStatusBar();
+    statusBar.bind(operation);
+
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
         if (!resolvedCliConfig.validation.valid) {
@@ -40,16 +70,33 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
             {
                 location: vscode.ProgressLocation.Notification,
                 title: 'Deploying Contract',
-                cancellable: false
+                cancellable: true
             },
-            async (progress: vscode.Progress<{ message?: string; increment?: number }>) => {
-                progress.report({ increment: 0, message: 'Detecting contract...' });
+            async (
+                progress: vscode.Progress<{ message?: string; increment?: number }>,
+                token: vscode.CancellationToken
+            ) => {
+                operation.start('Preparing deployment...');
+                operation.bindCancellationToken(token);
+
+                const lastPercentage = { value: 0 };
+                const progressSubscription = operation.onUpdate((snapshot) => {
+                    reportNotificationProgress(
+                        progress,
+                        snapshot.percentage,
+                        formatProgressMessage(snapshot),
+                        lastPercentage
+                    );
+                });
+
+                try {
+                    operation.setIndeterminate('Detecting contract...');
 
                 let contractDir: string | null = null;
                 let wasmPath: string | null = null;
                 let deployFromWasm = false;
 
-                progress.report({ increment: 10, message: 'Searching workspace...' });
+                operation.report({ percentage: 10, message: 'Searching workspace...' });
                 if (selectedContractPath) {
                     const fs = require('fs');
                     if (fs.existsSync(selectedContractPath)) {
@@ -273,11 +320,29 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     }
                 } else if (contractDir) {
                     // Build first so signing targets actual WASM
-                    progress.report({ increment: 20, message: 'Building contract...' });
+                    operation.report({ percentage: 20, message: 'Building contract...' });
                     outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                     outputChannel.appendLine('Running: stellar contract build\n');
 
-                    const buildResult = await deployer.buildContract(contractDir);
+                    const buildResult = await deployer.buildContract(contractDir, {
+                        cancellationToken: token,
+                        onStdout: (chunk) => {
+                            outputChannel.append(chunk);
+                            operation.report({
+                                percentage: 45,
+                                message: 'Building contract...',
+                                details: chunk.trim().slice(0, 120),
+                            });
+                        },
+                        onStderr: (chunk) => {
+                            outputChannel.append(chunk);
+                            operation.report({
+                                percentage: 45,
+                                message: 'Building contract...',
+                                details: chunk.trim().slice(0, 120),
+                            });
+                        },
+                    });
 
                     if (!buildResult.success) {
                         result = {
@@ -320,7 +385,13 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             source,
                         });
 
-                    progress.report({ increment: 25, message: 'Signing deployment transaction...' });
+                    if (token.isCancellationRequested) {
+                        operation.cancel('Deployment cancelled by user');
+                        outputChannel.appendLine('[Deploy] Cancelled before signing.');
+                        return;
+                    }
+
+                    operation.report({ percentage: 60, message: 'Signing deployment transaction...' });
                     signingResult = await signingWorkflow.run({
                         payload: signingPayload,
                         defaultMethod: signingConfig.get<DeploymentSigningMethod>(
@@ -333,10 +404,12 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
 
                     if (!signingResult) {
                         outputChannel.appendLine('[Signing] Workflow cancelled by user.');
+                        operation.cancel('Signing workflow cancelled');
                         return;
                     }
                     if (!signingResult.success) {
                         outputChannel.appendLine(`❌ Signing failed: ${signingResult.error}`);
+                        operation.fail(signingResult.error || 'Signing failed');
                         vscode.window.showErrorMessage(`Deployment signing failed: ${signingResult.error}`);
                         return;
                     }
@@ -350,9 +423,33 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     }
                     outputChannel.appendLine(`[Signing] Payload hash: ${signingResult.payloadHash}`);
 
-                    progress.report({ increment: 35, message: 'Submitting deployment...' });
+                    if (token.isCancellationRequested) {
+                        operation.cancel('Deployment cancelled by user');
+                        outputChannel.appendLine('[Deploy] Cancelled before submission.');
+                        return;
+                    }
+
+                    operation.report({ percentage: 75, message: 'Submitting deployment...' });
                     outputChannel.appendLine(`\nDeploying contract from: ${deployableWasmPath}`);
-                    result = await deployer.deployFromWasm(deployableWasmPath);
+                    result = await deployer.deployFromWasm(deployableWasmPath, {
+                        cancellationToken: token,
+                        onStdout: (chunk) => {
+                            outputChannel.append(chunk);
+                            operation.report({
+                                percentage: 85,
+                                message: 'Submitting deployment...',
+                                details: chunk.trim().slice(0, 120),
+                            });
+                        },
+                        onStderr: (chunk) => {
+                            outputChannel.append(chunk);
+                            operation.report({
+                                percentage: 85,
+                                message: 'Submitting deployment...',
+                                details: chunk.trim().slice(0, 120),
+                            });
+                        },
+                    });
                     result.signing = signingResult;
                 }
 
@@ -361,7 +458,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     return;
                 }
 
-                progress.report({ increment: 90, message: 'Finalizing...' });
+                operation.report({ percentage: 90, message: 'Finalizing deployment...' });
 
                 // Display results
                 outputChannel.appendLine('=== Deployment Result ===');
@@ -499,6 +596,15 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                             vscode.commands.executeCommand('stellarSuite.simulateTransaction');
                         }
                     }
+                    operation.succeed('Deployment completed successfully', result.contractId);
+                } else if (
+                    token.isCancellationRequested ||
+                    result.errorSummary?.toLowerCase().includes('cancelled') ||
+                    result.error?.toLowerCase().includes('cancelled')
+                ) {
+                    outputChannel.appendLine('⚠️ Deployment cancelled by user.');
+                    operation.cancel('Deployment cancelled by user');
+                    vscode.window.showWarningMessage('Contract deployment cancelled.');
                 } else {
                     outputChannel.appendLine(`❌ Deployment failed!`);
                     outputChannel.appendLine(`Error: ${result.error || 'Unknown error'}`);
@@ -527,14 +633,20 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     const notificationMessage = result.errorSummary
                         ? `Deployment failed: ${result.errorSummary}`
                         : `Deployment failed: ${result.error}`;
+                    operation.fail(result.errorSummary ?? result.error ?? 'Deployment failed', notificationMessage);
                     vscode.window.showErrorMessage(notificationMessage);
                 }
-
-                progress.report({ increment: 100, message: 'Complete' });
+                } finally {
+                    progressSubscription.dispose();
+                }
             }
         );
     } catch (error) {
         const formatted = formatError(error, 'Deployment');
+        operation.fail(formatted.message, formatted.title);
         vscode.window.showErrorMessage(`${formatted.title}: ${formatted.message}`);
+    } finally {
+        operation.dispose();
+        statusBar.dispose();
     }
 }

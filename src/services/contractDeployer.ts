@@ -20,7 +20,7 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     const homeDir = os.homedir();
     const cargoBin = path.join(homeDir, '.cargo', 'bin');
-    
+
     const additionalPaths = [
         cargoBin,
         path.join(homeDir, '.local', 'bin'),
@@ -28,11 +28,11 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
         '/opt/homebrew/bin',
         '/opt/homebrew/sbin'
     ];
-    
+
     const currentPath = env.PATH || env.Path || '';
     env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
     env.Path = env.PATH;
-    
+
     return env;
 }
 
@@ -87,12 +87,18 @@ export class ContractDeployer {
     private readonly streamingService: CliOutputStreamingService;
     private readonly retryService: DeploymentRetryService;
 
-    constructor(cliPath: string, source: string = 'dev', network: string = 'testnet') {
+    constructor(
+        cliPath: string,
+        source: string = 'dev',
+        network: string = 'testnet',
+        streamingService?: CliOutputStreamingService,
+        retryService?: DeploymentRetryService
+    ) {
         this.cliPath = cliPath;
         this.source = source;
         this.network = network;
-        this.streamingService = new CliOutputStreamingService();
-        this.retryService = new DeploymentRetryService();
+        this.streamingService = streamingService || new CliOutputStreamingService();
+        this.retryService = retryService || new DeploymentRetryService();
     }
 
     /**
@@ -209,7 +215,7 @@ export class ContractDeployer {
 
             const wasmMatch = output.match(/target\/wasm32[^\/]*\/release\/[^\s]+\.wasm/);
             let wasmPath: string | undefined;
-            
+
             if (wasmMatch) {
                 wasmPath = path.join(contractPath, wasmMatch[0]);
             } else {
@@ -217,7 +223,7 @@ export class ContractDeployer {
                     path.join(contractPath, 'target', 'wasm32v1-none', 'release', '*.wasm'),
                     path.join(contractPath, 'target', 'wasm32-unknown-unknown', 'release', '*.wasm')
                 ];
-                
+
                 for (const pattern of commonPaths) {
                     const dir = path.dirname(pattern);
                     if (fs.existsSync(dir)) {
@@ -345,7 +351,7 @@ export class ContractDeployer {
                     deployOutput: output,
                 };
             }
-            
+
             // Parse output to extract Contract ID and transaction hash
             // Typical output format:
             // "Contract ID: C..."
@@ -434,7 +440,7 @@ export class ContractDeployer {
     ): Promise<DeploymentResult> {
         // First build
         const buildResult = await this.buildContract(contractPath, options);
-        
+
         if (!buildResult.success) {
             return {
                 success: false,

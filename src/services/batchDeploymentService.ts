@@ -246,10 +246,13 @@ export class BatchDeploymentService {
 
     let result: DeploymentResult;
     try {
+      const streamingOptions = {
+        cancellationToken: token as any,
+      };
       if (item.wasmPath) {
-        result = await deployer.deployFromWasm(item.wasmPath);
+        result = await deployer.deployFromWasm(item.wasmPath, streamingOptions);
       } else if (item.contractDir) {
-        result = await deployer.buildAndDeploy(item.contractDir);
+        result = await deployer.buildAndDeploy(item.contractDir, streamingOptions);
       } else {
         return {
           id: item.id,

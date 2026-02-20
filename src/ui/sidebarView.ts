@@ -21,6 +21,11 @@ import { ContractVersionTracker, ContractVersionState } from '../services/contra
 import { SimulationHistoryService, SimulationHistoryEntry, SimulationHistoryStats } from '../services/simulationHistoryService';
 import { buildExportPayload, serializeExport, ExportableContract } from '../services/sidebarExportService';
 import {
+    ContractTemplateService,
+    ContractTemplateSource,
+    TemplateDefinition,
+} from '../services/contractTemplateService';
+import {
     parseExportFile,
     validateAndPreview,
     applyImport,
@@ -52,6 +57,18 @@ export interface ContractInfo {
     hasVersionMismatch?: boolean;
     /** Short mismatch warning, if any. */
     versionMismatchMessage?: string;
+    /** Template identifier (e.g. "token", "escrow", custom id). */
+    templateId?: string;
+    /** Template category for grouping / actions. */
+    templateCategory?: string;
+    /** Display label shown in the UI. */
+    templateDisplayName?: string;
+    /** Whether classification came from builtin, custom, or manual override. */
+    templateSource?: ContractTemplateSource;
+    /** Detection confidence from 0..1. */
+    templateConfidence?: number;
+    /** Pattern evidence used for this classification. */
+    templateMatchedPatterns?: string[];
 }
 
 export interface DeploymentRecord {
@@ -75,6 +92,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private readonly contextMenuService: ContractContextMenuService;
     private readonly reorderingService: ReorderingService;
     private readonly versionTracker: ContractVersionTracker;
+    private readonly templateService: ContractTemplateService;
     private _simulationHistoryService?: SimulationHistoryService;
 
     // Cache the last-discovered list so drag messages can reference it
@@ -97,6 +115,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             this._context,
             this.outputChannel
         );
+        this.templateService = new ContractTemplateService(this.outputChannel);
     }
 
     public resolveWebviewView(
@@ -149,6 +168,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         contractName: req.contractName,
                         contractPath: req.contractPath,
                         contractId: req.contractId,
+                        templateId: req.templateId,
+                        templateCategory: req.templateCategory,
                         x: req.x,
                         y: req.y,
                     });
@@ -544,11 +565,25 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const aliases = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
         const pinned = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
         const networkOverrides = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractNetworkOverrides', {});
+        const manualTemplateAssignments = this._context.workspaceState.get<Record<string, string>>(
+            'stellarSuite.manualTemplateAssignments',
+            {}
+        );
 
         const contracts: ContractInfo[] = [];
 
         for (const folder of workspaceFolders) {
-            const found = this._findContracts(folder.uri.fsPath);
+            const templateConfig = this.templateService.loadTemplateConfiguration(folder.uri.fsPath);
+            if (templateConfig.warnings.length > 0) {
+                for (const warning of templateConfig.warnings) {
+                    this.outputChannel.appendLine(`[Template] ${warning}`);
+                }
+            }
+
+            const found = this._findContracts(folder.uri.fsPath, 0, {
+                customTemplates: templateConfig.templates,
+                manualTemplateAssignments,
+            });
             for (const c of found) {
                 if (hidden.includes(c.path)) { continue; }
                 if (aliases[c.path]) { c.name = aliases[c.path]; }
@@ -562,7 +597,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         return contracts;
     }
 
-    private _findContracts(rootPath: string, depth = 0): ContractInfo[] {
+    private _findContracts(
+        rootPath: string,
+        depth = 0,
+        options?: {
+            customTemplates?: TemplateDefinition[];
+            manualTemplateAssignments?: Record<string, string>;
+        }
+    ): ContractInfo[] {
         if (depth > 4) { return []; }
         const results: ContractInfo[] = [];
 
@@ -597,6 +639,13 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                 const versionState = this.versionTracker.getContractVersionState(
                     cargoPath, contractName
                 );
+                const templateResult = this.templateService.detectTemplate({
+                    cargoTomlPath: cargoPath,
+                    contractDir: rootPath,
+                    contractName,
+                    manualTemplateId: options?.manualTemplateAssignments?.[cargoPath],
+                    customTemplates: options?.customTemplates || [],
+                });
 
                 results.push({
                     name: contractName,
@@ -610,6 +659,12 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     deployedVersion: versionState.deployedVersion,
                     hasVersionMismatch: versionState.hasMismatch,
                     versionMismatchMessage: versionState.mismatch?.message,
+                    templateId: templateResult.templateId,
+                    templateCategory: templateResult.category,
+                    templateDisplayName: templateResult.displayName,
+                    templateSource: templateResult.source,
+                    templateConfidence: templateResult.confidence,
+                    templateMatchedPatterns: templateResult.matchedPatterns,
                 });
                 return results;
             }
@@ -618,7 +673,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         for (const entry of entries) {
             if (!entry.isDirectory()) { continue; }
             if (['target', 'node_modules', '.git', 'out'].includes(entry.name)) { continue; }
-            results.push(...this._findContracts(path.join(rootPath, entry.name), depth + 1));
+            results.push(...this._findContracts(path.join(rootPath, entry.name), depth + 1, options));
         }
 
         return results;
@@ -821,6 +876,11 @@ body {
 .badge-not-built { background: rgba(255,255,255,.05);   color: var(--color-muted);   border: 1px solid var(--color-border); }
 .badge-version   { background: rgba(180,120,255,.15);   color: #b478ff;              border: 1px solid rgba(180,120,255,.35); }
 .badge-mismatch  { background: rgba(241,76,76,.15);     color: var(--color-danger);  border: 1px solid rgba(241,76,76,.4); }
+.badge-template-token   { background: rgba(60, 170, 255, .16); color: #6ec3ff; border: 1px solid rgba(60, 170, 255, .35); }
+.badge-template-escrow  { background: rgba(255, 164, 66, .14); color: #ffb86a; border: 1px solid rgba(255, 164, 66, .34); }
+.badge-template-voting  { background: rgba(100, 195, 110, .15); color: #72d67d; border: 1px solid rgba(100, 195, 110, .34); }
+.badge-template-custom  { background: rgba(187, 134, 252, .14); color: #c59bff; border: 1px solid rgba(187, 134, 252, .36); }
+.badge-template-unknown { background: rgba(255,255,255,.05); color: var(--color-muted); border: 1px solid var(--color-border); }
 
 .contract-meta {
     font-size:     11px;
@@ -1415,6 +1475,23 @@ document.addEventListener('click', (e) => {
 });
 
 // ── Render contracts ──────────────────────────────────────────
+function templateBadgeClass(contract) {
+    if (!contract || !contract.templateCategory) { return 'badge badge-template-unknown'; }
+    const category = String(contract.templateCategory).toLowerCase();
+    if (category === 'token') { return 'badge badge-template-token'; }
+    if (category === 'escrow') { return 'badge badge-template-escrow'; }
+    if (category === 'voting') { return 'badge badge-template-voting'; }
+    if (contract.templateSource === 'custom') { return 'badge badge-template-custom'; }
+    return 'badge badge-template-unknown';
+}
+
+function templateActionTitle(contract) {
+    if (!contract || !contract.templateCategory || contract.templateCategory === 'unknown') {
+        return 'Assign a template to enable template-specific actions';
+    }
+    return 'Open template-specific actions';
+}
+
 function renderContracts(contracts) {
     const el = document.getElementById('contracts-list');
     if (!contracts.length) {
@@ -1433,6 +1510,8 @@ function renderContracts(contracts) {
              data-name="\${esc(c.name)}"
              data-contract-id="\${esc(c.contractId || '')}"
              data-is-built="\${c.isBuilt}"
+             data-template-id="\${esc(c.templateId || 'unknown')}"
+             data-template-category="\${esc(c.templateCategory || 'unknown')}"
              data-index="\${idx}"
              oncontextmenu="onContractRightClick(event, this)"
              ondragstart="onDragStart(event, this)"
@@ -1449,12 +1528,14 @@ function renderContracts(contracts) {
                 \${c.isBuilt
                     ? '<span class="badge badge-built">Built</span>'
                     : '<span class="badge badge-not-built">Not Built</span>'}
+                <span class="\${templateBadgeClass(c)}" title="Template category">\${esc(c.templateDisplayName || 'Unknown')}</span>
                 \${c.localVersion ? \`<span class="badge badge-version" title="Local version">v\${esc(c.localVersion)}</span>\` : ''}
                 \${c.hasVersionMismatch ? '<span class="badge badge-mismatch" title="Version mismatch detected">⚠ Mismatch</span>' : ''}
             </div>
 
             \${c.contractId   ? \`<div class="contract-id" title="\${esc(c.contractId)}">ID: \${esc(c.contractId)}</div>\` : ''}
             \${c.deployedAt  ? \`<div class="contract-meta">Deployed: \${esc(c.deployedAt)}</div>\` : ''}
+            <div class="contract-meta">Template: <strong>\${esc(c.templateDisplayName || 'Unknown')}</strong> · \${esc(c.templateSource || 'unknown')}</div>
             \${c.deployedVersion ? \`<div class="contract-meta" style="font-size:10px">Deployed version: <strong>v\${esc(c.deployedVersion)}</strong></div>\` : ''}
             \${c.hasVersionMismatch ? \`<div class="contract-meta" style="color:var(--color-danger);font-size:10px">⚠ \${esc(c.versionMismatchMessage || 'Version mismatch')}</div>\` : ''}
 
@@ -1473,6 +1554,10 @@ function renderContracts(contracts) {
                 <button class="action-btn secondary"
                         onclick="showVersionHistory(\${esc(JSON.stringify(c.path))}, this.closest('.contract-card'))"
                         title="Show version history">History</button>
+                <button class="action-btn secondary"
+                        onclick="sendAction('templateActions', this.closest('.contract-card'))"
+                        \${(!c.templateCategory || c.templateCategory === 'unknown') ? 'disabled' : ''}
+                        title="\${templateActionTitle(c)}">Template</button>
             </div>
         </div>
     \`).join('');
@@ -1485,6 +1570,8 @@ function sendAction(actionId, card) {
         contractName: card.dataset.name,
         contractPath: card.dataset.path,
         contractId:   card.dataset.contractId || undefined,
+        templateId: card.dataset.templateId || undefined,
+        templateCategory: card.dataset.templateCategory || undefined,
     });
 }
 
@@ -1585,6 +1672,8 @@ function onContractRightClick(e, card) {
         contractPath: card.dataset.path,
         contractId:   card.dataset.contractId || undefined,
         isBuilt:      card.dataset.isBuilt === 'true',
+        templateId: card.dataset.templateId || undefined,
+        templateCategory: card.dataset.templateCategory || undefined,
     };
     vscode.postMessage({ type: 'contextMenu:open', ..._activeMenuContract, x: e.clientX, y: e.clientY });
 }

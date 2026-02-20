@@ -28,6 +28,9 @@ export interface ExportedContractConfig {
     isPinned?: boolean;
     localVersion?: string;
     deployedVersion?: string;
+    templateId?: string;
+    templateCategory?: string;
+    templateSource?: string;
     [key: string]: unknown;
 }
 

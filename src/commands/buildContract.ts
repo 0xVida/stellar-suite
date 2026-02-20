@@ -4,8 +4,14 @@ import { WasmDetector } from '../utils/wasmDetector';
 import { formatError } from '../utils/errorFormatter';
 import { SidebarViewProvider } from '../ui/sidebarView';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
+import { CompilationStatusMonitor } from '../services/compilationStatusMonitor';
+import { CompilationDiagnosticSeverity } from '../types/compilationStatus';
 
-export async function buildContract(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
+export async function buildContract(
+    context: vscode.ExtensionContext, 
+    sidebarProvider?: SidebarViewProvider,
+    monitor?: CompilationStatusMonitor
+) {
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
         if (!resolvedCliConfig.validation.valid) {
@@ -84,8 +90,18 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     return;
                 }
 
+                // Start compilation monitoring
+                if (monitor) {
+                    monitor.startCompilation(contractDir);
+                }
+
                 // Build the contract
                 progress.report({ increment: 30, message: 'Building contract...' });
+                
+                if (monitor) {
+                    monitor.updateProgress(contractDir, 30, 'Running stellar contract build...');
+                }
+                
                 outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
                 outputChannel.appendLine('Running: stellar contract build\n');
 
@@ -93,8 +109,12 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                 const buildResult = await deployer.buildContract(contractDir);
 
                 progress.report({ increment: 90, message: 'Finalizing...' });
+                
+                if (monitor) {
+                    monitor.updateProgress(contractDir, 90, 'Finalizing build...');
+                }
 
-                // Display results
+                // Display results and update monitor
                 outputChannel.appendLine('=== Build Result ===');
                 
                 if (buildResult.success) {
@@ -102,6 +122,12 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     if (buildResult.wasmPath) {
                         outputChannel.appendLine(`WASM file: ${buildResult.wasmPath}`);
                     }
+                    
+                    // Report success to monitor
+                    if (monitor) {
+                        monitor.reportSuccess(contractDir, buildResult.wasmPath, buildResult.output);
+                    }
+                    
                     vscode.window.showInformationMessage('Contract built successfully!');
                     
                     // Refresh sidebar
@@ -122,6 +148,14 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                         for (const suggestion of buildResult.errorSuggestions) {
                             outputChannel.appendLine(`- ${suggestion}`);
                         }
+                    }
+
+                    // Parse and report diagnostics to monitor
+                    const diagnostics = monitor ? monitor.parseDiagnostics(buildResult.output, contractDir) : [];
+                    
+                    // Report failure to monitor
+                    if (monitor) {
+                        monitor.reportFailure(contractDir, buildResult.output, diagnostics, buildResult.output);
                     }
 
                     const notificationMessage = buildResult.errorSummary

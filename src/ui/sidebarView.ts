@@ -18,6 +18,7 @@ import {
 } from '../services/contextMenuService';
 import { ReorderingService } from '../services/reorderingService';
 import { ContractVersionTracker, ContractVersionState } from '../services/contractVersionTracker';
+import { SimulationHistoryService, SimulationHistoryEntry, SimulationHistoryStats } from '../services/simulationHistoryService';
 import { buildExportPayload, serializeExport, ExportableContract } from '../services/sidebarExportService';
 import {
     parseExportFile,
@@ -74,6 +75,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private readonly contextMenuService: ContractContextMenuService;
     private readonly reorderingService: ReorderingService;
     private readonly versionTracker: ContractVersionTracker;
+    private _simulationHistoryService?: SimulationHistoryService;
 
     // Cache the last-discovered list so drag messages can reference it
     private _lastContracts: ContractInfo[] = [];
@@ -270,6 +272,87 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
 
+                // ── Simulation history ───────────────────────────
+
+                case 'simHistory:getAll': {
+                    const historyService = this._getSimulationHistoryService();
+                    if (!historyService) { break; }
+                    const filterObj = message['filter'] as Record<string, unknown> | undefined;
+                    const entries = historyService.queryHistory({
+                        filter: filterObj as any,
+                        limit: 50,
+                    });
+                    const stats = historyService.getStatistics();
+                    this._view?.webview.postMessage({
+                        type: 'simHistory:data',
+                        entries,
+                        stats,
+                    });
+                    break;
+                }
+
+                case 'simHistory:label': {
+                    const historyService = this._getSimulationHistoryService();
+                    if (!historyService) { break; }
+                    const entryId = message['entryId'] as string | undefined;
+                    const label = message['label'] as string | undefined;
+                    if (!entryId || !label) { break; }
+                    const ok = await historyService.labelEntry(entryId, label);
+                    this._view?.webview.postMessage({
+                        type: 'actionFeedback',
+                        feedback: ok
+                            ? { type: 'success', message: `Simulation labeled "${label}".` }
+                            : { type: 'error', message: 'Failed to label — entry not found.' },
+                    });
+                    break;
+                }
+
+                case 'simHistory:delete': {
+                    const historyService = this._getSimulationHistoryService();
+                    if (!historyService) { break; }
+                    const deleteId = message['entryId'] as string | undefined;
+                    if (!deleteId) { break; }
+                    const deleted = await historyService.deleteEntry(deleteId);
+                    this._view?.webview.postMessage({
+                        type: 'actionFeedback',
+                        feedback: deleted
+                            ? { type: 'success', message: 'Simulation entry deleted.' }
+                            : { type: 'error', message: 'Entry not found.' },
+                    });
+                    // Refresh the history panel
+                    if (deleted) {
+                        const refreshedEntries = historyService.queryHistory({ limit: 50 });
+                        const refreshedStats = historyService.getStatistics();
+                        this._view?.webview.postMessage({
+                            type: 'simHistory:data',
+                            entries: refreshedEntries,
+                            stats: refreshedStats,
+                        });
+                    }
+                    break;
+                }
+
+                case 'simHistory:clear': {
+                    const historyService = this._getSimulationHistoryService();
+                    if (!historyService) { break; }
+                    await historyService.clearHistory();
+                    this._view?.webview.postMessage({
+                        type: 'simHistory:data',
+                        entries: [],
+                        stats: historyService.getStatistics(),
+                    });
+                    this._view?.webview.postMessage({
+                        type: 'actionFeedback',
+                        feedback: { type: 'info', message: 'Simulation history cleared.' },
+                    });
+                    break;
+                }
+
+                case 'simHistory:export': {
+                    await vscode.commands.executeCommand('stellarSuite.exportSimulationHistory');
+                    break;
+                }
+
                 // ── Export / Import ────────────────────────────
 
                 case 'sidebar:export': {
@@ -320,7 +403,6 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         const raw = Buffer.from(rawBytes).toString('utf-8');
                         const parsed = parseExportFile(raw);
 
-                        // Build existing contracts list from current sidebar
                         const existing: ExistingContract[] = this._lastContracts.map(c => ({
                             id: c.contractId || `local:${c.name}`,
                             name: c.name,
@@ -330,7 +412,6 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
                         const validation = validateAndPreview(parsed, existing);
 
-                        // Send preview to webview
                         this._view?.webview.postMessage({
                             type: 'import:preview',
                             validation,
@@ -379,12 +460,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                             {
                                 currentContracts: existing,
                                 applyContracts: async (contracts) => {
-                                    // Persist updated contract list via workspace state
                                     const deployed: Record<string, string> = {};
                                     for (const c of contracts) {
-                                        if (c.address) {
-                                            deployed[c.id] = c.address;
-                                        }
+                                        if (c.address) { deployed[c.id] = c.address; }
                                     }
                                     await this._context.workspaceState.update('stellarSuite.importedContracts', contracts);
                                 },
@@ -554,6 +632,17 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         return contracts.map(c =>
             this.versionTracker.getContractVersionState(c.path, c.name)
         );
+    }
+
+    private _getSimulationHistoryService(): SimulationHistoryService | undefined {
+        // Lazily create a SimulationHistoryService scoped to the workspace
+        if (!this._simulationHistoryService) {
+            this._simulationHistoryService = new SimulationHistoryService(
+                this._context,
+                this.outputChannel
+            );
+        }
+        return this._simulationHistoryService;
     }
 
     // ── HTML ──────────────────────────────────────────────────
@@ -890,9 +979,7 @@ body {
     padding:        10px 14px;
     border-top:     1px solid var(--color-border);
 }
-.import-section {
-    margin-bottom: 10px;
-}
+.import-section { margin-bottom: 10px; }
 .import-section-title {
     font-weight:    700;
     font-size:      11px;
@@ -1012,6 +1099,63 @@ body {
     line-height: 1.6;
 }
 .empty-state .emoji { font-size: 28px; margin-bottom: 8px; }
+
+/* ── Simulation History ────────────────────────────────── */
+#sim-history-list { padding: 0 8px 16px; }
+.sim-history-stats {
+    font-size:     11px;
+    color:         var(--color-muted);
+    padding:       4px 14px 6px;
+    display:       flex;
+    gap:           10px;
+    flex-wrap:     wrap;
+}
+.sim-history-stats .stat-value { font-weight: 600; color: var(--color-fg); }
+.sim-history-card {
+    background:    var(--color-card);
+    border:        1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding:       8px 12px;
+    margin-bottom: 5px;
+    font-size:     12px;
+    transition:    border-color 0.15s;
+}
+.sim-history-card:hover { border-color: var(--color-accent); }
+.sim-history-card.success { border-left: 3px solid var(--color-success); }
+.sim-history-card.failure { border-left: 3px solid var(--color-danger); }
+.sim-history-fn   { font-weight: 600; color: var(--color-accent); }
+.sim-history-meta { font-size: 10px; color: var(--color-muted); margin-top: 2px; }
+.sim-history-label { font-size: 10px; color: #b478ff; margin-top: 2px; }
+.sim-history-error { font-size: 10px; color: var(--color-danger); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.sim-history-actions { display: flex; gap: 4px; margin-top: 5px; }
+.sim-history-filter {
+    padding:       4px 8px;
+    display:       flex;
+    gap:           4px;
+    align-items:   center;
+}
+.sim-history-filter input {
+    background:    var(--color-card);
+    border:        1px solid var(--color-border);
+    border-radius: 3px;
+    color:         var(--color-fg);
+    font-size:     11px;
+    padding:       3px 6px;
+    flex:          1;
+    outline:       none;
+    font-family:   inherit;
+}
+.sim-history-filter input:focus { border-color: var(--color-accent); }
+.sim-history-filter select {
+    background:    var(--color-card);
+    border:        1px solid var(--color-border);
+    border-radius: 3px;
+    color:         var(--color-fg);
+    font-size:     11px;
+    padding:       3px 4px;
+    outline:       none;
+    font-family:   inherit;
+}
 </style>
 </head>
 <body>
@@ -1037,6 +1181,28 @@ body {
 <div class="section-label">Deployments</div>
 <div id="deployments-list">
     <div class="empty-state" style="padding:12px 16px">No deployments recorded.</div>
+</div>
+
+<!-- ── Simulation History section ──────────────────────── -->
+<div class="section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
+    Simulations
+    <span style="display:flex;gap:4px">
+        <button class="icon-btn" id="sim-history-load-btn" title="Load simulation history" style="font-size:11px;padding:2px 5px">↻</button>
+        <button class="icon-btn" id="sim-history-export-btn" title="Export simulation history" style="font-size:11px;padding:2px 5px">⤓</button>
+        <button class="icon-btn" id="sim-history-clear-btn" title="Clear simulation history" style="font-size:11px;padding:2px 5px;color:var(--color-danger)">✕</button>
+    </span>
+</div>
+<div class="sim-history-filter" id="sim-history-filter">
+    <input type="text" id="sim-history-search" placeholder="Search simulations…" />
+    <select id="sim-history-outcome-filter">
+        <option value="">All</option>
+        <option value="success">Success</option>
+        <option value="failure">Failure</option>
+    </select>
+</div>
+<div id="sim-history-stats-bar" class="sim-history-stats"></div>
+<div id="sim-history-list">
+    <div class="empty-state" style="padding:12px 16px">Click ↻ to load simulation history.</div>
 </div>
 
 <!-- ── Version History Panel ────────────────────────────── -->
@@ -1080,11 +1246,11 @@ let _dragPath           = null;
 let _dragEl             = null;
 let _dropTargetEl       = null;
 
-// ── Message receiver ──────────────────────────────────────────
 // ── Import state ──────────────────────────────────────────────
 let _importPreview   = null;
 let _importValidation = null;
 
+// ── Message receiver ──────────────────────────────────────────
 window.addEventListener('message', (event) => {
     const msg = event.data;
     switch (msg.type) {
@@ -1103,6 +1269,9 @@ window.addEventListener('message', (event) => {
             break;
         case 'version:history':
             displayVersionHistory(msg.contractPath, msg.history || []);
+            break;
+        case 'simHistory:data':
+            renderSimulationHistory(msg.entries || [], msg.stats || {});
             break;
         case 'import:preview':
             _importValidation = msg.validation;
@@ -1142,71 +1311,64 @@ function showImportPreviewModal(validation) {
     const body = document.getElementById('import-modal-body');
     let html = '';
 
-    // Stats
     html += '<div class="import-section">';
     html += '<div class="import-section-title">Summary</div>';
-    html += `< div class="import-stat" > <span>Total in file < /span><span class="val">${preview.totalContracts}</span > </div>`;
-        html += `<div class="import-stat"><span>New</span><span class="val">${preview.newContracts.length}</span></div>`;
-        html += `<div class="import-stat"><span>Conflicts</span><span class="val">${preview.conflicts.length}</span></div>`;
-        html += `<div class="import-stat"><span>Invalid</span><span class="val">${preview.invalidEntries.length}</span></div>`;
-        html += '</div>';
+    html += \`<div class="import-stat"><span>Total in file</span><span class="val">\${preview.totalContracts}</span></div>\`;
+    html += \`<div class="import-stat"><span>New</span><span class="val">\${preview.newContracts.length}</span></div>\`;
+    html += \`<div class="import-stat"><span>Conflicts</span><span class="val">\${preview.conflicts.length}</span></div>\`;
+    html += \`<div class="import-stat"><span>Invalid</span><span class="val">\${preview.invalidEntries.length}</span></div>\`;
+    html += '</div>';
 
-        // Errors
-        if (!validation.valid) {
-            html += '<div class="import-error-box">File has validation errors — some entries cannot be imported.</div>';
-        }
-
-        // Warnings
-        if (preview.warnings.length > 0) {
-            html += '<div class="import-warning-box">' + preview.warnings.map(w => esc(w.message)).join('<br>') + '</div>';
-        }
-
-        // New contracts (selectable)
-        if (preview.newContracts.length > 0) {
-            html += '<div class="import-section">';
-            html += '<div class="import-section-title">New Contracts</div>';
-            for (const c of preview.newContracts) {
-                html += `<div class="import-item">`;
-                html += `<input type="checkbox" id="imp-${esc(c.id)}" data-import-id="${esc(c.id)}" checked />`;
-                html += `<label for="imp-${esc(c.id)}">${esc(c.name)} <small style="color:var(--color-muted)">(${esc(c.network)})</small></label>`;
-                html += '</div>';
-            }
-            html += '</div>';
-        }
-
-        // Conflicts (selectable + action)
-        if (preview.conflicts.length > 0) {
-            html += '<div class="import-section">';
-            html += '<div class="import-section-title">Conflicts</div>';
-            for (const cf of preview.conflicts) {
-                const cid = cf.importedContract.id;
-                html += `<div class="import-item">`;
-                html += `<input type="checkbox" id="imp-${esc(cid)}" data-import-id="${esc(cid)}" />`;
-                html += `<label for="imp-${esc(cid)}">${esc(cf.importedContract.name)} <small style="color:var(--color-danger)">⚠ ${cf.reason === 'duplicate_id' ? 'ID conflict' : 'Address conflict'}</small></label>`;
-                html += `<select data-conflict-id="${esc(cid)}">`;
-                html += '<option value="skip">Skip</option>';
-                html += '<option value="overwrite">Overwrite</option>';
-                html += '<option value="rename">Rename</option>';
-                html += '</select>';
-                html += '</div>';
-            }
-            html += '</div>';
-        }
-
-        // Invalid entries (informational)
-        if (preview.invalidEntries.length > 0) {
-            html += '<div class="import-section">';
-            html += '<div class="import-section-title">Invalid (skipped)</div>';
-            for (const inv of preview.invalidEntries) {
-                const name = inv.contract.name || '#' + (inv.index + 1);
-                html += `<div class="import-item" style="color:var(--color-muted)">✘ ${esc(name)}: ${inv.issues.map(i => esc(i.message)).join('; ')}</div>`;
-            }
-            html += '</div>';
-        }
-
-        body.innerHTML = html;
-        document.getElementById('import-modal-overlay').classList.add('visible');
+    if (!validation.valid) {
+        html += '<div class="import-error-box">File has validation errors — some entries cannot be imported.</div>';
     }
+    if (preview.warnings.length > 0) {
+        html += '<div class="import-warning-box">' + preview.warnings.map(w => esc(w.message)).join('<br>') + '</div>';
+    }
+
+    if (preview.newContracts.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">New Contracts</div>';
+        for (const c of preview.newContracts) {
+            html += \`<div class="import-item">\`;
+            html += \`<input type="checkbox" id="imp-\${esc(c.id)}" data-import-id="\${esc(c.id)}" checked />\`;
+            html += \`<label for="imp-\${esc(c.id)}">\${esc(c.name)} <small style="color:var(--color-muted)">(\${esc(c.network)})</small></label>\`;
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    if (preview.conflicts.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">Conflicts</div>';
+        for (const cf of preview.conflicts) {
+            const cid = cf.importedContract.id;
+            html += \`<div class="import-item">\`;
+            html += \`<input type="checkbox" id="imp-\${esc(cid)}" data-import-id="\${esc(cid)}" />\`;
+            html += \`<label for="imp-\${esc(cid)}">\${esc(cf.importedContract.name)} <small style="color:var(--color-danger)">⚠ \${cf.reason === 'duplicate_id' ? 'ID conflict' : 'Address conflict'}</small></label>\`;
+            html += \`<select data-conflict-id="\${esc(cid)}">\`;
+            html += '<option value="skip">Skip</option>';
+            html += '<option value="overwrite">Overwrite</option>';
+            html += '<option value="rename">Rename</option>';
+            html += '</select>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+
+    if (preview.invalidEntries.length > 0) {
+        html += '<div class="import-section">';
+        html += '<div class="import-section-title">Invalid (skipped)</div>';
+        for (const inv of preview.invalidEntries) {
+            const name = inv.contract.name || '#' + (inv.index + 1);
+            html += \`<div class="import-item" style="color:var(--color-muted)">✘ \${esc(name)}: \${inv.issues.map(i => esc(i.message)).join('; ')}</div>\`;
+        }
+        html += '</div>';
+    }
+
+    body.innerHTML = html;
+    document.getElementById('import-modal-overlay').classList.add('visible');
+}
 
 function applyImportSelection() {
     if (!_importPreview) { return; }
@@ -1556,6 +1718,85 @@ function promptTagVersion(contractPath, entryId) {
     // Re-fetch history to reflect tag
     setTimeout(() => vscode.postMessage({ type: 'version:getHistory', contractPath }), 300);
 }
+
+// ── Simulation history ────────────────────────────────────────
+
+let _simHistoryDebounce = null;
+
+document.getElementById('sim-history-load-btn').addEventListener('click', () => {
+    loadSimulationHistory();
+});
+document.getElementById('sim-history-export-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'simHistory:export' });
+});
+document.getElementById('sim-history-clear-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'simHistory:clear' });
+});
+document.getElementById('sim-history-search').addEventListener('input', (e) => {
+    clearTimeout(_simHistoryDebounce);
+    _simHistoryDebounce = setTimeout(() => loadSimulationHistory(), 300);
+});
+document.getElementById('sim-history-outcome-filter').addEventListener('change', () => {
+    loadSimulationHistory();
+});
+
+function loadSimulationHistory() {
+    const searchText = document.getElementById('sim-history-search').value.trim();
+    const outcome    = document.getElementById('sim-history-outcome-filter').value;
+    const filter     = {};
+    if (searchText) { filter.searchText = searchText; }
+    if (outcome)    { filter.outcome    = outcome; }
+    vscode.postMessage({ type: 'simHistory:getAll', filter });
+}
+
+function renderSimulationHistory(entries, stats) {
+    const statsBar = document.getElementById('sim-history-stats-bar');
+    const listEl   = document.getElementById('sim-history-list');
+
+    if (stats && stats.totalSimulations > 0) {
+        statsBar.innerHTML =
+            '<span>Total: <span class="stat-value">' + stats.totalSimulations + '</span></span>' +
+            '<span>Passed: <span class="stat-value" style="color:var(--color-success)">' + stats.successCount + '</span></span>' +
+            '<span>Failed: <span class="stat-value" style="color:var(--color-danger)">' + stats.failureCount + '</span></span>' +
+            '<span>Contracts: <span class="stat-value">' + stats.uniqueContracts + '</span></span>';
+    } else {
+        statsBar.innerHTML = '';
+    }
+
+    if (!entries.length) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:12px 16px">No simulation history found.</div>';
+        return;
+    }
+
+    listEl.innerHTML = entries.map(function(e) {
+        var icon     = e.outcome === 'success' ? '\u2713' : '\u2717';
+        var shortId  = e.contractId.length > 12 ? e.contractId.slice(0, 8) + '\u2026' + e.contractId.slice(-4) : e.contractId;
+        var duration = e.durationMs !== undefined ? ' \u00b7 ' + e.durationMs + 'ms' : '';
+        var html = '<div class="sim-history-card ' + esc(e.outcome) + '" data-entry-id="' + esc(e.id) + '">';
+        html += '<div class="sim-history-fn">' + icon + ' ' + esc(e.functionName) + '()</div>';
+        html += '<div class="sim-history-meta">' + esc(shortId) + ' \u00b7 ' + esc(e.network) + ' \u00b7 ' + esc(e.method) + duration + '</div>';
+        html += '<div class="sim-history-meta">' + new Date(e.timestamp).toLocaleString() + '</div>';
+        if (e.label) { html += '<div class="sim-history-label">\ud83c\udff7 ' + esc(e.label) + '</div>'; }
+        if (e.outcome === 'failure' && e.error) { html += '<div class="sim-history-error" title="' + esc(e.error) + '">' + esc(e.error) + '</div>'; }
+        html += '<div class="sim-history-actions">';
+        html += '<button class="action-btn secondary" style="font-size:10px;padding:2px 7px" onclick="promptLabelSimulation(\'' + esc(e.id) + '\')">Label</button>';
+        html += '<button class="action-btn secondary" style="font-size:10px;padding:2px 7px;color:var(--color-danger)" onclick="deleteSimulationEntry(\'' + esc(e.id) + '\')">Delete</button>';
+        html += '</div></div>';
+        return html;
+    }).join('');
+}
+
+function promptLabelSimulation(entryId) {
+    var label = prompt('Enter a label for this simulation:');
+    if (!label || !label.trim()) { return; }
+    vscode.postMessage({ type: 'simHistory:label', entryId: entryId, label: label.trim() });
+    setTimeout(function() { loadSimulationHistory(); }, 300);
+}
+
+function deleteSimulationEntry(entryId) {
+    vscode.postMessage({ type: 'simHistory:delete', entryId: entryId });
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function esc(str) {
@@ -1566,8 +1807,8 @@ function esc(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 }
-</script>
-</body>
-</html>`;
+<\/script>
+<\/body>
+<\/html>`;
     }
 }

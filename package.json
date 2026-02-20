@@ -79,6 +79,30 @@
       {
         "command": "stellarSuite.configureCli",
         "title": "Stellar Suite: Configure CLI"
+      },
+      {
+        "command": "stellarSuite.showSimulationHistory",
+        "title": "Stellar Suite: Show Simulation History"
+      },
+      {
+        "command": "stellarSuite.clearSimulationHistory",
+        "title": "Stellar Suite: Clear Simulation History"
+      },
+      {
+        "command": "stellarSuite.exportSimulationHistory",
+        "title": "Stellar Suite: Export Simulation History"
+      },
+      {
+        "command": "stellarSuite.importSimulationHistory",
+        "title": "Stellar Suite: Import Simulation History"
+      },
+      {
+        "command": "stellarSuite.searchSimulationHistory",
+        "title": "Stellar Suite: Search Simulation History"
+      },
+      {
+        "command": "stellarSuite.showCompilationStatus",
+        "title": "Stellar Suite: Show Compilation Status"
       }
     ],
     "menus": {
@@ -138,10 +162,14 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:sidebar-export-import",
+    "test": "npm run test:cli-errors && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:sidebar-export-import",
     "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
     "test:version-tracker": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
     "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
+    "test:cargo-metadata": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/test/cargoTomlParser.test.ts && node out-test/test/cargoTomlParser.test.js",
+    "test:compilation-status": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/compilationStatus.ts src/services/compilationStatusMonitor.ts src/test/compilationStatus.test.ts && node out-test/test/compilationStatus.test.js",
+    "test:cli-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/cliValidation.ts src/services/parameterValidator.ts src/services/environmentValidator.ts src/services/fileValidator.ts src/services/networkValidator.ts src/services/cliValidationService.ts src/services/preFlightCheckService.ts src/test/cliValidation.test.ts && node out-test/test/cliValidation.test.js",
+    "test:simulation-history": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/test/simulationHistory.test.ts && node out-test/test/simulationHistory.test.js",
     "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js"
   },
   "devDependencies": {

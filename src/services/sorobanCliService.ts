@@ -16,11 +16,11 @@ import * as path from 'path';
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
 
-function getEnvironmentWithPath(): NodeJS.ProcessEnv {
+function getEnvironmentWithPath(customEnv?: Record<string, string>): NodeJS.ProcessEnv {
     const env = { ...process.env };
     const homeDir = os.homedir();
     const cargoBin = path.join(homeDir, '.cargo', 'bin');
-    
+
     const additionalPaths = [
         cargoBin,
         path.join(homeDir, '.local', 'bin'),
@@ -28,11 +28,15 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
         '/opt/homebrew/bin',
         '/opt/homebrew/sbin'
     ];
-    
+
     const currentPath = env.PATH || env.Path || '';
     env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
     env.Path = env.PATH;
-    
+
+    // Merge custom environment variables (profile overrides)
+    if (customEnv) {
+        Object.assign(env, customEnv);
+    }
     return env;
 }
 
@@ -60,6 +64,7 @@ export interface SimulationResult {
 export class SorobanCliService {
     private cliPath: string;
     private source: string;
+    private customEnv: Record<string, string> = {};
 
     constructor(cliPath: string, source: string = 'dev') {
         this.cliPath = cliPath;
@@ -108,9 +113,9 @@ export class SorobanCliService {
                 }
             }
 
-            // Get environment with proper PATH
-            const env = getEnvironmentWithPath();
-            
+            // Get environment with proper PATH + custom env vars
+            const env = getEnvironmentWithPath(this.customEnv);
+
             // Execute the command using execFile with proper argument array
             // This avoids shell injection and properly handles arguments
             const { stdout, stderr } = await execFileAsync(
@@ -141,7 +146,7 @@ export class SorobanCliService {
             // The official CLI outputs structured data, often in JSON format
             try {
                 const output = stdout.trim();
-                
+
                 // Try to parse as JSON first (CLI may output pure JSON)
                 try {
                     const parsed = JSON.parse(output);
@@ -237,12 +242,12 @@ export class SorobanCliService {
     /**
      * Check if Stellar CLI is available.
      * Uses the official CLI version command.
-     * 
+     *
      * @returns True if CLI is accessible
      */
     async isAvailable(): Promise<boolean> {
         try {
-            const env = getEnvironmentWithPath();
+            const env = getEnvironmentWithPath(this.customEnv);
             await execFileAsync(this.cliPath, ['--version'], { env: env, timeout: 5000 });
             return true;
         } catch {
@@ -252,7 +257,7 @@ export class SorobanCliService {
 
     /**
      * Try to find Stellar CLI in common installation locations.
-     * 
+     *
      * @returns Path to CLI if found, or null
      */
     static async findCliPath(): Promise<string | null> {
@@ -286,10 +291,20 @@ export class SorobanCliService {
 
     /**
      * Set the source identity to use for transactions.
-     * 
+     *
      * @param source - Source identity name (e.g., 'dev')
      */
     setSource(source: string): void {
         this.source = source;
+    }
+
+    /**
+     * Set custom environment variables for CLI execution.
+     * These are merged into the process environment on every call.
+     *
+     * @param env - Key–value pairs to inject
+     */
+    setCustomEnv(env: Record<string, string>): void {
+        this.customEnv = { ...env };
     }
 }

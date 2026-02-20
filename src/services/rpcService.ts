@@ -47,7 +47,7 @@ export class RpcService {
 
     /**
      * Simulate a Soroban contract function call using RPC.
-     * 
+     *
      * @param contractId - Contract ID (address)
      * @param functionName - Name of the function to call
      * @param args - Function arguments as array
@@ -159,7 +159,7 @@ export class RpcService {
 
     /**
      * Check if RPC endpoint is reachable.
-     * 
+     *
      * @returns True if endpoint is accessible
      */
     async isAvailable(): Promise<boolean> {

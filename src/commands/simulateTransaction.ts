@@ -9,6 +9,7 @@ import { formatError } from '../utils/errorFormatter';
 import { resolveCliConfigurationForCommand } from '../services/cliConfigurationVscode';
 import { SimulationValidationService } from '../services/simulationValidationService';
 import { SimulationHistoryService } from '../services/simulationHistoryService';
+import { RpcFallbackService } from '../services/rpcFallbackService';
 import { ResourceProfilingService } from '../services/resourceProfilingService';
 import { StateCaptureService } from '../services/stateCaptureService';
 import { StateDiffService } from '../services/stateDiffService';
@@ -17,7 +18,9 @@ export async function simulateTransaction(
     context: vscode.ExtensionContext,
     sidebarProvider?: SidebarViewProvider,
     historyService?: SimulationHistoryService,
-    profilingService?: ResourceProfilingService
+    fallbackService?: RpcFallbackService,
+    profilingService?: ResourceProfilingService,
+    initialContractId?: string
 ): Promise<void> {
     try {
         const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
@@ -50,7 +53,7 @@ export async function simulateTransaction(
 
         const contractId = await vscode.window.showInputBox({
             prompt: 'Enter contract ID',
-            value: defaultContractId
+            value: initialContractId || defaultContractId
         });
 
         if (!contractId) {
@@ -127,12 +130,8 @@ export async function simulateTransaction(
         ];
 
         if (!validationReport.valid) {
-            const validationErrorMessage = [
-                ...validationReport.errors,
-                ...(validationReport.suggestions.length > 0
-                    ? ['Suggestions:', ...validationReport.suggestions.map(s => `- ${s}`)]
-                    : [])
-            ].join('\n');
+            const validationErrorMessage = validationReport.errors.join('\n');
+            const suggestions = [...(validationReport.suggestions || [])];
 
             const panel = SimulationPanel.createOrShow(context);
             panel.updateResults(
@@ -140,7 +139,7 @@ export async function simulateTransaction(
                     success: false,
                     error: `Simulation validation failed before execution.\n\n${validationErrorMessage}`,
                     errorSummary: validationReport.errors[0],
-                    errorSuggestions: validationReport.suggestions,
+                    errorSuggestions: suggestions,
                     validationWarnings
                 },
                 contractId,
@@ -222,14 +221,23 @@ export async function simulateTransaction(
                     }
                 } else {
                     progress.report({ increment: 30, message: 'Connecting to RPC...' });
-                    const rpcService = new RpcService(rpcUrl);
 
-                    progress.report({ increment: 50, message: 'Executing simulation...' });
-                    result = await rpcService.simulateTransaction(
-                        contractId,
-                        functionName,
-                        args
-                    );
+                    if (fallbackService) {
+                        progress.report({ increment: 50, message: 'Executing simulation (with failover)...' });
+                        result = await fallbackService.simulateTransaction(
+                            contractId,
+                            functionName,
+                            args
+                        );
+                    } else {
+                        const rpcService = new RpcService(rpcUrl);
+                        progress.report({ increment: 50, message: 'Executing simulation...' });
+                        result = await rpcService.simulateTransaction(
+                            contractId,
+                            functionName,
+                            args
+                        );
+                    }
                 }
 
                 const durationMs = Date.now() - simulationStartTime;

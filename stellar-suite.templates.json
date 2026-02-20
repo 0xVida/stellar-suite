@@ -1,0 +1,44 @@
+{
+  "version": "1",
+  "templates": [
+    {
+      "id": "nft",
+      "displayName": "NFT",
+      "category": "token",
+      "description": "Non-fungible token style contracts.",
+      "keywords": ["token_uri", "owner_of", "mint_nft"],
+      "dependencies": ["soroban-sdk"],
+      "actions": [
+        {
+          "id": "nft.mint",
+          "label": "Mint NFT",
+          "description": "Prepare an NFT mint invocation."
+        },
+        {
+          "id": "nft.transfer",
+          "label": "Transfer NFT",
+          "description": "Prepare an NFT transfer invocation."
+        }
+      ]
+    },
+    {
+      "id": "dao",
+      "displayName": "DAO",
+      "category": "voting",
+      "description": "Governance contracts with proposal and voting lifecycle.",
+      "keywords": ["proposal", "vote", "execute_proposal"],
+      "actions": [
+        {
+          "id": "dao.propose",
+          "label": "Submit Proposal",
+          "description": "Prepare a governance proposal invocation."
+        },
+        {
+          "id": "dao.vote",
+          "label": "Cast Governance Vote",
+          "description": "Prepare a governance vote invocation."
+        }
+      ]
+    }
+  ]
+}

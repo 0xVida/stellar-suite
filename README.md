@@ -180,9 +180,41 @@ The Stellar Suite sidebar provides a visual interface for managing contracts:
 
 - View all detected contracts in your workspace
 - See build status at a glance
+- See detected contract template/category (token, escrow, voting, custom, unknown)
 - Access quick actions (Build, Deploy, Simulate)
+- Run template-specific actions from the contract card/context menu
+- Manually assign template categories from the context menu
 - View deployment history
 - Inspect contract functions
+
+### Contract Template Configuration
+
+Stellar Suite supports custom template definitions through a workspace config file:
+
+- `stellar-suite.templates.json` (workspace root), or
+- `.stellar-suite/templates.json`
+
+Example:
+
+```json
+{
+  "version": "1",
+  "templates": [
+    {
+      "id": "amm",
+      "displayName": "AMM",
+      "category": "amm",
+      "keywords": ["swap", "liquidity_pool"],
+      "dependencies": ["soroban-sdk"],
+      "actions": [
+        { "id": "amm.swap", "label": "Swap Assets" }
+      ]
+    }
+  ]
+}
+```
+
+Each template can define keyword, dependency, and path hints used for detection. Unknown contracts are shown as `Unknown / Unclassified` until matched or manually assigned.
 
 ## Configuration
 

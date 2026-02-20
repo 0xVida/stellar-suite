@@ -12,6 +12,8 @@ export interface ContractInfo {
     deployedAt?: string;
     network?: string;
     source?: string;
+    templateId?: string;
+    templateCategory?: string;
 }
 
 export interface DeploymentRecord {
@@ -36,7 +38,9 @@ export type ContextMenuActionId =
     | 'openContractFolder'
     | 'viewDeploymentHistory'
     | 'pinContract'
-    | 'setNetwork';
+    | 'setNetwork'
+    | 'assignTemplate'
+    | 'templateActions';
 
 export interface ContextMenuAction {
     id: ContextMenuActionId | string;
@@ -59,6 +63,8 @@ export interface ContextMenuRequest {
     contractPath: string;
     contractId?: string;
     isBuilt: boolean;
+    templateId?: string;
+    templateCategory?: string;
     x: number;
     y: number;
 }
@@ -69,6 +75,8 @@ export interface ContextMenuActionRequest {
     contractName: string;
     contractPath: string;
     contractId?: string;
+    templateId?: string;
+    templateCategory?: string;
 }
 
 /** Feedback message sent back to the webview after an action completes */

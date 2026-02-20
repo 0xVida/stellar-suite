@@ -17,15 +17,16 @@ let groupService: ContractGroupService | undefined;
 let versionTracker: ContractVersionTracker | undefined;
 import { manageCliConfiguration } from './commands/manageCliConfiguration';
 import { registerSyncCommands } from './commands/syncCommands';
-import { SidebarViewProvider } from './ui/sidebarView';
 import { WorkspaceStateSyncService } from './services/workspaceStateSyncService';
 import { SyncStatusProvider } from './ui/syncStatusProvider';
+import { WorkspaceStateEncryptionService } from './services/workspaceStateEncryptionService';
+import { registerEncryptionCommands } from './commands/encryptionCommands';
 
-let sidebarProvider: SidebarViewProvider | undefined;
 let syncService: WorkspaceStateSyncService | undefined;
 let syncStatusProvider: SyncStatusProvider | undefined;
+let encryptionService: WorkspaceStateEncryptionService | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Stellar Suite');
     outputChannel.appendLine('[Extension] Activating Stellar Suite extension...');
     console.log('[Stellar Suite] Extension activating...');
@@ -44,6 +45,13 @@ export function activate(context: vscode.ExtensionContext) {
         // Initialize version tracker
         versionTracker = new ContractVersionTracker(context, outputChannel);
         outputChannel.appendLine('[Extension] Contract version tracker initialized');
+
+        // Initialize encryption service
+        encryptionService = new WorkspaceStateEncryptionService(context, false);
+        await encryptionService.initialize();
+        registerEncryptionCommands(context, encryptionService);
+        outputChannel.appendLine('[Extension] Workspace state encryption service initialized');
+
         // Initialize workspace state synchronization
         syncService = new WorkspaceStateSyncService(context);
         syncStatusProvider = new SyncStatusProvider(syncService);
@@ -158,9 +166,9 @@ export function activate(context: vscode.ExtensionContext) {
             simulateFromSidebarCommand,
             copyContractIdCommand,
             showVersionMismatchesCommand,
-            watcher
             watcher,
-            syncStatusProvider || { dispose: () => {} }
+            syncStatusProvider || { dispose: () => {} },
+            encryptionService
         );
 
         outputChannel.appendLine('[Extension] Extension activation complete');
@@ -179,4 +187,5 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     syncStatusProvider?.dispose();
+    encryptionService?.dispose();
 }

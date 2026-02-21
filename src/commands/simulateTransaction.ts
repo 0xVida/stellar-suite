@@ -6,6 +6,7 @@ import {
   ContractFunction,
 } from "../services/contractInspector";
 import { FormAutocompleteService } from "../services/formAutocompleteService";
+import { FormTemplateService } from "../services/formTemplateService";
 import { WorkspaceDetector } from "../utils/workspaceDetector";
 import { SimulationPanel } from "../ui/simulationPanel";
 import { SidebarViewProvider } from "../ui/sidebarView";
@@ -184,6 +185,57 @@ export async function simulateTransaction(
     );
     const formPanel = ContractFormPanel.createOrShow(context, generatedForm);
     const formValidator = new FormValidationService();
+    const templateService = new FormTemplateService(context);
+
+    // Refresh the UI with available templates for this function
+    const refreshTemplates = () => {
+      const templates = templateService.getTemplates({
+        contractId,
+        functionName,
+      });
+      formPanel.sendTemplates(
+        templates.map((t) => ({ id: t.id, name: t.name })),
+      );
+    };
+    refreshTemplates();
+
+    const disposables: vscode.Disposable[] = [];
+
+    disposables.push(
+      formPanel.onDidReceiveSaveTemplate(async (args) => {
+        const name = await vscode.window.showInputBox({
+          prompt: "Enter a name for this template:",
+        });
+        if (name) {
+          templateService.saveTemplate({
+            name,
+            contractId,
+            functionName,
+            parameters: args,
+          });
+          refreshTemplates();
+          vscode.window.showInformationMessage(`Saved template: ${name}`);
+        }
+      }),
+    );
+
+    disposables.push(
+      formPanel.onDidReceiveLoadTemplate((id) => {
+        const template = templateService
+          .getTemplates()
+          .find((t) => t.id === id);
+        if (template) {
+          formPanel.loadTemplateData(template.parameters);
+        }
+      }),
+    );
+
+    disposables.push(
+      formPanel.onDidReceiveDeleteTemplate((id) => {
+        templateService.deleteTemplate(id);
+        refreshTemplates();
+      }),
+    );
 
     let sanitizedArgs: Record<string, unknown> | null = null;
 
@@ -203,6 +255,7 @@ export async function simulateTransaction(
       const formData = await formPanel.waitForSubmit();
 
       if (formData === null) {
+        disposables.forEach((d) => d.dispose());
         liveValidationDisposable.dispose();
         return; // User cancelled or closed the panel
       }
@@ -221,6 +274,7 @@ export async function simulateTransaction(
       sanitizedArgs = vr.sanitizedArgs;
     }
 
+    disposables.forEach((d) => d.dispose());
     liveValidationDisposable.dispose();
 
     if (selectedFunction && selectedFunction.parameters && sanitizedArgs) {

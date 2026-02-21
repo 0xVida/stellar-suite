@@ -20,10 +20,28 @@ interface FormLiveValidateMessage {
   args: Record<string, string>;
 }
 
+interface FormSaveTemplateMessage {
+  type: "saveTemplate";
+  args: Record<string, string>;
+}
+
+interface FormLoadTemplateMessage {
+  type: "loadTemplate";
+  id: string;
+}
+
+interface FormDeleteTemplateMessage {
+  type: "deleteTemplate";
+  id: string;
+}
+
 type WebviewMessage =
   | FormSubmitMessage
   | FormCancelMessage
-  | FormLiveValidateMessage;
+  | FormLiveValidateMessage
+  | FormSaveTemplateMessage
+  | FormLoadTemplateMessage
+  | FormDeleteTemplateMessage;
 
 /**
  * Manages the WebView panel that displays a dynamically generated contract
@@ -51,6 +69,22 @@ export class ContractFormPanel {
   >();
   public readonly onDidReceiveLiveValidation =
     this._onDidReceiveLiveValidation.event;
+
+  private readonly _onDidReceiveSaveTemplate = new vscode.EventEmitter<
+    Record<string, string>
+  >();
+  public readonly onDidReceiveSaveTemplate =
+    this._onDidReceiveSaveTemplate.event;
+
+  private readonly _onDidReceiveLoadTemplate =
+    new vscode.EventEmitter<string>();
+  public readonly onDidReceiveLoadTemplate =
+    this._onDidReceiveLoadTemplate.event;
+
+  private readonly _onDidReceiveDeleteTemplate =
+    new vscode.EventEmitter<string>();
+  public readonly onDidReceiveDeleteTemplate =
+    this._onDidReceiveDeleteTemplate.event;
 
   private constructor(panel: vscode.WebviewPanel, form: GeneratedForm) {
     this._panel = panel;
@@ -88,6 +122,15 @@ export class ContractFormPanel {
             return;
           case "liveValidate":
             this._onDidReceiveLiveValidation.fire(message.args);
+            return;
+          case "saveTemplate":
+            this._onDidReceiveSaveTemplate.fire(message.args);
+            return;
+          case "loadTemplate":
+            this._onDidReceiveLoadTemplate.fire(message.id);
+            return;
+          case "deleteTemplate":
+            this._onDidReceiveDeleteTemplate.fire(message.id);
             return;
         }
       },
@@ -163,10 +206,21 @@ export class ContractFormPanel {
     this._panel.webview.postMessage({ type: "validationWarnings", warnings });
   }
 
+  public sendTemplates(templates: Array<{ id: string; name: string }>): void {
+    this._panel.webview.postMessage({ type: "renderTemplates", templates });
+  }
+
+  public loadTemplateData(data: Record<string, string>): void {
+    this._panel.webview.postMessage({ type: "loadTemplateData", data });
+  }
+
   public dispose(): void {
     ContractFormPanel.currentPanel = undefined;
     this._panel.dispose();
     this._onDidReceiveLiveValidation.dispose();
+    this._onDidReceiveSaveTemplate.dispose();
+    this._onDidReceiveLoadTemplate.dispose();
+    this._onDidReceiveDeleteTemplate.dispose();
     while (this._disposables.length) {
       const d = this._disposables.pop();
       if (d) {
@@ -408,7 +462,80 @@ export class ContractFormPanel {
             if (data.type === 'validationWarnings') {
                 showWarnings(data.warnings);
             }
+            if (data.type === 'renderTemplates') {
+                renderTemplates(data.templates);
+            }
+            if (data.type === 'loadTemplateData') {
+                fillFormData(data.data);
+            }
         });
+
+        // ── Template Interactions ──────────
+        const saveTemplateBtn = document.getElementById('save-template-btn');
+        if (saveTemplateBtn) {
+            saveTemplateBtn.addEventListener('click', function() {
+                if (!form) return;
+                const raw = new FormData(form);
+                const args = {};
+                raw.forEach(function(value, key) {
+                    args[key] = value;
+                });
+                vscode.postMessage({ type: 'saveTemplate', args: args });
+            });
+        }
+
+        const templateSelect = document.getElementById('template-select');
+        const deleteTemplateBtn = document.getElementById('delete-template-btn');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', function(e) {
+                const id = e.target.value;
+                if (!id) {
+                    if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'none';
+                    return;
+                }
+                if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'inline-block';
+                vscode.postMessage({ type: 'loadTemplate', id: id });
+            });
+        }
+
+        if (deleteTemplateBtn) {
+            deleteTemplateBtn.addEventListener('click', function() {
+                if (!templateSelect) return;
+                const id = templateSelect.value;
+                if (id) {
+                    vscode.postMessage({ type: 'deleteTemplate', id: id });
+                }
+            });
+        }
+
+        function renderTemplates(templates) {
+            if (!templateSelect) return;
+            templateSelect.innerHTML = '<option value="">-- Load Template --</option>';
+            templates.forEach(function(t) {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                templateSelect.appendChild(opt);
+            });
+            if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'none';
+        }
+
+        function fillFormData(data) {
+            Object.keys(data).forEach(function(key) {
+                // Ignore the metadata keys that are usually present
+                if (key === '__contractId' || key === '__functionName') return;
+                
+                const input = document.querySelector('[name="' + key + '"]');
+                if (input) {
+                    // special handling for checkboxes vs other inputs could go here
+                    // assuming plain text/number/textarea for now based on AbiGenerator
+                    input.value = data[key];
+
+                    // Fire input event to trigger any live validation
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
 
         function showErrors(errors) {
             const allInputs = document.querySelectorAll('#contract-form input:not([type="hidden"]):not([type="checkbox"]), #contract-form select, #contract-form textarea');

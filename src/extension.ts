@@ -40,6 +40,8 @@ import { RpcAuthService } from "./services/rpcAuthService";
 import { createEnvVariableService } from "./services/envVariableVscode";
 import { EnvVariableService } from "./services/envVariableService";
 import { RpcFallbackService } from "./services/rpcFallbackService";
+import { createToastNotificationService } from "./services/toastNotificationVscode";
+import { ToastNotificationService } from "./services/toastNotificationService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
 import { ContractDependencyDetectionService } from "./services/contractDependencyDetectionService";
@@ -55,6 +57,7 @@ import { SyncStatusProvider } from "./ui/syncStatusProvider";
 import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
+import { ToastNotificationPanel } from "./ui/toastNotificationPanel";
 
 // Global service instances
 let sidebarProvider: SidebarViewProvider | undefined;
@@ -81,6 +84,8 @@ let fallbackService: RpcFallbackService | undefined;
 // FIX: Removed duplicate declarations of retryService and retryStatusBar
 let dependencyDetectionService: ContractDependencyDetectionService | undefined;
 let dependencyWatcherService: ContractDependencyWatcherService | undefined;
+let toastNotificationService: ToastNotificationService | undefined;
+let toastNotificationPanel: ToastNotificationPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
@@ -280,9 +285,21 @@ export function activate(context: vscode.ExtensionContext) {
       ),
     );
 
+    // 9. Initialize Toast Notification System
+    toastNotificationService = createToastNotificationService(context);
+    toastNotificationPanel = new ToastNotificationPanel(toastNotificationService);
+
+    const showNotificationHistoryCommand = vscode.commands.registerCommand(
+      'stellarSuite.showNotificationHistory',
+      () => toastNotificationPanel?.showNotificationHistory()
+    );
+
+    context.subscriptions.push(showNotificationHistoryCommand);
+    outputChannel.appendLine('[Extension] Toast notification system initialized');
+
     outputChannel.appendLine("[Extension] All services initialized");
 
-    // 9. Register Commands
+    // 10. Register Commands
     const simulateCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateTransaction",
       () =>
@@ -392,7 +409,7 @@ export function activate(context: vscode.ExtensionContext) {
         ),
     );
 
-    // 10. File Watchers
+    // 11. File Watchers
     const watcher = vscode.workspace.createFileSystemWatcher(
       "**/{Cargo.toml,*.wasm}",
     );
@@ -401,7 +418,7 @@ export function activate(context: vscode.ExtensionContext) {
     watcher.onDidCreate(refreshOnChange);
     watcher.onDidDelete(refreshOnChange);
 
-    // 11. Subscriptions
+    // 12. Subscriptions
     context.subscriptions.push(
       simulateCommand,
       deployCommand,
@@ -419,13 +436,15 @@ export function activate(context: vscode.ExtensionContext) {
       outputChannel,
       healthMonitor!,
       healthStatusBar!,
-      retryStatusBar || { dispose: () => { } },
+      retryStatusBar || { dispose: () => {} },
       retryService!,
       fallbackService!,
       { dispose: () => metadataService?.dispose() },
-      compilationMonitor || { dispose: () => { } },
-      compilationStatusProvider || { dispose: () => { } },
-      syncStatusProvider || { dispose: () => { } },
+      compilationMonitor || { dispose: () => {} },
+      compilationStatusProvider || { dispose: () => {} },
+      syncStatusProvider || { dispose: () => {} },
+      toastNotificationService || { dispose: () => {} },
+      toastNotificationPanel || { dispose: () => {} },
     );
 
     outputChannel.appendLine("[Extension] Extension activation complete");
@@ -452,4 +471,6 @@ export function deactivate() {
   compilationStatusProvider?.dispose();
   compilationMonitor?.dispose();
   metadataService?.dispose();
+  toastNotificationService?.dispose();
+  toastNotificationPanel?.dispose();
 }

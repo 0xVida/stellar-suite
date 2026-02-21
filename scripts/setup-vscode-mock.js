@@ -38,10 +38,33 @@ module.exports = {
             onDidDelete: function(){},
             dispose: function(){}
         }),
-        onDidChangeWorkspaceFolders: () => ({ dispose: () => {} })
+        onDidChangeWorkspaceFolders: () => ({ dispose: () => {} }),
+        getConfiguration: () => ({
+            get: (key, defaultValue) => defaultValue
+        })
     },
     window: {
-        createOutputChannel: (name) => new OutputChannel()
+        createOutputChannel: (name) => new OutputChannel(),
+        showInformationMessage: async (message, ...items) => {
+            // Mock always returns undefined (no button clicked)
+            return undefined;
+        },
+        showWarningMessage: async (message, ...items) => {
+            // Mock always returns undefined (no button clicked)
+            return undefined;
+        },
+        showErrorMessage: async (message, ...items) => {
+            // Mock always returns undefined (no button clicked)
+            return undefined;
+        },
+        createStatusBarItem: () => ({
+            text: '',
+            tooltip: '',
+            command: '',
+            show: () => {},
+            hide: () => {},
+            dispose: () => {}
+        })
     },
     EventEmitter: EventEmitter,
     Disposable: class Disposable {
@@ -52,6 +75,15 @@ module.exports = {
             if (this.callback) {
                 this.callback();
             }
+        }
+    },
+    StatusBarAlignment: {
+        Left: 1,
+        Right: 2
+    },
+    ThemeColor: class ThemeColor {
+        constructor(id) {
+            this.id = id;
         }
     }
 };

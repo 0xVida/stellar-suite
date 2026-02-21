@@ -11,6 +11,10 @@ import { resolveCliConfigurationForCommand } from '../services/cliConfigurationV
 import { SimulationValidationService } from '../services/simulationValidationService';
 import { ContractWorkspaceStateService } from '../services/contractWorkStateService';
 import { InputSanitizationService } from '../services/inputSanitizationService';
+import { parseParameters } from '../utils/abiParser';
+import { AbiFormGeneratorService } from '../services/abiFormGeneratorService';
+import { FormValidationService } from '../services/formValidationService';
+import { ContractFormPanel } from '../ui/contractFormPanel';
 
 export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
     const sanitizer = new InputSanitizationService();
@@ -94,61 +98,46 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         }
         const functionName = functionNameResult.sanitizedValue;
 
-// Get function info and parameters
-const inspector = new ContractInspector(useLocalCli ? cliPath : rpcUrl, source);
-const contractFunctions = await inspector.getContractFunctions(contractId);
-const selectedFunction = contractFunctions.find(f => f.name === functionName);
+        // Get function info to build typed form fields
+        const inspector = new ContractInspector(useLocalCli ? cliPath : rpcUrl, source);
+        const contractFunctions = await inspector.getContractFunctions(contractId);
+        const selectedFunction = contractFunctions.find(f => f.name === functionName);
 
-let args: any[] = [];
+        // Parse ABI parameters and open dynamic form
+        const abiParams = parseParameters(selectedFunction?.parameters ?? []);
+        const generatedForm = new AbiFormGeneratorService().generateForm(
+            contractId,
+            { name: functionName, parameters: selectedFunction?.parameters ?? [] },
+            abiParams
+        );
+        const formPanel = ContractFormPanel.createOrShow(context, generatedForm);
+        const formValidator = new FormValidationService();
 
-if (selectedFunction && selectedFunction.parameters.length > 0) {
-    // Show function parameters
-    const paramInput = await vscode.window.showInputBox({
-        prompt: `Enter arguments for ${functionName}(${selectedFunction.parameters.map((i: { name: string; type?: string }) => `${i.name}: ${i.type ?? 'any'}`).join(', ')})`,
-        placeHolder: 'e.g., {"name": "world"}'
-    });
+        let sanitizedArgs: Record<string, unknown> | null = null;
 
-    if (paramInput === undefined) {
-        return; // User cancelled
-    }
+        // Validation loop — panel stays open until valid data is submitted or user cancels
+        while (sanitizedArgs === null) {
+            const formData = await formPanel.waitForSubmit();
 
-    try {
-        const parsed = JSON.parse(paramInput || '{}');
-        if (typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null) {
-            args = [parsed];
-        } else {
-            vscode.window.showErrorMessage('Arguments must be a JSON object');
-            return;
-        }
-    } catch (error) {
-        vscode.window.showErrorMessage(`Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        return;
-    }
-} else {
-    // No parameters or couldn't get function info - use manual input
-            const argsInput = await vscode.window.showInputBox({
-                prompt: 'Enter function arguments as JSON object (e.g., {"name": "value"})',
-                placeHolder: 'e.g., {"name": "world"}',
-                value: '{}'
-            });
-
-            if (argsInput === undefined) {
-                return; // User cancelled
+            if (formData === null) {
+                return; // User cancelled or closed the panel
             }
 
-            try {
-                const parsed = JSON.parse(argsInput || '{}');
-                if (typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null) {
-                    args = [parsed];
-                } else {
-                    vscode.window.showErrorMessage('Arguments must be a JSON object');
-                    return;
-                }
-            } catch (error) {
-                vscode.window.showErrorMessage(`Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                return;
+            const vr = formValidator.validate(formData, abiParams, sanitizer);
+
+            if (!vr.valid) {
+                formPanel.showErrors(vr.errors);
+                continue; // Wait for the next submission attempt
             }
+
+            if (Object.keys(vr.warnings).length > 0) {
+                formPanel.showWarnings(vr.warnings);
+            }
+
+            sanitizedArgs = vr.sanitizedArgs;
         }
+
+        const args: any[] = [sanitizedArgs];
 
         // Validate simulation input and predict possible failures before execution
         const validationService = new SimulationValidationService();

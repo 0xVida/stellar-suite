@@ -36,6 +36,9 @@ import { ContractDependencyDetectionService, DependencyGraph } from '../services
 import { ContractMetadataService } from '../services/contractMetadataService';
 import { CliHistoryService, CliHistoryEntry } from '../services/cliHistoryService';
 import { CliReplayService } from '../services/cliReplayService';
+import { CompilationStatusMonitor } from '../services/compilationStatusMonitor';
+import { CompilationStatus } from '../types/compilationStatus';
+import { RpcHealthMonitor } from '../services/rpcHealthMonitor';
 
 export interface ContractInfo {
     name: string;
@@ -84,6 +87,22 @@ export interface ContractInfo {
     dependencyDepth?: number;
     /** Whether this contract is part of a circular dependency. */
     hasCircularDependency?: boolean;
+    /** Current build status. */
+    buildStatus?: 'idle' | 'in_progress' | 'success' | 'failed' | 'cancelled' | 'warning';
+    /** Build progress percentage (0-100). */
+    buildProgress?: number;
+    /** Short build status message. */
+    buildStatusMessage?: string;
+    /** Compilation error count. */
+    buildErrorCount?: number;
+    /** Compilation warning count. */
+    buildWarningCount?: number;
+    /** Deployment status. */
+    deployStatus?: 'idle' | 'deploying' | 'deployed' | 'failed';
+    /** Network health status. */
+    networkHealth?: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+    /** Network health tooltip detail. */
+    networkHealthDetail?: string;
 }
 
 export interface DeploymentRecord {
@@ -111,6 +130,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private _simulationHistoryService?: SimulationHistoryService;
     private readonly dependencyService: ContractDependencyDetectionService;
     private dependencyGraph: DependencyGraph | null = null;
+    private _compilationMonitor?: CompilationStatusMonitor;
+    private _healthMonitor?: RpcHealthMonitor;
+    private _statusSubscriptions: vscode.Disposable[] = [];
 
     // Cache the last-discovered list so drag messages can reference it
     private _lastContracts: ContractInfo[] = [];
@@ -136,6 +158,109 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         );
         this.dependencyService = new ContractDependencyDetectionService(this.outputChannel);
         this.templateService = new ContractTemplateService(this.outputChannel);
+    }
+
+    public setStatusServices(
+        compilationMonitor?: CompilationStatusMonitor,
+        healthMonitor?: RpcHealthMonitor
+    ): void {
+        this._compilationMonitor = compilationMonitor;
+        this._healthMonitor = healthMonitor;
+        this._subscribeToStatusEvents();
+    }
+
+    public dispose(): void {
+        this._statusSubscriptions.forEach(d => d.dispose());
+        this._statusSubscriptions = [];
+    }
+
+    private _subscribeToStatusEvents(): void {
+        this._statusSubscriptions.forEach(d => d.dispose());
+        this._statusSubscriptions = [];
+
+        if (this._compilationMonitor) {
+            this._statusSubscriptions.push(
+                this._compilationMonitor.onStatusChange((event) => {
+                    this._postContractStatusUpdate(event.contractPath);
+                })
+            );
+        }
+        if (this._healthMonitor) {
+            this._statusSubscriptions.push(
+                this._healthMonitor.onHealthChange(() => {
+                    this._postNetworkStatusUpdate();
+                })
+            );
+        }
+    }
+
+    private _postContractStatusUpdate(contractPath: string): void {
+        if (!this._view) { return; }
+        const contract = this._lastContracts.find(c => c.path === contractPath);
+        if (!contract) { return; }
+
+        const statusData = this._getCompilationStatusForContract(contractPath);
+        Object.assign(contract, statusData);
+
+        this._view.webview.postMessage({
+            type: 'contractStatus:update',
+            contractPath,
+            ...statusData,
+        });
+    }
+
+    private _postNetworkStatusUpdate(): void {
+        if (!this._view) { return; }
+        const networkStatus = this._getNetworkStatus();
+
+        for (const c of this._lastContracts) {
+            c.networkHealth = networkStatus.networkHealth;
+            c.networkHealthDetail = networkStatus.networkHealthDetail;
+        }
+
+        this._view.webview.postMessage({
+            type: 'networkStatus:update',
+            ...networkStatus,
+        });
+    }
+
+    private _getCompilationStatusForContract(contractPath: string): Partial<ContractInfo> {
+        if (!this._compilationMonitor) { return {}; }
+        const event = this._compilationMonitor.getCurrentStatus(contractPath);
+        if (!event) { return { buildStatus: 'idle' }; }
+
+        const errorCount = (event.diagnostics || []).filter(
+            d => d.severity === 'error'
+        ).length;
+        const warningCount = (event.diagnostics || []).filter(
+            d => d.severity === 'warning'
+        ).length;
+
+        return {
+            buildStatus: event.status.toLowerCase() as ContractInfo['buildStatus'],
+            buildProgress: event.progress,
+            buildStatusMessage: event.message,
+            buildErrorCount: errorCount,
+            buildWarningCount: warningCount,
+        };
+    }
+
+    private _getNetworkStatus(): { networkHealth: ContractInfo['networkHealth']; networkHealthDetail: string } {
+        if (!this._healthMonitor) {
+            return { networkHealth: 'unknown', networkHealthDetail: 'No health monitor' };
+        }
+        const best = this._healthMonitor.getBestEndpoint();
+        if (!best) {
+            return { networkHealth: 'unknown', networkHealthDetail: 'No endpoints configured' };
+        }
+        const health = this._healthMonitor.getEndpointHealth(best.url);
+        if (!health) {
+            return { networkHealth: 'unknown', networkHealthDetail: best.url };
+        }
+        return {
+            networkHealth: health.status as ContractInfo['networkHealth'],
+            networkHealthDetail: `${best.url} — ${health.responseTime}ms`,
+        };
     }
 
     public resolveWebviewView(
@@ -168,6 +293,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             }
         });
         webviewView.onDidDispose(() => { configListener.dispose(); });
+        this._subscribeToStatusEvents();
 
         webviewView.webview.onDidReceiveMessage(async (message: {
             type: string;
@@ -633,18 +759,22 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         // Build dependency graph
         await this._enrichWithDependencyInfo(ordered);
 
+        // Enrich with status info
+        this._enrichWithStatusInfo(ordered);
+
         this._lastContracts = ordered;
 
         const deployments = this._getDeploymentHistory();
         const versionStates = this._getVersionStates(ordered);
+        const networkStatus = this._getNetworkStatus();
 
-        // FIX: Removed duplicate postMessage call; keeping the one with dependencyGraph
         this._view.webview.postMessage({
             type: 'update',
             contracts: ordered,
             deployments,
             versionStates,
-            dependencyGraph: this.dependencyGraph ? this._serializeDependencyGraph() : null
+            dependencyGraph: this.dependencyGraph ? this._serializeDependencyGraph() : null,
+            networkStatus,
         });
         this.refreshHistory();
     }
@@ -878,6 +1008,23 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             }
         } catch (error) {
             this.outputChannel.appendLine(`[Sidebar] Failed to build dependency graph: ${error}`);
+        }
+    }
+
+    private _enrichWithStatusInfo(contracts: ContractInfo[]): void {
+        const networkStatus = this._getNetworkStatus();
+
+        for (const contract of contracts) {
+            // Compilation status
+            const statusData = this._getCompilationStatusForContract(contract.path);
+            Object.assign(contract, statusData);
+
+            // Deploy status derived from contractId
+            contract.deployStatus = contract.contractId ? 'deployed' : 'idle';
+
+            // Network health
+            contract.networkHealth = networkStatus.networkHealth;
+            contract.networkHealthDetail = networkStatus.networkHealthDetail;
         }
     }
 
@@ -1136,6 +1283,65 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         .badge-template-voting  { background: rgba(100, 195, 110, .15); color: #72d67d; border: 1px solid rgba(100, 195, 110, .34); }
         .badge-template-custom  { background: rgba(187, 134, 252, .14); color: #c59bff; border: 1px solid rgba(187, 134, 252, .36); }
         .badge-template-unknown { background: rgba(255,255,255,.05); color: var(--color-muted); border: 1px solid var(--color-border); }
+
+        /* ── Status indicators ─────────────────────────────────── */
+        .status-indicators {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+        .status-dot {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 7px;
+            border-radius: 10px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .status-dot .status-icon { font-size: 10px; line-height: 1; }
+
+        /* Build status */
+        .status-build-idle       { background: rgba(255,255,255,.05); color: var(--color-muted); border-color: var(--color-border); }
+        .status-build-in_progress { background: rgba(88,166,255,.15); color: var(--color-accent); border-color: rgba(88,166,255,.3); }
+        .status-build-success    { background: rgba(63,185,80,.15);  color: var(--color-success); border-color: rgba(63,185,80,.35); }
+        .status-build-failed     { background: rgba(241,76,76,.15);  color: var(--color-danger); border-color: rgba(241,76,76,.4); }
+        .status-build-warning    { background: rgba(255,200,50,.12); color: #d4a017; border-color: rgba(255,200,50,.35); }
+        .status-build-cancelled  { background: rgba(255,255,255,.05); color: var(--color-muted); border-color: var(--color-border); }
+
+        /* Deploy status */
+        .status-deploy-idle      { background: rgba(255,255,255,.05); color: var(--color-muted); border-color: var(--color-border); }
+        .status-deploy-deploying { background: rgba(88,166,255,.15); color: var(--color-accent); border-color: rgba(88,166,255,.3); }
+        .status-deploy-deployed  { background: rgba(63,185,80,.15);  color: var(--color-success); border-color: rgba(63,185,80,.35); }
+        .status-deploy-failed    { background: rgba(241,76,76,.15);  color: var(--color-danger); border-color: rgba(241,76,76,.4); }
+
+        /* Network status */
+        .status-net-healthy   { background: rgba(63,185,80,.15);  color: var(--color-success); border-color: rgba(63,185,80,.35); }
+        .status-net-degraded  { background: rgba(255,200,50,.12); color: #d4a017; border-color: rgba(255,200,50,.35); }
+        .status-net-unhealthy { background: rgba(241,76,76,.15);  color: var(--color-danger); border-color: rgba(241,76,76,.4); }
+        .status-net-unknown   { background: rgba(255,255,255,.05); color: var(--color-muted); border-color: var(--color-border); }
+
+        /* Spinning animation for in-progress */
+        @keyframes statusSpin { to { transform: rotate(360deg); } }
+        .status-spin .status-icon { animation: statusSpin 1s linear infinite; display: inline-block; }
+
+        /* Network banner */
+        .network-banner {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            font-size: 11px;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .network-banner.net-healthy   { background: rgba(63,185,80,.08); color: var(--color-success); }
+        .network-banner.net-degraded  { background: rgba(255,200,50,.08); color: #d4a017; }
+        .network-banner.net-unhealthy { background: rgba(241,76,76,.08); color: var(--color-danger); }
+        .network-banner.net-unknown   { background: rgba(255,255,255,.03); color: var(--color-muted); }
 
         /* ── Dependency info ─────────────────────────────────────── */
         .dependency-info {
@@ -1598,6 +1804,12 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     </div>
 </div>
 
+<!-- ── Network Banner ───────────────────────────────────── -->
+<div id="network-banner" class="network-banner net-unknown" style="display:none">
+    <span id="network-banner-icon">⬤</span>
+    <span id="network-banner-text">Network: checking…</span>
+</div>
+
 <!-- ── Contracts section ─────────────────────────────────── -->
 <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:14px">
     Contracts
@@ -1741,6 +1953,9 @@ window.addEventListener('message', (event) => {
             renderFilteredContracts();
             renderDeployments(msg.deployments || []);
             renderVersionMismatches(_versionStates);
+            if (msg.networkStatus) {
+                updateNetworkBanner(msg.networkStatus.networkHealth, msg.networkStatus.networkHealthDetail);
+            }
             break;
         case 'contextMenu:show':
             showContextMenu(msg);
@@ -1773,6 +1988,27 @@ window.addEventListener('message', (event) => {
         case 'cli:versionWarning':
             renderCliVersionWarning(msg.data);
             break;
+        case 'contractStatus:update': {
+            const idx = _contracts.findIndex(c => c.path === msg.contractPath);
+            if (idx >= 0) {
+                _contracts[idx].buildStatus = msg.buildStatus;
+                _contracts[idx].buildProgress = msg.buildProgress;
+                _contracts[idx].buildStatusMessage = msg.buildStatusMessage;
+                _contracts[idx].buildErrorCount = msg.buildErrorCount;
+                _contracts[idx].buildWarningCount = msg.buildWarningCount;
+                updateContractStatusIndicator(msg.contractPath, _contracts[idx]);
+            }
+            break;
+        }
+        case 'networkStatus:update': {
+            for (const c of _contracts) {
+                c.networkHealth = msg.networkHealth;
+                c.networkHealthDetail = msg.networkHealthDetail;
+            }
+            updateAllNetworkIndicators(msg.networkHealth, msg.networkHealthDetail);
+            updateNetworkBanner(msg.networkHealth, msg.networkHealthDetail);
+            break;
+        }
     }
 });
 
@@ -2276,6 +2512,28 @@ function renderContracts(contracts, totalCount = contracts.length) {
                 </div>
             \` : ''}
 
+            <div class="status-indicators" data-status-path="\${esc(c.path)}">
+                <span class="status-dot status-build-\${c.buildStatus || 'idle'}\${c.buildStatus === 'in_progress' ? ' status-spin' : ''}"
+                      title="\${buildStatusTooltip(c)}">
+                    <span class="status-icon">\${buildStatusIcon(c.buildStatus)}</span>
+                    \${buildStatusLabel(c)}
+                </span>
+                \${c.deployStatus ? \`
+                    <span class="status-dot status-deploy-\${c.deployStatus}"
+                          title="Deploy: \${c.deployStatus}">
+                        <span class="status-icon">\${c.deployStatus === 'deployed' ? '⬤' : c.deployStatus === 'deploying' ? '◌' : '○'}</span>
+                        \${c.deployStatus === 'deployed' ? 'Live' : c.deployStatus === 'deploying' ? 'Deploying…' : 'Offline'}
+                    </span>
+                \` : ''}
+                \${c.networkHealth ? \`
+                    <span class="status-dot status-net-\${c.networkHealth}"
+                          title="\${esc(c.networkHealthDetail || 'Network: ' + c.networkHealth)}">
+                        <span class="status-icon">\${networkIcon(c.networkHealth)}</span>
+                        \${c.networkHealth}
+                    </span>
+                \` : ''}
+            </div>
+
             <div class="card-actions">
                 <button class="action-btn"
                         onclick="sendAction('build', this.closest('.contract-card'))"
@@ -2347,6 +2605,84 @@ function renderDeployments(deployments) {
             <div class="deployment-meta">\${esc(d.deployedAt)} · \${esc(d.network)} · \${esc(d.source)}</div>
         </div>
     \`).join('');
+}
+
+// ── Status indicator helpers ──────────────────────────────────
+
+function buildStatusIcon(status) {
+    switch (status) {
+        case 'in_progress': return '⟳';
+        case 'success':     return '✔';
+        case 'failed':      return '✘';
+        case 'warning':     return '⚠';
+        case 'cancelled':   return '⊘';
+        default:            return '○';
+    }
+}
+
+function buildStatusLabel(c) {
+    switch (c.buildStatus) {
+        case 'in_progress': return 'Building…' + (c.buildProgress != null ? ' ' + c.buildProgress + '%' : '');
+        case 'success':     return 'Built';
+        case 'failed':      return (c.buildErrorCount ? c.buildErrorCount + ' error' + (c.buildErrorCount !== 1 ? 's' : '') : 'Failed');
+        case 'warning':     return (c.buildWarningCount ? c.buildWarningCount + ' warning' + (c.buildWarningCount !== 1 ? 's' : '') : 'Warning');
+        case 'cancelled':   return 'Cancelled';
+        default:            return 'Idle';
+    }
+}
+
+function buildStatusTooltip(c) {
+    let tip = 'Build: ' + (c.buildStatus || 'idle');
+    if (c.buildStatusMessage) { tip += ' — ' + c.buildStatusMessage; }
+    if (c.buildErrorCount)    { tip += ' · ' + c.buildErrorCount + ' error(s)'; }
+    if (c.buildWarningCount)  { tip += ' · ' + c.buildWarningCount + ' warning(s)'; }
+    return tip;
+}
+
+function networkIcon(status) {
+    switch (status) {
+        case 'healthy':   return '⬤';
+        case 'degraded':  return '◉';
+        case 'unhealthy': return '⊘';
+        default:          return '○';
+    }
+}
+
+function updateContractStatusIndicator(contractPath, contract) {
+    const container = document.querySelector('[data-status-path="' + CSS.escape(contractPath) + '"]');
+    if (!container) { return; }
+    const buildDot = container.querySelector('.status-dot[class*="status-build-"]');
+    if (buildDot) {
+        buildDot.className = 'status-dot status-build-' + (contract.buildStatus || 'idle') +
+            (contract.buildStatus === 'in_progress' ? ' status-spin' : '');
+        buildDot.title = buildStatusTooltip(contract);
+        buildDot.innerHTML =
+            '<span class="status-icon">' + buildStatusIcon(contract.buildStatus) + '</span> ' +
+            buildStatusLabel(contract);
+    }
+}
+
+function updateAllNetworkIndicators(status, detail) {
+    document.querySelectorAll('.status-dot[class*="status-net-"]').forEach(dot => {
+        dot.className = 'status-dot status-net-' + (status || 'unknown');
+        dot.title = detail || ('Network: ' + status);
+        dot.innerHTML = '<span class="status-icon">' + networkIcon(status) + '</span> ' + (status || 'unknown');
+    });
+}
+
+function updateNetworkBanner(status, detail) {
+    const banner = document.getElementById('network-banner');
+    if (!banner) { return; }
+    if (!status || status === 'unknown') {
+        banner.style.display = 'none';
+        return;
+    }
+    banner.style.display = 'flex';
+    banner.className = 'network-banner net-' + status;
+    const icon = document.getElementById('network-banner-icon');
+    const text = document.getElementById('network-banner-text');
+    if (icon) { icon.textContent = networkIcon(status); }
+    if (text) { text.textContent = 'Network: ' + status + (detail ? ' — ' + detail : ''); }
 }
 
 // ── Drag-and-drop ─────────────────────────────────────────────

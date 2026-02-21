@@ -1,0 +1,16 @@
+# Rust build output
+target/
+
+# Compiled WASM binaries
+*.wasm
+
+# Rust lock file for library crates (templates are lib crates)
+# Remove this line if you want to commit Cargo.lock for reproducible builds
+Cargo.lock
+
+# macOS metadata
+.DS_Store
+
+# Editor directories
+.idea/
+.vscode/

@@ -12,13 +12,20 @@ import { SidebarViewProvider } from "../ui/sidebarView";
 import { parseFunctionArgs } from "../utils/jsonParser";
 import { formatError } from "../utils/errorFormatter";
 import { resolveCliConfigurationForCommand } from "../services/cliConfigurationVscode";
+import { SimulationCacheService } from "../services/simulationCacheService";
 import { SimulationValidationService } from "../services/simulationValidationService";
 import { ContractWorkspaceStateService } from "../services/contractWorkStateService";
+import { InputSanitizationService } from "../services/inputSanitizationService";
+import { parseParameters } from "../utils/abiParser";
+import { AbiFormGeneratorService } from "../services/abiFormGeneratorService";
+import { FormValidationService } from "../services/formValidationService";
+import { ContractFormPanel } from "../ui/contractFormPanel";
 
 export async function simulateTransaction(
   context: vscode.ExtensionContext,
   sidebarProvider?: SidebarViewProvider,
 ) {
+  const sanitizer = new InputSanitizationService();
   try {
     const resolvedCliConfig = await resolveCliConfigurationForCommand(context);
     if (!resolvedCliConfig.validation.valid) {
@@ -34,9 +41,12 @@ export async function simulateTransaction(
     const network = resolvedCliConfig.configuration.network;
     const rpcUrl = resolvedCliConfig.configuration.rpcUrl;
 
-    const lastContractId = context.workspaceState.get<string>(
-      "selectedContractPath",
-    );
+    const workspaceStateService = new ContractWorkspaceStateService(context, {
+      appendLine: () => {},
+    });
+    await workspaceStateService.initialize();
+    const lastContractId =
+      context.workspaceState.get<string>("stellarSuite.lastContractId") ?? "";
 
     let defaultContractId = lastContractId || "";
     try {
@@ -46,29 +56,44 @@ export async function simulateTransaction(
           defaultContractId = detectedId;
         }
       }
-    } catch (error) {}
+    } catch {
+      // ignore
+    }
 
-    const contractId = await vscode.window.showInputBox({
+    const rawContractId = await vscode.window.showInputBox({
       prompt: "Enter the contract ID (address)",
       placeHolder: defaultContractId || "e.g., C...",
       value: defaultContractId,
       validateInput: (value: string) => {
-        if (!value || value.trim().length === 0) {
-          return "Contract ID is required";
-        }
-        // Basic validation for Stellar contract ID format
-        if (!value.match(/^C[A-Z0-9]{55}$/)) {
-          return "Invalid contract ID format (should start with C and be 56 characters)";
+        const result = sanitizer.sanitizeContractId(value, {
+          field: "contractId",
+        });
+        if (!result.valid) {
+          return result.errors[0];
         }
         return null;
       },
     });
 
-    if (contractId === undefined) {
+    if (rawContractId === undefined) {
       return; // User cancelled
     }
 
-    await context.workspaceState.update("selectedContractPath", contractId);
+    const contractIdResult = sanitizer.sanitizeContractId(rawContractId, {
+      field: "contractId",
+    });
+    if (!contractIdResult.valid) {
+      vscode.window.showErrorMessage(
+        `Invalid contract ID: ${contractIdResult.errors[0]}`,
+      );
+      return;
+    }
+    const contractId = contractIdResult.sanitizedValue;
+
+    await context.workspaceState.update(
+      "stellarSuite.lastContractId",
+      contractId,
+    );
 
     // Get function info and parameters upfront for autocomplete
     const inspector = new ContractInspector(
@@ -78,7 +103,7 @@ export async function simulateTransaction(
     let contractFunctions: ContractFunction[] = [];
     try {
       contractFunctions = await inspector.getContractFunctions(contractId);
-    } catch (e) {
+    } catch {
       // Ignore error, proceed without rich autocomplete
     }
 
@@ -86,7 +111,7 @@ export async function simulateTransaction(
     autocompleteService.setContractFunctions(contractFunctions);
 
     // Get the function name to call using autocomplete QuickPick
-    const functionName = await new Promise<string | undefined>((resolve) => {
+    const rawFunctionName = await new Promise<string | undefined>((resolve) => {
       const qp = vscode.window.createQuickPick();
       qp.title = "Enter the function name to simulate";
       qp.placeholder = "e.g., transfer";
@@ -131,126 +156,73 @@ export async function simulateTransaction(
       qp.show();
     });
 
-    if (functionName === undefined) {
+    if (rawFunctionName === undefined) {
       return; // User cancelled
     }
+
+    const functionNameResult = sanitizer.sanitizeFunctionName(rawFunctionName, {
+      field: "functionName",
+    });
+    if (!functionNameResult.valid) {
+      vscode.window.showErrorMessage(
+        `Invalid function name: ${functionNameResult.errors[0]}`,
+      );
+      return;
+    }
+    const functionName = functionNameResult.sanitizedValue;
 
     const selectedFunction = contractFunctions.find(
       (f) => f.name === functionName,
     );
-    let args: any[] = [];
-    let argsObj: Record<string, any> = {};
 
-    // Fix property name: ContractFunction uses 'parameters', not 'inputs'
-    if (
-      selectedFunction &&
-      selectedFunction.parameters &&
-      selectedFunction.parameters.length > 0
-    ) {
+    // Parse ABI parameters and open dynamic form
+    const abiParams = parseParameters(selectedFunction?.parameters ?? []);
+    const generatedForm = new AbiFormGeneratorService().generateForm(
+      contractId,
+      { name: functionName, parameters: selectedFunction?.parameters ?? [] },
+      abiParams,
+    );
+    const formPanel = ContractFormPanel.createOrShow(context, generatedForm);
+    const formValidator = new FormValidationService();
+
+    let sanitizedArgs: Record<string, unknown> | null = null;
+
+    // Validation loop — panel stays open until valid data is submitted or user cancels
+    while (sanitizedArgs === null) {
+      const formData = await formPanel.waitForSubmit();
+
+      if (formData === null) {
+        return; // User cancelled or closed the panel
+      }
+
+      const vr = formValidator.validate(formData, abiParams, sanitizer);
+
+      if (!vr.valid) {
+        formPanel.showErrors(vr.errors);
+        continue; // Wait for the next submission attempt
+      }
+
+      if (Object.keys(vr.warnings).length > 0) {
+        formPanel.showWarnings(vr.warnings);
+      }
+
+      sanitizedArgs = vr.sanitizedArgs;
+    }
+
+    if (selectedFunction && selectedFunction.parameters && sanitizedArgs) {
       for (const param of selectedFunction.parameters) {
-        const paramValue = await new Promise<string | undefined>((resolve) => {
-          const qp = vscode.window.createQuickPick();
-          qp.title = `Argument: ${param.name} (${param.type || "unknown type"})`;
-          qp.placeholder = `Enter value for ${param.name}`;
-
-          const updateSuggestions = (val: string) => {
-            const result = autocompleteService.getSuggestions({
-              contractId,
-              functionName,
-              parameterName: param.name,
-              parameterType: param.type,
-              currentInput: val,
-            });
-
-            const items: vscode.QuickPickItem[] = result.suggestions.map(
-              (s) => ({
-                label: s.value,
-                description: s.description ? String(s.description) : undefined,
-                detail:
-                  s.type === "history"
-                    ? "Recently used"
-                    : s.type === "pattern"
-                      ? "Type suggestion"
-                      : undefined,
-              }),
-            );
-            if (val && !items.some((i) => i.label === val)) {
-              items.push({ label: val, description: "Use custom value" });
-            }
-            qp.items = items;
-          };
-
-          updateSuggestions("");
-          qp.onDidChangeValue(updateSuggestions);
-
-          qp.onDidAccept(() => {
-            const selected = qp.activeItems[0];
-            if (selected) {
-              resolve(selected.label);
-            } else if (qp.value) {
-              resolve(qp.value);
-            }
-            qp.hide();
+        if (sanitizedArgs[param.name] !== undefined) {
+          await autocompleteService.recordInput({
+            value: String(sanitizedArgs[param.name]),
+            contractId,
+            functionName,
+            parameterName: param.name,
           });
-          qp.onDidHide(() => {
-            qp.dispose();
-            resolve(undefined);
-          });
-          qp.show();
-        });
-
-        if (paramValue === undefined) {
-          return; // User cancelled parameter input
         }
-
-        // Record the input for future history suggestions
-        await autocompleteService.recordInput({
-          value: paramValue,
-          contractId,
-          functionName,
-          parameterName: param.name,
-        });
-
-        // Try to parse as JSON if it's an object/array/boolean/number, otherwise keep as string
-        try {
-          argsObj[param.name] = JSON.parse(paramValue);
-        } catch {
-          argsObj[param.name] = paramValue;
-        }
-      }
-      args = [argsObj];
-    } else {
-      // No parameters or couldn't get function info - use manual input
-      const argsInput = await vscode.window.showInputBox({
-        prompt:
-          'Enter function arguments as JSON object (e.g., {"name": "value"})',
-        placeHolder: 'e.g., {"name": "world"}',
-        value: "{}",
-      });
-
-      if (argsInput === undefined) {
-        return; // User cancelled
-      }
-
-      try {
-        const parsed = JSON.parse(argsInput || "{}");
-        if (
-          typeof parsed === "object" &&
-          !Array.isArray(parsed) &&
-          parsed !== null
-        ) {
-          args = [parsed];
-        } else {
-          vscode.window.showErrorMessage("Arguments must be a JSON object");
-          return;
-        }
-      } catch (error) {
-        vscode.window.showErrorMessage(
-          `Invalid JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-        return;
       }
     }
+
+    const args: any[] = [sanitizedArgs];
 
     // Validate simulation input and predict possible failures before execution
     const validationService = new SimulationValidationService();
@@ -258,7 +230,7 @@ export async function simulateTransaction(
       contractId,
       functionName,
       args,
-      selectedFunction || null,
+      selectedFunction ?? null,
       contractFunctions,
     );
 
@@ -327,6 +299,9 @@ export async function simulateTransaction(
       args,
     );
 
+    // Cache service (shared)
+    const cache = SimulationCacheService.getInstance(context);
+    const cacheParamsBase = { contractId, functionName, args };
     // Show progress indicator
     await vscode.window.withProgress(
       {
@@ -339,17 +314,57 @@ export async function simulateTransaction(
       ) => {
         progress.report({ increment: 0, message: "Initializing..." });
 
-        let result;
+        let result: any;
 
         if (useLocalCli) {
+          // Cache lookup (CLI)
+          const cached = cache.tryGet({
+            backend: "cli",
+            ...cacheParamsBase,
+            network,
+            source,
+          });
+
+          if (cached) {
+            result = cached;
+            progress.report({
+              increment: 100,
+              message: "Complete (cache hit)",
+            });
+
+            panel.updateResults(result, contractId, functionName, args);
+            if (sidebarProvider) {
+              sidebarProvider.showSimulationResult(contractId, result);
+            }
+
+            vscode.window.showInformationMessage(
+              "Simulation loaded from cache",
+            );
+            return;
+          }
+
           // Use local CLI
           progress.report({ increment: 30, message: "Using Stellar CLI..." });
 
-          // Try to find CLI if configured path doesn't work
           let actualCliPath = cliPath;
           let cliService = new SorobanCliService(actualCliPath, source);
+          let cliAvailable = await cliService.isAvailable();
 
-          if (!(await cliService.isAvailable())) {
+          // If not available and using default, try to auto-detect
+          if (!cliAvailable && cliPath === "stellar") {
+            progress.report({
+              increment: 35,
+              message: "Auto-detecting Stellar CLI...",
+            });
+            const foundPath = await SorobanCliService.findCliPath();
+            if (foundPath) {
+              actualCliPath = foundPath;
+              cliService = new SorobanCliService(actualCliPath, source);
+              cliAvailable = await cliService.isAvailable();
+            }
+          }
+
+          if (!cliAvailable) {
             const foundPath = await SorobanCliService.findCliPath();
             const suggestion = foundPath
               ? `\n\nFound Stellar CLI at: ${foundPath}\nUpdate your stellarSuite.cliPath setting to: "${foundPath}"`
@@ -371,11 +386,39 @@ export async function simulateTransaction(
               network,
             );
           }
+          cache.set(
+            { backend: "cli", ...cacheParamsBase, network, source },
+            result,
+          );
         } else {
+          // Cache lookup (RPC)
+          const cached = cache.tryGet({
+            backend: "rpc",
+            ...cacheParamsBase,
+            rpcUrl,
+          });
+
+          if (cached) {
+            result = cached;
+            progress.report({
+              increment: 100,
+              message: "Complete (cache hit)",
+            });
+
+            panel.updateResults(result, contractId, functionName, args);
+            if (sidebarProvider) {
+              sidebarProvider.showSimulationResult(contractId, result);
+            }
+
+            vscode.window.showInformationMessage(
+              "Simulation loaded from cache",
+            );
+            return;
+          }
+
           // Use RPC
           progress.report({ increment: 30, message: "Connecting to RPC..." });
           const rpcService = new RpcService(rpcUrl);
-
           progress.report({
             increment: 50,
             message: "Executing simulation...",
@@ -385,6 +428,7 @@ export async function simulateTransaction(
             functionName,
             args,
           );
+          cache.set({ backend: "rpc", ...cacheParamsBase, rpcUrl }, result);
         }
 
         progress.report({ increment: 100, message: "Complete" });

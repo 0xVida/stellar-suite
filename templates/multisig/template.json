@@ -1,0 +1,35 @@
+{
+  "name": "multisig",
+  "displayName": "Multi-Signature Wallet",
+  "description": "Multi-signature wallet contract with threshold-based approvals, proposal workflows, and secure execution patterns for Soroban.",
+  "version": "0.1.0",
+  "category": "multisig",
+  "author": "Stellar Suite Contributors",
+  "tags": [
+    "multisig",
+    "wallet",
+    "threshold",
+    "proposals",
+    "security",
+    "access-control"
+  ],
+  "dependencies": {
+    "soroban-sdk": "21.0.0"
+  },
+  "functions": [
+    "initialize",
+    "create_proposal",
+    "approve",
+    "revoke_approval",
+    "execute",
+    "get_proposal",
+    "get_signers",
+    "get_threshold"
+  ],
+  "examples": [
+    "Initialize a 2-of-3 multisig wallet",
+    "Create a token transfer proposal",
+    "Approve and execute a proposal after threshold is met"
+  ],
+  "license": "Apache-2.0"
+}

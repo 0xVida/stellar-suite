@@ -133,23 +133,52 @@ Command: `stellarSuite.showNotificationHistory`
 Opens a quick pick menu showing:
 - Notification statistics (total shown, currently visible, queued)
 - Breakdown by notification type
+- **Notification Preferences** – open the notification preferences UI
 - Options to clear statistics or dismiss all notifications
 - Link to notification output channel
 
+### Open Notification Preferences
+
+Command: `stellarSuite.openNotificationPreferences`
+
+Opens the notification preferences UI where users can:
+- **Configure notification types** – enable/disable Success, Error, Warning, Info
+- **Set notification duration** – default display time (0 = no auto-dismiss)
+- **Configure notification position** – top/bottom, left/center/right
+- **Enable/disable notifications** – master on/off switch
+- **Set notification sound preferences** – sound on/off (reserved for future use)
+- **Configure notification actions** – show or hide action buttons on toasts
+- **Apply presets** – Minimal, Normal, or Verbose
+- **Open Settings** – edit `stellarSuite.notifications` in settings.json
+
+Preferences are saved to workspace state and override default and settings.json values. Changes apply immediately without reloading the window.
+
 ## Configuration
+
+### Workspace settings
 
 Settings can be configured in VS Code settings under `stellarSuite.notifications`:
 
 ```json
 {
+    "stellarSuite.notifications.enabled": true,
     "stellarSuite.notifications.maxVisible": 3,
     "stellarSuite.notifications.maxQueued": 10,
     "stellarSuite.notifications.defaultDuration": 5000,
     "stellarSuite.notifications.position": "bottom-right",
-    "stellarSuite.notifications.enableAnimations": true
+    "stellarSuite.notifications.enableAnimations": true,
+    "stellarSuite.notifications.soundEnabled": false,
+    "stellarSuite.notifications.actionsEnabled": true
 }
 ```
 
+### Notification presets
+
+- **Minimal** – Only errors, 1 visible toast, no sound or actions
+- **Normal** – All types, moderate duration and queue (default)
+- **Verbose** – All types, longer duration, sound and actions enabled
+
+User preferences (saved via the Notification Preferences UI) override the above settings.
 ## Integration Example
 
 Here's how to integrate the toast notification system in a command:
@@ -247,7 +276,10 @@ Run the unit tests:
 npm run test:toast-notification
 ```
 
-The test suite includes 24 comprehensive tests covering:
+npm run test:notification-preferences
+```
+
+The toast notification test suite includes 24 comprehensive tests covering:
 - Basic toast creation (success, error, warning, info)
 - Toast dismissal (single, all, by group)
 - Queue management (max visible, priority ordering)
@@ -258,23 +290,41 @@ The test suite includes 24 comprehensive tests covering:
 - Edge cases and error handling
 - Auto-dismiss behavior
 
+The notification preferences test suite includes 18 tests covering:
+- Preference validation (duration, maxVisible, maxQueued, position, types)
+- Get/set preferences and storage
+- Presets (get, apply, content)
+- `preferencesToQueueConfig` mapping
+- `onDidChangePreferences` events
+
 ## Architecture
 
-The toast notification system consists of three main components:
+The toast notification system consists of these components:
 
 1. **ToastNotificationService** (`src/services/toastNotificationService.ts`):
    - Core service managing toast lifecycle
    - Queue management and priority ordering
    - Event emission and statistics tracking
+   - `updateConfig()` for live preference updates
    - Platform-agnostic implementation
 
 2. **ToastNotificationPanel** (`src/ui/toastNotificationPanel.ts`):
    - UI integration with VS Code
    - Status bar integration
    - Output channel logging
-   - Statistics display
+   - Statistics display and link to Notification Preferences
 
-3. **Type Definitions** (`src/types/toastNotification.ts`):
+3. **NotificationPreferencesService** (`src/services/notificationPreferencesService.ts`):
+   - Preference storage (workspace state)
+   - Validation and presets (Minimal, Normal, Verbose)
+   - Converts preferences to `ToastQueueConfig` for the toast service
+   - Fires `onDidChangePreferences` when preferences are saved
+
+4. **Notification Preferences UI** (`src/ui/notificationPreferencesUI.ts`):
+   - Quick-pick flow for configuring types, duration, position, sound, actions, and master switch
+   - Apply preset and open Settings
+
+5. **Type Definitions** (`src/types/toastNotification.ts`, `src/types/notificationPreferences.ts`):
    - TypeScript interfaces and enums
    - Complete type safety
 
@@ -285,5 +335,5 @@ Potential future improvements:
 - Notification templates
 - Persistent notification history
 - User preference for notification position
-- Sound notifications
+- Sound playback when `soundEnabled` is true (API-dependent)
 - Desktop notifications integration

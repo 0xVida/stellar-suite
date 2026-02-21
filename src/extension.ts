@@ -22,6 +22,7 @@ import { registerEnvVariableCommands } from "./commands/envVariableCommands";
 import { registerRpcLoggingCommands } from "./commands/rpcLoggingCommands";
 import { registerDependencyCommands } from "./commands/dependencyCommands";
 import { exportSimulationHistory } from "./commands/exportCommands";
+import { registerOfflineSimulationCommands } from "./commands/offlineSimulationCommands";
 
 // Services
 import { ContractGroupService } from "./services/contractGroupService";
@@ -42,8 +43,11 @@ import { EnvVariableService } from "./services/envVariableService";
 import { RpcFallbackService } from "./services/rpcFallbackService";
 import { createToastNotificationService } from "./services/toastNotificationVscode";
 import { ToastNotificationService } from "./services/toastNotificationService";
+import { NotificationPreferencesService } from "./services/notificationPreferencesService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
+import { createCliVersionService } from "./services/cliVersionVscode";
+import { CliVersionService } from "./services/cliVersionService";
 import { ContractDependencyDetectionService } from "./services/contractDependencyDetectionService";
 import { ContractDependencyWatcherService } from "./services/contractDependencyWatcherService";
 import { CliHistoryService } from "./services/cliHistoryService";
@@ -51,14 +55,19 @@ import { CliReplayService } from "./services/cliReplayService";
 import { StateMigrationService } from "./services/stateMigrationService";
 import { migrations } from "./migrations";
 import { ContractWorkspaceStateService } from "./services/contractWorkStateService";
+import { ContractCacheService } from "./services/contractCacheService";
+import { OfflineModeDetectionService } from "./services/offlineModeDetectionService";
+import { OfflineSimulationService } from "./services/offlineSimulationService";
 
 // UI
 import { SidebarViewProvider } from "./ui/sidebarView";
 import { SyncStatusProvider } from "./ui/syncStatusProvider";
+import { registerSimulationCacheCommands } from "./commands/simulationCacheCommands";
 import { RpcHealthStatusBar } from "./ui/rpcHealthStatusBar";
 import { CompilationStatusProvider } from "./ui/compilationStatusProvider";
 import { RetryStatusBarItem } from "./ui/retryStatusBar";
 import { ToastNotificationPanel } from "./ui/toastNotificationPanel";
+import { showNotificationPreferences } from "./ui/notificationPreferencesUI";
 
 // Global service instances
 let sidebarProvider: SidebarViewProvider | undefined;
@@ -82,16 +91,23 @@ let resourceProfilingService: ResourceProfilingService | undefined;
 let rpcAuthService: RpcAuthService | undefined;
 let envVariableService: EnvVariableService | undefined;
 let fallbackService: RpcFallbackService | undefined;
+let cacheService: ContractCacheService | undefined;
+let offlineModeDetectionService: OfflineModeDetectionService | undefined;
+let offlineSimulationService: OfflineSimulationService | undefined;
+let cliVersionService: CliVersionService | undefined;
 // FIX: Removed duplicate declarations of retryService and retryStatusBar
 let dependencyDetectionService: ContractDependencyDetectionService | undefined;
 let dependencyWatcherService: ContractDependencyWatcherService | undefined;
 let contractWorkspaceStateService: ContractWorkspaceStateService | undefined;
 let toastNotificationService: ToastNotificationService | undefined;
 let toastNotificationPanel: ToastNotificationPanel | undefined;
+let notificationPreferencesService: NotificationPreferencesService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel("Stellar Suite");
   outputChannel.appendLine("[Extension] Activating Stellar Suite extension...");
+  console.log("[Stellar Suite] Extension activating...");
+  registerSimulationCacheCommands(context);
 
   try {
     // 0. Run state migrations
@@ -135,6 +151,21 @@ export function activate(context: vscode.ExtensionContext) {
       "[Extension] Simulation history service initialized",
     );
 
+    // 1a. Initialize offline simulation services
+    cacheService = new ContractCacheService(context, outputChannel);
+    offlineModeDetectionService = new OfflineModeDetectionService(
+      context,
+      outputChannel,
+    );
+    offlineSimulationService = new OfflineSimulationService(
+      cacheService,
+      offlineModeDetectionService,
+      simulationHistoryService,
+      outputChannel,
+    );
+    outputChannel.appendLine(
+      "[Extension] Offline simulation services initialized",
+    );
     // 2. Initialize Health, Retry and Fallback services
     healthMonitor = new RpcHealthMonitor(context, {
       checkInterval: 30000,
@@ -161,8 +192,14 @@ export function activate(context: vscode.ExtensionContext) {
       },
     );
 
-    // 9. Initialize Toast Notification System
-    toastNotificationService = createToastNotificationService(context);
+    // 9. Initialize Notification Preferences and Toast Notification System
+    notificationPreferencesService = new NotificationPreferencesService(
+      context.workspaceState,
+    );
+    toastNotificationService = createToastNotificationService(
+      context,
+      notificationPreferencesService,
+    );
     toastNotificationPanel = new ToastNotificationPanel(
       toastNotificationService,
     );
@@ -172,13 +209,64 @@ export function activate(context: vscode.ExtensionContext) {
       () => toastNotificationPanel?.showNotificationHistory(),
     );
 
-    context.subscriptions.push(showNotificationHistoryCommand);
+    const openNotificationPreferencesCommand = vscode.commands.registerCommand(
+      "stellarSuite.openNotificationPreferences",
+      () =>
+        notificationPreferencesService &&
+        showNotificationPreferences(notificationPreferencesService),
+    );
+
+    // CLI Version Detection
+    cliVersionService = createCliVersionService(context, outputChannel);
+    context.subscriptions.push(cliVersionService);
+    outputChannel.appendLine("[Extension] CLI version detection initialized");
+
+    context.subscriptions.push(
+      showNotificationHistoryCommand,
+      openNotificationPreferencesCommand,
+    );
     outputChannel.appendLine(
       "[Extension] Toast notification system initialized",
     );
 
+    // Initialize compilation status monitoring
+    compilationMonitor = new CompilationStatusMonitor(context);
+    compilationStatusProvider = new CompilationStatusProvider(
+      compilationMonitor,
+    );
+    outputChannel.appendLine(
+      "[Extension] Compilation status monitoring initialized",
+    );
+
+    // Initialize CLI history and replay services
+    cliHistoryService = new CliHistoryService(context);
+    cliReplayService = new CliReplayService(cliHistoryService);
+
+    // Initialize and register sidebar
+    sidebarProvider = new SidebarViewProvider(
+      context.extensionUri,
+      context,
+      cliHistoryService,
+      cliReplayService,
+    );
+    sidebarProvider.setStatusServices(compilationMonitor, healthMonitor);
+
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider(
+        SidebarViewProvider.viewType,
+        sidebarProvider,
+      ),
+    );
+    outputChannel.appendLine("[Extension] Sidebar view provider registered");
+
     outputChannel.appendLine("[Extension] All services initialized");
 
+    // Wire CLI version warnings to sidebar
+    if (cliVersionService && sidebarProvider) {
+      cliVersionService.onWarning((result) => {
+        sidebarProvider?.postCliVersionWarning(result);
+      });
+    }
     // 10. Register Commands
     const simulateCommand = vscode.commands.registerCommand(
       "stellarSuite.simulateTransaction",
@@ -298,6 +386,42 @@ export function activate(context: vscode.ExtensionContext) {
       },
     );
 
+    const checkCliVersionCommand = vscode.commands.registerCommand(
+      "stellarSuite.checkCliVersion",
+      async () => {
+        if (!cliVersionService) {
+          return;
+        }
+        const cliPath = vscode.workspace
+          .getConfiguration("stellarSuite")
+          .get<string>("cliPath", "stellar");
+        cliVersionService.clearCache();
+        const result = await cliVersionService.checkVersion(cliPath);
+        if (result) {
+          if (result.compatible) {
+            vscode.window.showInformationMessage(result.message);
+          } else {
+            const action = result.upgradeCommand
+              ? await vscode.window.showWarningMessage(
+                  result.message,
+                  "Copy Upgrade Command",
+                )
+              : undefined;
+            if (action === "Copy Upgrade Command" && result.upgradeCommand) {
+              await vscode.env.clipboard.writeText(result.upgradeCommand);
+              vscode.window.showInformationMessage(
+                "Upgrade command copied to clipboard.",
+              );
+            }
+          }
+        } else {
+          vscode.window.showInformationMessage(
+            "CLI version check is disabled.",
+          );
+        }
+      },
+    );
+
     registerSimulationHistoryCommands(context, simulationHistoryService!);
     // FIX: Use simulationReplayService (was incorrectly replayService in the old broken copy)
     registerReplayCommands(
@@ -309,6 +433,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
     registerSimulationComparisonCommands(context, simulationHistoryService!);
     registerSimulationDiffCommands(context, simulationHistoryService!);
+    registerOfflineSimulationCommands(
+      context,
+      offlineSimulationService!,
+      cacheService!,
+      offlineModeDetectionService!,
+      sidebarProvider,
+    );
     registerHealthCommands(context, healthMonitor!);
 
     // Sidebar actions
@@ -322,11 +453,6 @@ export function activate(context: vscode.ExtensionContext) {
       },
     );
 
-    const simulateFromSidebarCommand = vscode.commands.registerCommand(
-      "stellarSuite.simulateFromSidebar",
-      (contractId: string) => simulateTransaction(context, sidebarProvider),
-    );
-
     const refreshCommand = vscode.commands.registerCommand(
       "stellarSuite.refresh",
       async () => {
@@ -334,6 +460,16 @@ export function activate(context: vscode.ExtensionContext) {
       },
     );
 
+    // 11. File Watchers (simulateFromSidebar)
+    const simulateFromSidebarCommand = vscode.commands.registerCommand(
+      "stellarSuite.simulateFromSidebar",
+      (contractId: string) => {
+        if (typeof contractId === "string") {
+          context.workspaceState.update("selectedContractPath", contractId);
+        }
+        return simulateTransaction(context, sidebarProvider);
+      },
+    );
     // 11. File Watchers
     const watcher = vscode.workspace.createFileSystemWatcher(
       "**/{Cargo.toml,*.wasm}",
@@ -355,6 +491,7 @@ export function activate(context: vscode.ExtensionContext) {
       copyContractIdCommand,
       showVersionMismatchesCommand,
       showCompilationStatusCommand,
+      checkCliVersionCommand,
       exportContractStateCommand,
       importContractStateCommand,
       deployFromSidebarCommand,
@@ -391,6 +528,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  sidebarProvider?.dispose();
   dependencyWatcherService?.dispose();
   healthMonitor?.dispose();
   healthStatusBar?.dispose();

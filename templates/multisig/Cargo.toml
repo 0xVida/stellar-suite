@@ -1,0 +1,32 @@
+[package]
+name = "multisig-wallet"
+version = "0.1.0"
+edition = "2021"
+authors = ["Stellar Suite Contributors"]
+description = "Multi-signature wallet contract with threshold-based approvals for Soroban."
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "multisig_wallet"
+
+[dependencies]
+soroban-sdk = { version = "21.0.0", features = [] }
+
+[dev-dependencies]
+soroban-sdk = { version = "21.0.0", features = ["testutils"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

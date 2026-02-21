@@ -1,0 +1,29 @@
+{
+  "name": "voting",
+  "displayName": "Voting/Governance Contract",
+  "description": "Decentralized governance contract with proposal creation, voting mechanism, vote counting, quorum logic, and delegation support.",
+  "version": "0.1.0",
+  "category": "voting",
+  "author": "Stellar Suite",
+  "tags": ["governance", "voting", "dao", "proposal", "quorum", "delegation"],
+  "dependencies": {
+    "soroban-sdk": "20.0.0"
+  },
+  "functions": [
+    "initialize",
+    "create_proposal",
+    "vote",
+    "delegate_vote",
+    "execute_proposal",
+    "get_proposal",
+    "get_vote_count"
+  ],
+  "examples": [
+    "Initialize governance with quorum threshold and voting period",
+    "Create a proposal with description and executable actions",
+    "Cast votes (yes/no/abstain) on active proposals",
+    "Delegate voting power to another address",
+    "Execute proposals that meet quorum and pass threshold"
+  ],
+  "license": "Apache-2.0"
+}

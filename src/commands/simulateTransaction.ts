@@ -5,9 +5,11 @@ import {
   ContractInspector,
   ContractFunction,
 } from "../services/contractInspector";
+import { FormAutocompleteService } from "../services/formAutocompleteService";
 import { WorkspaceDetector } from "../utils/workspaceDetector";
 import { SimulationPanel } from "../ui/simulationPanel";
 import { SidebarViewProvider } from "../ui/sidebarView";
+import { parseFunctionArgs } from "../utils/jsonParser";
 import { formatError } from "../utils/errorFormatter";
 import { resolveCliConfigurationForCommand } from "../services/cliConfigurationVscode";
 import { SimulationCacheService } from "../services/simulationCacheService";
@@ -93,19 +95,65 @@ export async function simulateTransaction(
       contractId,
     );
 
-    // Get the function name to call
-    const rawFunctionName = await vscode.window.showInputBox({
-      prompt: "Enter the function name to simulate",
-      placeHolder: "e.g., transfer",
-      validateInput: (value: string) => {
-        const result = sanitizer.sanitizeFunctionName(value, {
-          field: "functionName",
-        });
-        if (!result.valid) {
-          return result.errors[0];
+    // Get function info and parameters upfront for autocomplete
+    const inspector = new ContractInspector(
+      useLocalCli ? cliPath : rpcUrl,
+      source,
+    );
+    let contractFunctions: ContractFunction[] = [];
+    try {
+      contractFunctions = await inspector.getContractFunctions(contractId);
+    } catch {
+      // Ignore error, proceed without rich autocomplete
+    }
+
+    const autocompleteService = new FormAutocompleteService(context);
+    autocompleteService.setContractFunctions(contractFunctions);
+
+    // Get the function name to call using autocomplete QuickPick
+    const rawFunctionName = await new Promise<string | undefined>((resolve) => {
+      const qp = vscode.window.createQuickPick();
+      qp.title = "Enter the function name to simulate";
+      qp.placeholder = "e.g., transfer";
+
+      const updateSuggestions = (val: string) => {
+        const result = autocompleteService.getSuggestions(
+          {
+            contractId,
+            currentInput: val,
+          },
+          { sourceTypes: ["function", "history"] },
+        );
+
+        const items: vscode.QuickPickItem[] = result.suggestions.map((s) => ({
+          label: s.value,
+          description: s.description ? String(s.description) : undefined,
+          detail: s.type === "history" ? "Recently used" : undefined,
+        }));
+        // Add custom input at the end if it doesn't match
+        if (val && !items.some((i) => i.label === val)) {
+          items.push({ label: val, description: "Use custom function name" });
         }
-        return null;
-      },
+        qp.items = items;
+      };
+
+      updateSuggestions("");
+      qp.onDidChangeValue(updateSuggestions);
+
+      qp.onDidAccept(() => {
+        const selected = qp.activeItems[0];
+        if (selected) {
+          resolve(selected.label);
+        } else if (qp.value) {
+          resolve(qp.value);
+        }
+        qp.hide();
+      });
+      qp.onDidHide(() => {
+        qp.dispose();
+        resolve(undefined);
+      });
+      qp.show();
     });
 
     if (rawFunctionName === undefined) {
@@ -123,15 +171,6 @@ export async function simulateTransaction(
     }
     const functionName = functionNameResult.sanitizedValue;
 
-    // Get function info to build typed form fields
-    const inspector = new ContractInspector(
-      useLocalCli ? cliPath : rpcUrl,
-      source,
-    );
-    let contractFunctions: ContractFunction[] = [];
-    try {
-      contractFunctions = await inspector.getContractFunctions(contractId);
-    } catch {}
     const selectedFunction = contractFunctions.find(
       (f) => f.name === functionName,
     );
@@ -168,6 +207,19 @@ export async function simulateTransaction(
       }
 
       sanitizedArgs = vr.sanitizedArgs;
+    }
+
+    if (selectedFunction && selectedFunction.parameters && sanitizedArgs) {
+      for (const param of selectedFunction.parameters) {
+        if (sanitizedArgs[param.name] !== undefined) {
+          await autocompleteService.recordInput({
+            value: String(sanitizedArgs[param.name]),
+            contractId,
+            functionName,
+            parameterName: param.name,
+          });
+        }
+      }
     }
 
     const args: any[] = [sanitizedArgs];
@@ -250,7 +302,6 @@ export async function simulateTransaction(
     // Cache service (shared)
     const cache = SimulationCacheService.getInstance(context);
     const cacheParamsBase = { contractId, functionName, args };
-
     // Show progress indicator
     await vscode.window.withProgress(
       {
@@ -335,7 +386,6 @@ export async function simulateTransaction(
               network,
             );
           }
-
           cache.set(
             { backend: "cli", ...cacheParamsBase, network, source },
             result,
@@ -369,7 +419,6 @@ export async function simulateTransaction(
           // Use RPC
           progress.report({ increment: 30, message: "Connecting to RPC..." });
           const rpcService = new RpcService(rpcUrl);
-
           progress.report({
             increment: 50,
             message: "Executing simulation...",
@@ -379,7 +428,6 @@ export async function simulateTransaction(
             functionName,
             args,
           );
-
           cache.set({ backend: "rpc", ...cacheParamsBase, rpcUrl }, result);
         }
 

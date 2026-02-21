@@ -3,1068 +3,1308 @@
 // WebviewView provider — context menu + drag-and-drop reordering.
 // ============================================================
 
-import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as vscode from "vscode";
+import * as path from "path";
+import * as fs from "fs";
 import {
-    ContextMenuRequest,
-    ContextMenuActionRequest,
-    ActionFeedback,
-} from '../types/contextMenu';
+  ContextMenuRequest,
+  ContextMenuActionRequest,
+  ActionFeedback,
+} from "../types/contextMenu";
 import {
-    resolveContextMenuActions,
-    ContractContextMenuService,
-} from '../services/contextMenuService';
-import { ReorderingService } from '../services/reorderingService';
-import { ContractVersionTracker, ContractVersionState } from '../services/contractVersionTracker';
-import { SimulationHistoryService, SimulationHistoryEntry, SimulationHistoryStats } from '../services/simulationHistoryService';
-import { buildExportPayload, serializeExport, ExportableContract } from '../services/sidebarExportService';
+  resolveContextMenuActions,
+  ContractContextMenuService,
+} from "../services/contextMenuService";
+import { ReorderingService } from "../services/reorderingService";
 import {
-    ContractTemplateService,
-    ContractTemplateSource,
-    TemplateDefinition,
-} from '../services/contractTemplateService';
+  ContractVersionTracker,
+  ContractVersionState,
+} from "../services/contractVersionTracker";
 import {
-    parseExportFile,
-    validateAndPreview,
-    applyImport,
-    formatImportPreview,
-    ExistingContract,
-} from '../services/sidebarImportService';
-import { ImportSelection, ImportPreview } from '../types/sidebarExport';
-import { ContractDependencyDetectionService, DependencyGraph } from '../services/contractDependencyDetectionService';
-import { ContractMetadataService } from '../services/contractMetadataService';
-import { CliHistoryService, CliHistoryEntry } from '../services/cliHistoryService';
-import { CliReplayService } from '../services/cliReplayService';
-import { CompilationStatusMonitor } from '../services/compilationStatusMonitor';
-import { CompilationStatus } from '../types/compilationStatus';
-import { RpcHealthMonitor } from '../services/rpcHealthMonitor';
+  SimulationHistoryService,
+  SimulationHistoryEntry,
+  SimulationHistoryStats,
+} from "../services/simulationHistoryService";
+import {
+  buildExportPayload,
+  serializeExport,
+  ExportableContract,
+} from "../services/sidebarExportService";
+import {
+  ContractTemplateService,
+  ContractTemplateSource,
+  TemplateDefinition,
+} from "../services/contractTemplateService";
+import {
+  parseExportFile,
+  validateAndPreview,
+  applyImport,
+  formatImportPreview,
+  ExistingContract,
+} from "../services/sidebarImportService";
+import { ImportSelection, ImportPreview } from "../types/sidebarExport";
+import {
+  ContractDependencyDetectionService,
+  DependencyGraph,
+} from "../services/contractDependencyDetectionService";
+import { ContractMetadataService } from "../services/contractMetadataService";
+import {
+  CliHistoryService,
+  CliHistoryEntry,
+} from "../services/cliHistoryService";
+import { CliReplayService } from "../services/cliReplayService";
+import { CompilationStatusMonitor } from "../services/compilationStatusMonitor";
+import { CompilationStatus } from "../types/compilationStatus";
+import { RpcHealthMonitor } from "../services/rpcHealthMonitor";
 
 export interface ContractInfo {
+  name: string;
+  path: string;
+  contractId?: string;
+  isBuilt: boolean;
+  deployedAt?: string;
+  network?: string;
+  source?: string;
+  isPinned?: boolean;
+  hasWasm?: boolean;
+  lastDeployed?: string;
+  functions?: Array<{
     name: string;
-    path: string;
-    contractId?: string;
-    isBuilt: boolean;
-    deployedAt?: string;
-    network?: string;
-    source?: string;
-    isPinned?: boolean;
-    hasWasm?: boolean;
-    lastDeployed?: string;
-    functions?: Array<{
-        name: string;
-        parameters: Array<{ name: string; type?: string }>;
-    }>;
-    /** Version declared in Cargo.toml. */
-    localVersion?: string;
-    /** Version that was active at the last deploy. */
-    deployedVersion?: string;
-    /** Whether localVersion and deployedVersion conflict. */
-    hasVersionMismatch?: boolean;
-    /** Short mismatch warning, if any. */
-    versionMismatchMessage?: string;
-    /** Template identifier (e.g. "token", "escrow", custom id). */
-    templateId?: string;
-    /** Template category for grouping / actions. */
-    templateCategory?: string;
-    /** Display label shown in the UI. */
-    templateDisplayName?: string;
-    /** Whether classification came from builtin, custom, or manual override. */
-    templateSource?: ContractTemplateSource;
-    /** Detection confidence from 0..1. */
-    templateConfidence?: number;
-    /** Pattern evidence used for this classification. */
-    templateMatchedPatterns?: string[];
-    /** Direct dependencies (contracts this one depends on). */
-    dependencies?: string[];
-    /** Dependents (contracts that depend on this one). */
-    dependents?: string[];
-    /** Number of direct dependencies. */
-    dependencyCount?: number;
-    /** Number of dependents. */
-    dependentCount?: number;
-    /** Dependency depth in the graph. */
-    dependencyDepth?: number;
-    /** Whether this contract is part of a circular dependency. */
-    hasCircularDependency?: boolean;
-    /** Current build status. */
-    buildStatus?: 'idle' | 'in_progress' | 'success' | 'failed' | 'cancelled' | 'warning';
-    /** Build progress percentage (0-100). */
-    buildProgress?: number;
-    /** Short build status message. */
-    buildStatusMessage?: string;
-    /** Compilation error count. */
-    buildErrorCount?: number;
-    /** Compilation warning count. */
-    buildWarningCount?: number;
-    /** Deployment status. */
-    deployStatus?: 'idle' | 'deploying' | 'deployed' | 'failed';
-    /** Network health status. */
-    networkHealth?: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
-    /** Network health tooltip detail. */
-    networkHealthDetail?: string;
+    parameters: Array<{ name: string; type?: string }>;
+  }>;
+  /** Version declared in Cargo.toml. */
+  localVersion?: string;
+  /** Version that was active at the last deploy. */
+  deployedVersion?: string;
+  /** Whether localVersion and deployedVersion conflict. */
+  hasVersionMismatch?: boolean;
+  /** Short mismatch warning, if any. */
+  versionMismatchMessage?: string;
+  /** Template identifier (e.g. "token", "escrow", custom id). */
+  templateId?: string;
+  /** Template category for grouping / actions. */
+  templateCategory?: string;
+  /** Display label shown in the UI. */
+  templateDisplayName?: string;
+  /** Whether classification came from builtin, custom, or manual override. */
+  templateSource?: ContractTemplateSource;
+  /** Detection confidence from 0..1. */
+  templateConfidence?: number;
+  /** Pattern evidence used for this classification. */
+  templateMatchedPatterns?: string[];
+  /** Direct dependencies (contracts this one depends on). */
+  dependencies?: string[];
+  /** Dependents (contracts that depend on this one). */
+  dependents?: string[];
+  /** Number of direct dependencies. */
+  dependencyCount?: number;
+  /** Number of dependents. */
+  dependentCount?: number;
+  /** Dependency depth in the graph. */
+  dependencyDepth?: number;
+  /** Whether this contract is part of a circular dependency. */
+  hasCircularDependency?: boolean;
+  /** Current build status. */
+  buildStatus?:
+    | "idle"
+    | "in_progress"
+    | "success"
+    | "failed"
+    | "cancelled"
+    | "warning";
+  /** Build progress percentage (0-100). */
+  buildProgress?: number;
+  /** Short build status message. */
+  buildStatusMessage?: string;
+  /** Compilation error count. */
+  buildErrorCount?: number;
+  /** Compilation warning count. */
+  buildWarningCount?: number;
+  /** Deployment status. */
+  deployStatus?: "idle" | "deploying" | "deployed" | "failed";
+  /** Network health status. */
+  networkHealth?: "healthy" | "degraded" | "unhealthy" | "unknown";
+  /** Network health tooltip detail. */
+  networkHealthDetail?: string;
 }
 
 export interface DeploymentRecord {
-    contractId: string;
-    contractName: string;
-    deployedAt: string;
-    network: string;
-    source: string;
+  contractId: string;
+  contractName: string;
+  deployedAt: string;
+  network: string;
+  source: string;
 }
-type RefreshSource = 'auto' | 'manual' | 'system';
+type RefreshSource = "auto" | "manual" | "system";
 
 interface RefreshOptions {
-    source?: RefreshSource;
-    changedPaths?: string[];
+  source?: RefreshSource;
+  changedPaths?: string[];
 }
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'stellarSuite.contractsView';
+  public static readonly viewType = "stellarSuite.contractsView";
 
-    private _view?: vscode.WebviewView;
-    private readonly outputChannel: vscode.OutputChannel;
-    private readonly contextMenuService: ContractContextMenuService;
-    private readonly reorderingService: ReorderingService;
-    private readonly versionTracker: ContractVersionTracker;
-    private readonly templateService: ContractTemplateService;
-    private _simulationHistoryService?: SimulationHistoryService;
-    private readonly dependencyService: ContractDependencyDetectionService;
-    private dependencyGraph: DependencyGraph | null = null;
-    private _compilationMonitor?: CompilationStatusMonitor;
-    private _healthMonitor?: RpcHealthMonitor;
-    private _statusSubscriptions: vscode.Disposable[] = [];
+  private _view?: vscode.WebviewView;
+  private readonly outputChannel: vscode.OutputChannel;
+  private readonly contextMenuService: ContractContextMenuService;
+  private readonly reorderingService: ReorderingService;
+  private readonly versionTracker: ContractVersionTracker;
+  private readonly templateService: ContractTemplateService;
+  private _simulationHistoryService?: SimulationHistoryService;
+  private readonly dependencyService: ContractDependencyDetectionService;
+  private dependencyGraph: DependencyGraph | null = null;
+  private _compilationMonitor?: CompilationStatusMonitor;
+  private _healthMonitor?: RpcHealthMonitor;
+  private _statusSubscriptions: vscode.Disposable[] = [];
 
-    // Cache the last-discovered list so drag messages can reference it
-    private _lastContracts: ContractInfo[] = [];
+  // Cache the last-discovered list so drag messages can reference it
+  private _lastContracts: ContractInfo[] = [];
 
-    constructor(
-        private readonly _extensionUri: vscode.Uri,
-        private readonly _context: vscode.ExtensionContext,
-        private readonly _cliHistoryService?: CliHistoryService,
-        private readonly _cliReplayService?: CliReplayService
-    ) {
-        this.outputChannel = vscode.window.createOutputChannel('Stellar Suite');
-        this.contextMenuService = new ContractContextMenuService(
-            this._context,
-            this.outputChannel
-        );
-        this.reorderingService = new ReorderingService(
-            this._context,
-            this.outputChannel
-        );
-        this.versionTracker = new ContractVersionTracker(
-            this._context,
-            this.outputChannel
-        );
-        this.dependencyService = new ContractDependencyDetectionService(this.outputChannel);
-        this.templateService = new ContractTemplateService(this.outputChannel);
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private readonly _context: vscode.ExtensionContext,
+    private readonly _cliHistoryService?: CliHistoryService,
+    private readonly _cliReplayService?: CliReplayService,
+  ) {
+    this.outputChannel = vscode.window.createOutputChannel("Stellar Suite");
+    this.contextMenuService = new ContractContextMenuService(
+      this._context,
+      this.outputChannel,
+    );
+    this.reorderingService = new ReorderingService(
+      this._context,
+      this.outputChannel,
+    );
+    this.versionTracker = new ContractVersionTracker(
+      this._context,
+      this.outputChannel,
+    );
+    this.dependencyService = new ContractDependencyDetectionService(
+      this.outputChannel,
+    );
+    this.templateService = new ContractTemplateService(this.outputChannel);
+  }
+
+  public setStatusServices(
+    compilationMonitor?: CompilationStatusMonitor,
+    healthMonitor?: RpcHealthMonitor,
+  ): void {
+    this._compilationMonitor = compilationMonitor;
+    this._healthMonitor = healthMonitor;
+    this._subscribeToStatusEvents();
+  }
+
+  public dispose(): void {
+    this._statusSubscriptions.forEach((d) => d.dispose());
+    this._statusSubscriptions = [];
+  }
+
+  private _subscribeToStatusEvents(): void {
+    this._statusSubscriptions.forEach((d) => d.dispose());
+    this._statusSubscriptions = [];
+
+    if (this._compilationMonitor) {
+      this._statusSubscriptions.push(
+        this._compilationMonitor.onStatusChange((event) => {
+          this._postContractStatusUpdate(event.contractPath);
+        }),
+      );
+    }
+    if (this._healthMonitor) {
+      this._statusSubscriptions.push(
+        this._healthMonitor.onHealthChange(() => {
+          this._postNetworkStatusUpdate();
+        }),
+      );
+    }
+  }
+
+  private _postContractStatusUpdate(contractPath: string): void {
+    if (!this._view) {
+      return;
+    }
+    const contract = this._lastContracts.find((c) => c.path === contractPath);
+    if (!contract) {
+      return;
     }
 
-    public setStatusServices(
-        compilationMonitor?: CompilationStatusMonitor,
-        healthMonitor?: RpcHealthMonitor
-    ): void {
-        this._compilationMonitor = compilationMonitor;
-        this._healthMonitor = healthMonitor;
-        this._subscribeToStatusEvents();
+    const statusData = this._getCompilationStatusForContract(contractPath);
+    Object.assign(contract, statusData);
+
+    this._view.webview.postMessage({
+      type: "contractStatus:update",
+      contractPath,
+      ...statusData,
+    });
+  }
+
+  private _postNetworkStatusUpdate(): void {
+    if (!this._view) {
+      return;
+    }
+    const networkStatus = this._getNetworkStatus();
+
+    for (const c of this._lastContracts) {
+      c.networkHealth = networkStatus.networkHealth;
+      c.networkHealthDetail = networkStatus.networkHealthDetail;
     }
 
-    public dispose(): void {
-        this._statusSubscriptions.forEach(d => d.dispose());
-        this._statusSubscriptions = [];
+    this._view.webview.postMessage({
+      type: "networkStatus:update",
+      ...networkStatus,
+    });
+  }
+
+  private _getCompilationStatusForContract(
+    contractPath: string,
+  ): Partial<ContractInfo> {
+    if (!this._compilationMonitor) {
+      return {};
+    }
+    const event = this._compilationMonitor.getCurrentStatus(contractPath);
+    if (!event) {
+      return { buildStatus: "idle" };
     }
 
-    private _subscribeToStatusEvents(): void {
-        this._statusSubscriptions.forEach(d => d.dispose());
-        this._statusSubscriptions = [];
+    const errorCount = (event.diagnostics || []).filter(
+      (d) => d.severity === "error",
+    ).length;
+    const warningCount = (event.diagnostics || []).filter(
+      (d) => d.severity === "warning",
+    ).length;
 
-        if (this._compilationMonitor) {
-            this._statusSubscriptions.push(
-                this._compilationMonitor.onStatusChange((event) => {
-                    this._postContractStatusUpdate(event.contractPath);
-                })
+    return {
+      buildStatus: event.status.toLowerCase() as ContractInfo["buildStatus"],
+      buildProgress: event.progress,
+      buildStatusMessage: event.message,
+      buildErrorCount: errorCount,
+      buildWarningCount: warningCount,
+    };
+  }
+
+  private _getNetworkStatus(): {
+    networkHealth: ContractInfo["networkHealth"];
+    networkHealthDetail: string;
+  } {
+    if (!this._healthMonitor) {
+      return {
+        networkHealth: "unknown",
+        networkHealthDetail: "No health monitor",
+      };
+    }
+    const best = this._healthMonitor.getBestEndpoint();
+    if (!best) {
+      return {
+        networkHealth: "unknown",
+        networkHealthDetail: "No endpoints configured",
+      };
+    }
+    const health = this._healthMonitor.getEndpointHealth(best.url);
+    if (!health) {
+      return { networkHealth: "unknown", networkHealthDetail: best.url };
+    }
+    return {
+      networkHealth: health.status as ContractInfo["networkHealth"],
+      networkHealthDetail: `${best.url} — ${health.responseTime}ms`,
+    };
+  }
+
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    _context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken,
+  ) {
+    this._view = webviewView;
+
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this._extensionUri],
+    };
+
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+    // ── Keyboard shortcut settings sync ─────────────────────
+    const sendSettings = () => {
+      const config = vscode.workspace.getConfiguration("stellarSuite");
+      this._view?.webview.postMessage({
+        type: "settings:update",
+        showShortcutHints: config.get<boolean>("keyboard.showHints", true),
+      });
+    };
+    setTimeout(sendSettings, 100);
+
+    const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("stellarSuite.keyboard")) {
+        sendSettings();
+      }
+    });
+    webviewView.onDidDispose(() => {
+      configListener.dispose();
+    });
+    this._subscribeToStatusEvents();
+
+    webviewView.webview.onDidReceiveMessage(
+      async (message: { type: string; [key: string]: unknown }) => {
+        this.outputChannel.appendLine(
+          `[Sidebar] Received message: ${message.type}`,
+        );
+
+        switch (message.type) {
+          case "build":
+            await vscode.commands.executeCommand("stellarSuite.buildContract");
+            break;
+
+          case "deploy":
+            await vscode.commands.executeCommand("stellarSuite.deployContract");
+            break;
+
+          case "simulate":
+            await vscode.commands.executeCommand(
+              "stellarSuite.simulateTransaction",
             );
-        }
-        if (this._healthMonitor) {
-            this._statusSubscriptions.push(
-                this._healthMonitor.onHealthChange(() => {
-                    this._postNetworkStatusUpdate();
-                })
+            break;
+
+          case "refresh":
+            this.refresh();
+            break;
+
+          // ── Context menu ──────────────────────────────
+          case "contextMenu:open": {
+            const req = message as unknown as {
+              type: string;
+            } & ContextMenuRequest;
+            const actions = resolveContextMenuActions(req);
+            this.outputChannel.appendLine(
+              `[ContextMenu] Resolved ${actions.length} actions for "${req.contractName}"`,
             );
-        }
-    }
-
-    private _postContractStatusUpdate(contractPath: string): void {
-        if (!this._view) { return; }
-        const contract = this._lastContracts.find(c => c.path === contractPath);
-        if (!contract) { return; }
-
-        const statusData = this._getCompilationStatusForContract(contractPath);
-        Object.assign(contract, statusData);
-
-        this._view.webview.postMessage({
-            type: 'contractStatus:update',
-            contractPath,
-            ...statusData,
-        });
-    }
-
-    private _postNetworkStatusUpdate(): void {
-        if (!this._view) { return; }
-        const networkStatus = this._getNetworkStatus();
-
-        for (const c of this._lastContracts) {
-            c.networkHealth = networkStatus.networkHealth;
-            c.networkHealthDetail = networkStatus.networkHealthDetail;
-        }
-
-        this._view.webview.postMessage({
-            type: 'networkStatus:update',
-            ...networkStatus,
-        });
-    }
-
-    private _getCompilationStatusForContract(contractPath: string): Partial<ContractInfo> {
-        if (!this._compilationMonitor) { return {}; }
-        const event = this._compilationMonitor.getCurrentStatus(contractPath);
-        if (!event) { return { buildStatus: 'idle' }; }
-
-        const errorCount = (event.diagnostics || []).filter(
-            d => d.severity === 'error'
-        ).length;
-        const warningCount = (event.diagnostics || []).filter(
-            d => d.severity === 'warning'
-        ).length;
-
-        return {
-            buildStatus: event.status.toLowerCase() as ContractInfo['buildStatus'],
-            buildProgress: event.progress,
-            buildStatusMessage: event.message,
-            buildErrorCount: errorCount,
-            buildWarningCount: warningCount,
-        };
-    }
-
-    private _getNetworkStatus(): { networkHealth: ContractInfo['networkHealth']; networkHealthDetail: string } {
-        if (!this._healthMonitor) {
-            return { networkHealth: 'unknown', networkHealthDetail: 'No health monitor' };
-        }
-        const best = this._healthMonitor.getBestEndpoint();
-        if (!best) {
-            return { networkHealth: 'unknown', networkHealthDetail: 'No endpoints configured' };
-        }
-        const health = this._healthMonitor.getEndpointHealth(best.url);
-        if (!health) {
-            return { networkHealth: 'unknown', networkHealthDetail: best.url };
-        }
-        return {
-            networkHealth: health.status as ContractInfo['networkHealth'],
-            networkHealthDetail: `${best.url} — ${health.responseTime}ms`,
-        };
-    }
-
-    public resolveWebviewView(
-        webviewView: vscode.WebviewView,
-        _context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken
-    ) {
-        this._view = webviewView;
-
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [this._extensionUri],
-        };
-
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-        // ── Keyboard shortcut settings sync ─────────────────────
-        const sendSettings = () => {
-            const config = vscode.workspace.getConfiguration('stellarSuite');
             this._view?.webview.postMessage({
-                type: 'settings:update',
-                showShortcutHints: config.get<boolean>('keyboard.showHints', true),
+              type: "contextMenu:show",
+              actions,
+              contractName: req.contractName,
+              contractPath: req.contractPath,
+              contractId: req.contractId,
+              templateId: req.templateId,
+              templateCategory: req.templateCategory,
+              x: req.x,
+              y: req.y,
             });
-        };
-        setTimeout(sendSettings, 100);
+            break;
+          }
 
-        const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
-            if (e.affectsConfiguration('stellarSuite.keyboard')) {
-                sendSettings();
+          case "contextMenu:action": {
+            const req = message as unknown as {
+              type: string;
+            } & ContextMenuActionRequest;
+            const feedback: ActionFeedback =
+              await this.contextMenuService.handleAction(req);
+            this.outputChannel.appendLine(
+              `[ContextMenu] Action "${req.actionId}" result: ${feedback.type} – ${feedback.message}`,
+            );
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback,
+            });
+            if (feedback.refresh) {
+              setTimeout(() => this.refresh(), 300);
             }
-        });
-        webviewView.onDidDispose(() => { configListener.dispose(); });
-        this._subscribeToStatusEvents();
+            break;
+          }
 
-        webviewView.webview.onDidReceiveMessage(async (message: {
-            type: string;
-            [key: string]: unknown;
-        }) => {
-            this.outputChannel.appendLine(`[Sidebar] Received message: ${message.type}`);
+          // ── Drag-and-drop ─────────────────────────────
 
-            switch (message.type) {
-                case 'build':
-                    await vscode.commands.executeCommand('stellarSuite.buildContract');
-                    break;
+          case "dnd:reorder": {
+            const fromPath = message["fromPath"] as string | undefined;
+            const toPath = message["toPath"] as string | undefined;
 
-                case 'deploy':
-                    await vscode.commands.executeCommand('stellarSuite.deployContract');
-                    break;
-
-                case 'simulate':
-                    await vscode.commands.executeCommand('stellarSuite.simulateTransaction');
-                    break;
-
-                case 'refresh':
-                    this.refresh();
-                    break;
-
-                // ── Context menu ──────────────────────────────
-                case 'contextMenu:open': {
-                    const req = message as unknown as { type: string } & ContextMenuRequest;
-                    const actions = resolveContextMenuActions(req);
-                    this.outputChannel.appendLine(
-                        `[ContextMenu] Resolved ${actions.length} actions for "${req.contractName}"`
-                    );
-                    this._view?.webview.postMessage({
-                        type: 'contextMenu:show',
-                        actions,
-                        contractName: req.contractName,
-                        contractPath: req.contractPath,
-                        contractId: req.contractId,
-                        templateId: req.templateId,
-                        templateCategory: req.templateCategory,
-                        x: req.x,
-                        y: req.y,
-                    });
-                    break;
-                }
-
-                case 'contextMenu:action': {
-                    const req = message as unknown as { type: string } & ContextMenuActionRequest;
-                    const feedback: ActionFeedback = await this.contextMenuService.handleAction(req);
-                    this.outputChannel.appendLine(
-                        `[ContextMenu] Action "${req.actionId}" result: ${feedback.type} – ${feedback.message}`
-                    );
-                    this._view?.webview.postMessage({ type: 'actionFeedback', feedback });
-                    if (feedback.refresh) {
-                        setTimeout(() => this.refresh(), 300);
-                    }
-                    break;
-                }
-
-                // ── Drag-and-drop ─────────────────────────────
-
-                case 'dnd:reorder': {
-                    const fromPath = message['fromPath'] as string | undefined;
-                    const toPath = message['toPath'] as string | undefined;
-
-                    if (!fromPath || !toPath) {
-                        this.outputChannel.appendLine('[Reordering] ERROR: missing fromPath or toPath');
-                        this._view?.webview.postMessage({
-                            type: 'actionFeedback',
-                            feedback: { type: 'error', message: 'Reorder failed: invalid drag payload.' },
-                        });
-                        break;
-                    }
-
-                    try {
-                        await this.reorderingService.move(
-                            this._lastContracts,
-                            fromPath,
-                            toPath
-                        );
-                        const reordered = this.reorderingService.applyOrder(this._lastContracts);
-                        this._lastContracts = reordered;
-                        this._view?.webview.postMessage({
-                            type: 'update',
-                            contracts: reordered,
-                            deployments: this._getDeploymentHistory(),
-                            versionStates: this._getVersionStates(reordered),
-                        });
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        this.outputChannel.appendLine(`[Reordering] ERROR: ${msg}`);
-                        this._view?.webview.postMessage({
-                            type: 'actionFeedback',
-                            feedback: { type: 'error', message: `Reorder failed: ${msg}` },
-                        });
-                        this._view?.webview.postMessage({
-                            type: 'update',
-                            contracts: this._lastContracts,
-                            deployments: this._getDeploymentHistory(),
-                            versionStates: this._getVersionStates(this._lastContracts),
-                        });
-                    }
-                    break;
-                }
-
-                case 'dnd:cancel': {
-                    this.outputChannel.appendLine('[Reordering] Drag cancelled — restoring order');
-                    this._view?.webview.postMessage({
-                        type: 'update',
-                        contracts: this._lastContracts,
-                        deployments: this._getDeploymentHistory(),
-                        versionStates: this._getVersionStates(this._lastContracts),
-                    });
-                    break;
-                }
-
-                case 'dnd:reset': {
-                    await this.reorderingService.resetOrder();
-                    this.refresh();
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: { type: 'info', message: 'Contract order reset to default.' },
-                    });
-                    break;
-                }
-
-                // ── Version tracking ──────────────────────────
-
-                case 'version:getHistory': {
-                    const contractPath = message['contractPath'] as string | undefined;
-                    if (!contractPath) { break; }
-                    const history = this.versionTracker.getVersionHistory(contractPath);
-                    this._view?.webview.postMessage({ type: 'version:history', contractPath, history });
-                    break;
-                }
-
-                case 'version:tag': {
-                    const contractPath = message['contractPath'] as string | undefined;
-                    const entryId = message['entryId'] as string | undefined;
-                    const label = message['label'] as string | undefined;
-                    if (!contractPath || !entryId || !label) { break; }
-                    const ok = await this.versionTracker.tagVersion(contractPath, entryId, label);
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: ok
-                            ? { type: 'success', message: `Version tagged as "${label}".` }
-                            : { type: 'error', message: 'Failed to tag version — entry not found.' },
-                    });
-                    break;
-                }
-
-                case 'version:clearHistory': {
-                    const contractPath = message['contractPath'] as string | undefined;
-                    if (!contractPath) { break; }
-                    await this.versionTracker.clearVersionHistory(contractPath);
-                    this.refresh();
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: { type: 'info', message: 'Version history cleared.' },
-                    });
-                    break;
-                }
-
-                // ── Simulation history ───────────────────────────
-
-                case 'simHistory:getAll': {
-                    const historyService = this._getSimulationHistoryService();
-                    if (!historyService) { break; }
-                    const filterObj = message['filter'] as Record<string, unknown> | undefined;
-                    const entries = historyService.queryHistory({
-                        filter: filterObj as any,
-                        limit: 50,
-                    });
-                    const stats = historyService.getStatistics();
-                    this._view?.webview.postMessage({
-                        type: 'simHistory:data',
-                        entries,
-                        stats,
-                    });
-                    break;
-                }
-
-                case 'simHistory:label': {
-                    const historyService = this._getSimulationHistoryService();
-                    if (!historyService) { break; }
-                    const entryId = message['entryId'] as string | undefined;
-                    const label = message['label'] as string | undefined;
-                    if (!entryId || !label) { break; }
-                    const ok = await historyService.labelEntry(entryId, label);
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: ok
-                            ? { type: 'success', message: `Simulation labeled "${label}".` }
-                            : { type: 'error', message: 'Failed to label — entry not found.' },
-                    });
-                    break;
-                }
-
-                case 'simHistory:delete': {
-                    const historyService = this._getSimulationHistoryService();
-                    if (!historyService) { break; }
-                    const deleteId = message['entryId'] as string | undefined;
-                    if (!deleteId) { break; }
-                    const deleted = await historyService.deleteEntry(deleteId);
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: deleted
-                            ? { type: 'success', message: 'Simulation entry deleted.' }
-                            : { type: 'error', message: 'Entry not found.' },
-                    });
-                    if (deleted) {
-                        const refreshedEntries = historyService.queryHistory({ limit: 50 });
-                        const refreshedStats = historyService.getStatistics();
-                        this._view?.webview.postMessage({
-                            type: 'simHistory:data',
-                            entries: refreshedEntries,
-                            stats: refreshedStats,
-                        });
-                    }
-                    break;
-                }
-
-                case 'simHistory:clear': {
-                    const historyService = this._getSimulationHistoryService();
-                    if (!historyService) { break; }
-                    await historyService.clearHistory();
-                    this._view?.webview.postMessage({
-                        type: 'simHistory:data',
-                        entries: [],
-                        stats: historyService.getStatistics(),
-                    });
-                    this._view?.webview.postMessage({
-                        type: 'actionFeedback',
-                        feedback: { type: 'info', message: 'Simulation history cleared.' },
-                    });
-                    break;
-                }
-
-                case 'simHistory:export': {
-                    await vscode.commands.executeCommand('stellarSuite.exportSimulationHistory');
-                    break;
-                }
-
-                // ── Export / Import ────────────────────────────
-
-                case 'sidebar:export': {
-                    this.outputChannel.appendLine('[Export] Starting sidebar export…');
-                    try {
-                        const workspaceId = vscode.workspace.workspaceFolders?.[0]?.name || 'unknown';
-                        const payload = buildExportPayload({
-                            contracts: this._lastContracts as ExportableContract[],
-                            workspaceId,
-                        });
-                        const json = serializeExport(payload);
-
-                        const uri = await vscode.window.showSaveDialog({
-                            defaultUri: vscode.Uri.file(`stellar-suite-export-${Date.now()}.json`),
-                            filters: { 'JSON Files': ['json'] },
-                            title: 'Export Sidebar Contracts',
-                        });
-                        if (uri) {
-                            await vscode.workspace.fs.writeFile(uri, Buffer.from(json, 'utf-8'));
-                            this._view?.webview.postMessage({
-                                type: 'actionFeedback',
-                                feedback: { type: 'success', message: `Exported ${payload.contracts.length} contract(s).` },
-                            });
-                            this.outputChannel.appendLine(`[Export] Saved to ${uri.fsPath}`);
-                        }
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        this.outputChannel.appendLine(`[Export] ERROR: ${msg}`);
-                        this._view?.webview.postMessage({
-                            type: 'actionFeedback',
-                            feedback: { type: 'error', message: `Export failed: ${msg}` },
-                        });
-                    }
-                    break;
-                }
-
-                case 'sidebar:import': {
-                    this.outputChannel.appendLine('[Import] Starting sidebar import…');
-                    try {
-                        const uris = await vscode.window.showOpenDialog({
-                            canSelectMany: false,
-                            filters: { 'JSON Files': ['json'] },
-                            title: 'Import Sidebar Contracts',
-                        });
-                        if (!uris || uris.length === 0) { break; }
-
-                        const rawBytes = await vscode.workspace.fs.readFile(uris[0]);
-                        const raw = Buffer.from(rawBytes).toString('utf-8');
-                        const parsed = parseExportFile(raw);
-
-                        const existing: ExistingContract[] = this._lastContracts.map(c => ({
-                            id: c.contractId || `local:${c.name}`,
-                            name: c.name,
-                            address: c.contractId || '',
-                            network: c.network || 'testnet',
-                        }));
-
-                        const validation = validateAndPreview(parsed, existing);
-
-                        this._view?.webview.postMessage({
-                            type: 'import:preview',
-                            validation,
-                            formattedPreview: formatImportPreview(validation.preview),
-                        });
-
-                        this.outputChannel.appendLine(
-                            `[Import] Preview ready: ${validation.preview.newContracts.length} new, ` +
-                            `${validation.preview.conflicts.length} conflict(s)`
-                        );
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        this.outputChannel.appendLine(`[Import] ERROR: ${msg}`);
-                        this._view?.webview.postMessage({
-                            type: 'actionFeedback',
-                            feedback: { type: 'error', message: `Import failed: ${msg}` },
-                        });
-                    }
-                    break;
-                }
-
-                case 'import:apply': {
-                    this.outputChannel.appendLine('[Import] Applying import selection…');
-                    try {
-                        const preview = message['preview'] as ImportPreview;
-                        const selection = message['selection'] as ImportSelection;
-
-                        if (!preview || !selection) {
-                            this._view?.webview.postMessage({
-                                type: 'actionFeedback',
-                                feedback: { type: 'error', message: 'Import apply: missing preview or selection.' },
-                            });
-                            break;
-                        }
-
-                        const existing: ExistingContract[] = this._lastContracts.map(c => ({
-                            id: c.contractId || `local:${c.name}`,
-                            name: c.name,
-                            address: c.contractId || '',
-                            network: c.network || 'testnet',
-                        }));
-
-                        const result = await applyImport(
-                            preview,
-                            selection,
-                            {
-                                currentContracts: existing,
-                                applyContracts: async (contracts) => {
-                                    const deployed: Record<string, string> = {};
-                                    for (const c of contracts) {
-                                        if (c.address) { deployed[c.id] = c.address; }
-                                    }
-                                    await this._context.workspaceState.update('stellarSuite.importedContracts', contracts);
-                                },
-                            },
-                        );
-
-                        if (result.success) {
-                            this._view?.webview.postMessage({
-                                type: 'actionFeedback',
-                                feedback: {
-                                    type: 'success',
-                                    message: `Import complete: ${result.importedCount} imported, ` +
-                                        `${result.overwrittenCount} overwritten, ` +
-                                        `${result.renamedCount} renamed, ` +
-                                        `${result.skippedCount} skipped.`,
-                                },
-                            });
-                            this.refresh();
-                        } else {
-                            this._view?.webview.postMessage({
-                                type: 'actionFeedback',
-                                feedback: { type: 'error', message: `Import failed: ${result.errors.join(', ')}` },
-                            });
-                        }
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        this.outputChannel.appendLine(`[Import] Apply ERROR: ${msg}`);
-                        this._view?.webview.postMessage({
-                            type: 'actionFeedback',
-                            feedback: { type: 'error', message: `Import apply failed: ${msg}` },
-                        });
-                    }
-                    break;
-                }
-
-                // ── CLI history ──────────────────────────────────
-
-                case 'cliHistory:getAll': {
-                    if (!this._cliHistoryService) { break; }
-                    const filterObj = message['filter'] as Record<string, unknown> | undefined;
-                    const entries = this._cliHistoryService.queryHistory(filterObj as any);
-                    this._view?.webview.postMessage({
-                        type: 'cliHistory:data',
-                        entries
-                    });
-                    break;
-                }
-
-                case 'cliHistory:replay': {
-                    const entryId = message['entryId'] as string | undefined;
-                    if (entryId) {
-                        await vscode.commands.executeCommand('stellarSuite.replayCliCommand', entryId);
-                    }
-                    break;
-                }
-
-                case 'cliHistory:modify': {
-                    const entryId = message['entryId'] as string | undefined;
-                    if (entryId) {
-                        await vscode.commands.executeCommand('stellarSuite.modifyAndReplayCliCommand', entryId);
-                    }
-                    break;
-                }
-
-                case 'cliHistory:label': {
-                    if (!this._cliHistoryService) { break; }
-                    const entryId = message['entryId'] as string | undefined;
-                    const label = message['label'] as string | undefined;
-                    if (entryId && label) {
-                        await this._cliHistoryService.setLabel(entryId, label);
-                        this.refreshHistory();
-                    }
-                    break;
-                }
-
-                case 'cliHistory:delete': {
-                    if (!this._cliHistoryService) { break; }
-                    const entryId = message['entryId'] as string | undefined;
-                    if (entryId) {
-                        await this._cliHistoryService.deleteEntry(entryId);
-                        this.refreshHistory();
-                    }
-                    break;
-                }
-
-                case 'cliHistory:clear': {
-                    await vscode.commands.executeCommand('stellarSuite.clearCliHistory');
-                    break;
-                }
-
-                case 'cliHistory:export': {
-                    await vscode.commands.executeCommand('stellarSuite.exportCliHistory');
-                    break;
-                }
-
-                default:
-                    this.outputChannel.appendLine(`[Sidebar] Unknown message type: ${message.type}`);
+            if (!fromPath || !toPath) {
+              this.outputChannel.appendLine(
+                "[Reordering] ERROR: missing fromPath or toPath",
+              );
+              this._view?.webview.postMessage({
+                type: "actionFeedback",
+                feedback: {
+                  type: "error",
+                  message: "Reorder failed: invalid drag payload.",
+                },
+              });
+              break;
             }
-        });
 
-        this.refresh();
-    }
+            try {
+              await this.reorderingService.move(
+                this._lastContracts,
+                fromPath,
+                toPath,
+              );
+              const reordered = this.reorderingService.applyOrder(
+                this._lastContracts,
+              );
+              this._lastContracts = reordered;
+              this._view?.webview.postMessage({
+                type: "update",
+                contracts: reordered,
+                deployments: this._getDeploymentHistory(),
+                versionStates: this._getVersionStates(reordered),
+              });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.outputChannel.appendLine(`[Reordering] ERROR: ${msg}`);
+              this._view?.webview.postMessage({
+                type: "actionFeedback",
+                feedback: { type: "error", message: `Reorder failed: ${msg}` },
+              });
+              this._view?.webview.postMessage({
+                type: "update",
+                contracts: this._lastContracts,
+                deployments: this._getDeploymentHistory(),
+                versionStates: this._getVersionStates(this._lastContracts),
+              });
+            }
+            break;
+          }
 
-    public async refresh() {
-        if (!this._view) { return; }
-        this.outputChannel.appendLine('[Sidebar] Refreshing contract data…');
+          case "dnd:cancel": {
+            this.outputChannel.appendLine(
+              "[Reordering] Drag cancelled — restoring order",
+            );
+            this._view?.webview.postMessage({
+              type: "update",
+              contracts: this._lastContracts,
+              deployments: this._getDeploymentHistory(),
+              versionStates: this._getVersionStates(this._lastContracts),
+            });
+            break;
+          }
 
-        const discovered = this._discoverContracts();
-        const ordered = this.reorderingService.applyOrder(discovered);
+          case "dnd:reset": {
+            await this.reorderingService.resetOrder();
+            this.refresh();
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: {
+                type: "info",
+                message: "Contract order reset to default.",
+              },
+            });
+            break;
+          }
 
-        // Build dependency graph
-        await this._enrichWithDependencyInfo(ordered);
+          // ── Version tracking ──────────────────────────
 
-        // Enrich with status info
-        this._enrichWithStatusInfo(ordered);
+          case "version:getHistory": {
+            const contractPath = message["contractPath"] as string | undefined;
+            if (!contractPath) {
+              break;
+            }
+            const history = this.versionTracker.getVersionHistory(contractPath);
+            this._view?.webview.postMessage({
+              type: "version:history",
+              contractPath,
+              history,
+            });
+            break;
+          }
 
-        this._lastContracts = ordered;
+          case "version:tag": {
+            const contractPath = message["contractPath"] as string | undefined;
+            const entryId = message["entryId"] as string | undefined;
+            const label = message["label"] as string | undefined;
+            if (!contractPath || !entryId || !label) {
+              break;
+            }
+            const ok = await this.versionTracker.tagVersion(
+              contractPath,
+              entryId,
+              label,
+            );
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: ok
+                ? { type: "success", message: `Version tagged as "${label}".` }
+                : {
+                    type: "error",
+                    message: "Failed to tag version — entry not found.",
+                  },
+            });
+            break;
+          }
 
-        const deployments = this._getDeploymentHistory();
-        const versionStates = this._getVersionStates(ordered);
-        const networkStatus = this._getNetworkStatus();
+          case "version:clearHistory": {
+            const contractPath = message["contractPath"] as string | undefined;
+            if (!contractPath) {
+              break;
+            }
+            await this.versionTracker.clearVersionHistory(contractPath);
+            this.refresh();
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: { type: "info", message: "Version history cleared." },
+            });
+            break;
+          }
 
-        this._view.webview.postMessage({
-            type: 'update',
-            contracts: ordered,
-            deployments,
-            versionStates,
-            dependencyGraph: this.dependencyGraph ? this._serializeDependencyGraph() : null,
-            networkStatus,
-        });
-        this.refreshHistory();
-    }
+          // ── Simulation history ───────────────────────────
 
-    private refreshHistory() {
-        if (!this._view) { return; }
-        if (this._cliHistoryService) {
-            const entries = this._cliHistoryService.queryHistory();
-            this._view.webview.postMessage({ type: 'cliHistory:data', entries });
+          case "simHistory:getAll": {
+            const historyService = this._getSimulationHistoryService();
+            if (!historyService) {
+              break;
+            }
+            const filterObj = message["filter"] as
+              | Record<string, unknown>
+              | undefined;
+            const entries = historyService.queryHistory({
+              filter: filterObj as any,
+              limit: 50,
+            });
+            const stats = historyService.getStatistics();
+            this._view?.webview.postMessage({
+              type: "simHistory:data",
+              entries,
+              stats,
+            });
+            break;
+          }
+
+          case "simHistory:label": {
+            const historyService = this._getSimulationHistoryService();
+            if (!historyService) {
+              break;
+            }
+            const entryId = message["entryId"] as string | undefined;
+            const label = message["label"] as string | undefined;
+            if (!entryId || !label) {
+              break;
+            }
+            const ok = await historyService.labelEntry(entryId, label);
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: ok
+                ? { type: "success", message: `Simulation labeled "${label}".` }
+                : {
+                    type: "error",
+                    message: "Failed to label — entry not found.",
+                  },
+            });
+            break;
+          }
+
+          case "simHistory:delete": {
+            const historyService = this._getSimulationHistoryService();
+            if (!historyService) {
+              break;
+            }
+            const deleteId = message["entryId"] as string | undefined;
+            if (!deleteId) {
+              break;
+            }
+            const deleted = await historyService.deleteEntry(deleteId);
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: deleted
+                ? { type: "success", message: "Simulation entry deleted." }
+                : { type: "error", message: "Entry not found." },
+            });
+            if (deleted) {
+              const refreshedEntries = historyService.queryHistory({
+                limit: 50,
+              });
+              const refreshedStats = historyService.getStatistics();
+              this._view?.webview.postMessage({
+                type: "simHistory:data",
+                entries: refreshedEntries,
+                stats: refreshedStats,
+              });
+            }
+            break;
+          }
+
+          case "simHistory:clear": {
+            const historyService = this._getSimulationHistoryService();
+            if (!historyService) {
+              break;
+            }
+            await historyService.clearHistory();
+            this._view?.webview.postMessage({
+              type: "simHistory:data",
+              entries: [],
+              stats: historyService.getStatistics(),
+            });
+            this._view?.webview.postMessage({
+              type: "actionFeedback",
+              feedback: {
+                type: "info",
+                message: "Simulation history cleared.",
+              },
+            });
+            break;
+          }
+
+          case "simHistory:export": {
+            await vscode.commands.executeCommand(
+              "stellarSuite.exportSimulationHistory",
+            );
+            break;
+          }
+
+          // ── Export / Import ────────────────────────────
+
+          case "sidebar:export": {
+            this.outputChannel.appendLine("[Export] Starting sidebar export…");
+            try {
+              const workspaceId =
+                vscode.workspace.workspaceFolders?.[0]?.name || "unknown";
+              const payload = buildExportPayload({
+                contracts: this._lastContracts as ExportableContract[],
+                workspaceId,
+              });
+              const json = serializeExport(payload);
+
+              const uri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.file(
+                  `stellar-suite-export-${Date.now()}.json`,
+                ),
+                filters: { "JSON Files": ["json"] },
+                title: "Export Sidebar Contracts",
+              });
+              if (uri) {
+                await vscode.workspace.fs.writeFile(
+                  uri,
+                  Buffer.from(json, "utf-8"),
+                );
+                this._view?.webview.postMessage({
+                  type: "actionFeedback",
+                  feedback: {
+                    type: "success",
+                    message: `Exported ${payload.contracts.length} contract(s).`,
+                  },
+                });
+                this.outputChannel.appendLine(
+                  `[Export] Saved to ${uri.fsPath}`,
+                );
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.outputChannel.appendLine(`[Export] ERROR: ${msg}`);
+              this._view?.webview.postMessage({
+                type: "actionFeedback",
+                feedback: { type: "error", message: `Export failed: ${msg}` },
+              });
+            }
+            break;
+          }
+
+          case "sidebar:import": {
+            this.outputChannel.appendLine("[Import] Starting sidebar import…");
+            try {
+              const uris = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                filters: { "JSON Files": ["json"] },
+                title: "Import Sidebar Contracts",
+              });
+              if (!uris || uris.length === 0) {
+                break;
+              }
+
+              const rawBytes = await vscode.workspace.fs.readFile(uris[0]);
+              const raw = Buffer.from(rawBytes).toString("utf-8");
+              const parsed = parseExportFile(raw);
+
+              const existing: ExistingContract[] = this._lastContracts.map(
+                (c) => ({
+                  id: c.contractId || `local:${c.name}`,
+                  name: c.name,
+                  address: c.contractId || "",
+                  network: c.network || "testnet",
+                }),
+              );
+
+              const validation = validateAndPreview(parsed, existing);
+
+              this._view?.webview.postMessage({
+                type: "import:preview",
+                validation,
+                formattedPreview: formatImportPreview(validation.preview),
+              });
+
+              this.outputChannel.appendLine(
+                `[Import] Preview ready: ${validation.preview.newContracts.length} new, ` +
+                  `${validation.preview.conflicts.length} conflict(s)`,
+              );
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.outputChannel.appendLine(`[Import] ERROR: ${msg}`);
+              this._view?.webview.postMessage({
+                type: "actionFeedback",
+                feedback: { type: "error", message: `Import failed: ${msg}` },
+              });
+            }
+            break;
+          }
+
+          case "import:apply": {
+            this.outputChannel.appendLine(
+              "[Import] Applying import selection…",
+            );
+            try {
+              const preview = message["preview"] as ImportPreview;
+              const selection = message["selection"] as ImportSelection;
+
+              if (!preview || !selection) {
+                this._view?.webview.postMessage({
+                  type: "actionFeedback",
+                  feedback: {
+                    type: "error",
+                    message: "Import apply: missing preview or selection.",
+                  },
+                });
+                break;
+              }
+
+              const existing: ExistingContract[] = this._lastContracts.map(
+                (c) => ({
+                  id: c.contractId || `local:${c.name}`,
+                  name: c.name,
+                  address: c.contractId || "",
+                  network: c.network || "testnet",
+                }),
+              );
+
+              const result = await applyImport(preview, selection, {
+                currentContracts: existing,
+                applyContracts: async (contracts) => {
+                  const deployed: Record<string, string> = {};
+                  for (const c of contracts) {
+                    if (c.address) {
+                      deployed[c.id] = c.address;
+                    }
+                  }
+                  await this._context.workspaceState.update(
+                    "stellarSuite.importedContracts",
+                    contracts,
+                  );
+                },
+              });
+
+              if (result.success) {
+                this._view?.webview.postMessage({
+                  type: "actionFeedback",
+                  feedback: {
+                    type: "success",
+                    message:
+                      `Import complete: ${result.importedCount} imported, ` +
+                      `${result.overwrittenCount} overwritten, ` +
+                      `${result.renamedCount} renamed, ` +
+                      `${result.skippedCount} skipped.`,
+                  },
+                });
+                this.refresh();
+              } else {
+                this._view?.webview.postMessage({
+                  type: "actionFeedback",
+                  feedback: {
+                    type: "error",
+                    message: `Import failed: ${result.errors.join(", ")}`,
+                  },
+                });
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              this.outputChannel.appendLine(`[Import] Apply ERROR: ${msg}`);
+              this._view?.webview.postMessage({
+                type: "actionFeedback",
+                feedback: {
+                  type: "error",
+                  message: `Import apply failed: ${msg}`,
+                },
+              });
+            }
+            break;
+          }
+
+          // ── CLI history ──────────────────────────────────
+
+          case "cliHistory:getAll": {
+            if (!this._cliHistoryService) {
+              break;
+            }
+            const filterObj = message["filter"] as
+              | Record<string, unknown>
+              | undefined;
+            const entries = this._cliHistoryService.queryHistory(
+              filterObj as any,
+            );
+            this._view?.webview.postMessage({
+              type: "cliHistory:data",
+              entries,
+            });
+            break;
+          }
+
+          case "cliHistory:replay": {
+            const entryId = message["entryId"] as string | undefined;
+            if (entryId) {
+              await vscode.commands.executeCommand(
+                "stellarSuite.replayCliCommand",
+                entryId,
+              );
+            }
+            break;
+          }
+
+          case "cliHistory:modify": {
+            const entryId = message["entryId"] as string | undefined;
+            if (entryId) {
+              await vscode.commands.executeCommand(
+                "stellarSuite.modifyAndReplayCliCommand",
+                entryId,
+              );
+            }
+            break;
+          }
+
+          case "cliHistory:label": {
+            if (!this._cliHistoryService) {
+              break;
+            }
+            const entryId = message["entryId"] as string | undefined;
+            const label = message["label"] as string | undefined;
+            if (entryId && label) {
+              await this._cliHistoryService.setLabel(entryId, label);
+              this.refreshHistory();
+            }
+            break;
+          }
+
+          case "cliHistory:delete": {
+            if (!this._cliHistoryService) {
+              break;
+            }
+            const entryId = message["entryId"] as string | undefined;
+            if (entryId) {
+              await this._cliHistoryService.deleteEntry(entryId);
+              this.refreshHistory();
+            }
+            break;
+          }
+
+          case "cliHistory:clear": {
+            await vscode.commands.executeCommand(
+              "stellarSuite.clearCliHistory",
+            );
+            break;
+          }
+
+          case "cliHistory:export": {
+            await vscode.commands.executeCommand(
+              "stellarSuite.exportCliHistory",
+            );
+            break;
+          }
+
+          default:
+            this.outputChannel.appendLine(
+              `[Sidebar] Unknown message type: ${message.type}`,
+            );
         }
+      },
+    );
+
+    this.refresh();
+  }
+
+  public async refresh() {
+    if (!this._view) {
+      return;
+    }
+    this.outputChannel.appendLine("[Sidebar] Refreshing contract data…");
+
+    const discovered = this._discoverContracts();
+    const ordered = this.reorderingService.applyOrder(discovered);
+
+    // Build dependency graph
+    await this._enrichWithDependencyInfo(ordered);
+
+    // Enrich with status info
+    this._enrichWithStatusInfo(ordered);
+    this._lastContracts = ordered;
+
+    const deployments = this._getDeploymentHistory();
+    const versionStates = this._getVersionStates(ordered);
+    const networkStatus = this._getNetworkStatus();
+    this._view.webview.postMessage({
+      type: "update",
+      contracts: ordered,
+      deployments,
+      versionStates,
+      dependencyGraph: this.dependencyGraph
+        ? this._serializeDependencyGraph()
+        : null,
+      networkStatus,
+    });
+    this.refreshHistory();
+  }
+
+  private refreshHistory() {
+    if (!this._view) {
+      return;
+    }
+    if (this._cliHistoryService) {
+      const entries = this._cliHistoryService.queryHistory();
+      this._view.webview.postMessage({ type: "cliHistory:data", entries });
+    }
+  }
+
+  /** Expose versionTracker for use by commands (e.g. deployContract). */
+  public getVersionTracker(): ContractVersionTracker {
+    return this.versionTracker;
+  }
+
+  public postCliVersionWarning(data: {
+    compatible: boolean;
+    currentVersion: string;
+    requiredVersion: string;
+    message: string;
+    upgradeCommand?: string;
+  }) {
+    this._view?.webview.postMessage({ type: "cli:versionWarning", data });
+  }
+
+  public showDeploymentResult(deploymentInfo: unknown) {
+    this.outputChannel.appendLine(
+      `[Sidebar] Deployment result: ${JSON.stringify(deploymentInfo)} `,
+    );
+    this.refresh();
+  }
+
+  public showSimulationResult(contractId: string, result: unknown) {
+    this.outputChannel.appendLine(
+      `[Sidebar] Simulation result for ${contractId}: ${JSON.stringify(result)} `,
+    );
+    this.refresh();
+  }
+
+  // ── Contract discovery ────────────────────────────────────────
+
+  private _discoverContracts(): ContractInfo[] {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+      return [];
     }
 
-    /** Expose versionTracker for use by commands (e.g. deployContract). */
-    public getVersionTracker(): ContractVersionTracker {
-        return this.versionTracker;
+    const deploymentHistory = this._getDeploymentHistory();
+    const hidden = this._context.workspaceState.get<string[]>(
+      "stellarSuite.hiddenContracts",
+      [],
+    );
+    const aliases = this._context.workspaceState.get<Record<string, string>>(
+      "stellarSuite.contractAliases",
+      {},
+    );
+    const pinned = this._context.workspaceState.get<string[]>(
+      "stellarSuite.pinnedContracts",
+      [],
+    );
+    const networkOverrides = this._context.workspaceState.get<
+      Record<string, string>
+    >("stellarSuite.contractNetworkOverrides", {});
+    const manualTemplateAssignments = this._context.workspaceState.get<
+      Record<string, string>
+    >("stellarSuite.manualTemplateAssignments", {});
+
+    const contracts: ContractInfo[] = [];
+
+    for (const folder of workspaceFolders) {
+      const templateConfig = this.templateService.loadTemplateConfiguration(
+        folder.uri.fsPath,
+      );
+      if (templateConfig.warnings.length > 0) {
+        for (const warning of templateConfig.warnings) {
+          this.outputChannel.appendLine(`[Template] ${warning} `);
+        }
+      }
+
+      const found = this._findContracts(
+        folder.uri.fsPath,
+        0,
+        deploymentHistory,
+        {
+          customTemplates: templateConfig.templates,
+          manualTemplateAssignments,
+        },
+      );
+      for (const c of found) {
+        if (hidden.includes(c.path)) {
+          continue;
+        }
+        if (aliases[c.path]) {
+          c.name = aliases[c.path];
+        }
+        c.isPinned = pinned.includes(c.path);
+        if (networkOverrides[c.path]) {
+          c.network = networkOverrides[c.path];
+        }
+        contracts.push(c);
+      }
     }
 
-    public postCliVersionWarning(data: { compatible: boolean; currentVersion: string; requiredVersion: string; message: string; upgradeCommand?: string }) {
-        this._view?.webview.postMessage({ type: 'cli:versionWarning', data });
+    this.outputChannel.appendLine(
+      `[Sidebar] Discovered ${contracts.length} contract(s)`,
+    );
+    return contracts;
+  }
+
+  private _findContracts(
+    rootPath: string,
+    depth = 0,
+    deploymentHistory: DeploymentRecord[] = [],
+    options?: {
+      customTemplates?: TemplateDefinition[];
+      manualTemplateAssignments?: Record<string, string>;
+    },
+  ): ContractInfo[] {
+    if (depth > 4) {
+      return [];
+    }
+    const results: ContractInfo[] = [];
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(rootPath, { withFileTypes: true });
+    } catch {
+      return [];
     }
 
-    public showDeploymentResult(deploymentInfo: unknown) {
-        this.outputChannel.appendLine(`[Sidebar] Deployment result: ${JSON.stringify(deploymentInfo)} `);
-        this.refresh();
-    }
+    const hasCargoToml = entries.some(
+      (e) => e.isFile() && e.name === "Cargo.toml",
+    );
 
-    public showSimulationResult(contractId: string, result: unknown) {
-        this.outputChannel.appendLine(`[Sidebar] Simulation result for ${contractId}: ${JSON.stringify(result)} `);
-        this.refresh();
-    }
+    if (hasCargoToml) {
+      const cargoPath = path.join(rootPath, "Cargo.toml");
+      const cargoContent = fs.readFileSync(cargoPath, "utf-8");
 
-    // ── Contract discovery ────────────────────────────────────────
+      if (cargoContent.includes("soroban-sdk")) {
+        const nameMatch = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
+        const contractName = nameMatch ? nameMatch[1] : path.basename(rootPath);
 
-    private _discoverContracts(): ContractInfo[] {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders) { return []; }
+        const wasmPath = path.join(
+          rootPath,
+          "target",
+          "wasm32-unknown-unknown",
+          "release",
+        );
+        const isBuilt =
+          fs.existsSync(wasmPath) &&
+          fs.readdirSync(wasmPath).some((f: string) => f.endsWith(".wasm"));
 
-        const deploymentHistory = this._getDeploymentHistory();
-        const hidden = this._context.workspaceState.get<string[]>('stellarSuite.hiddenContracts', []);
-        const aliases = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
-        const pinned = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
-        const networkOverrides = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractNetworkOverrides', {});
-        const manualTemplateAssignments = this._context.workspaceState.get<Record<string, string>>(
-            'stellarSuite.manualTemplateAssignments',
-            {}
+        const deployedContracts = this._context.workspaceState.get<
+          Record<string, string>
+        >("stellarSuite.deployedContracts", {});
+        const contractId = deployedContracts[rootPath];
+        const config = vscode.workspace.getConfiguration("stellarSuite");
+        const lastDeployment = contractId
+          ? [...deploymentHistory]
+              .reverse()
+              .find((d) => d.contractId === contractId)
+          : undefined;
+
+        // ── Version info ──────────────────────────────
+        const versionState = this.versionTracker.getContractVersionState(
+          cargoPath,
+          contractName,
         );
 
-        const contracts: ContractInfo[] = [];
+        const manualTemplateAssignments = this._context.workspaceState.get<
+          Record<string, string>
+        >("stellarSuite.manualTemplateAssignments", {});
 
-        for (const folder of workspaceFolders) {
-            const templateConfig = this.templateService.loadTemplateConfiguration(folder.uri.fsPath);
-            if (templateConfig.warnings.length > 0) {
-                for (const warning of templateConfig.warnings) {
-                    this.outputChannel.appendLine(`[Template] ${warning} `);
-                }
-            }
+        // FIX: Removed duplicate manualTemplateId key; keeping the one that uses manualTemplateAssignments
+        const templateResult = this.templateService.detectTemplate({
+          cargoTomlPath: cargoPath,
+          contractDir: rootPath,
+          contractName,
+          manualTemplateId: manualTemplateAssignments[cargoPath],
+          customTemplates: [],
+        });
 
-            const found = this._findContracts(folder.uri.fsPath, 0, deploymentHistory, {
-                customTemplates: templateConfig.templates,
-                manualTemplateAssignments,
-            });
-            for (const c of found) {
-                if (hidden.includes(c.path)) { continue; }
-                if (aliases[c.path]) { c.name = aliases[c.path]; }
-                c.isPinned = pinned.includes(c.path);
-                if (networkOverrides[c.path]) { c.network = networkOverrides[c.path]; }
-                contracts.push(c);
-            }
-        }
-
-        this.outputChannel.appendLine(`[Sidebar] Discovered ${contracts.length} contract(s)`);
-        return contracts;
-    }
-
-    private _findContracts(
-        rootPath: string,
-        depth = 0,
-        deploymentHistory: DeploymentRecord[] = [],
-        options?: {
-            customTemplates?: TemplateDefinition[];
-            manualTemplateAssignments?: Record<string, string>;
-        }
-    ): ContractInfo[] {
-        if (depth > 4) { return []; }
-        const results: ContractInfo[] = [];
-
-        let entries: fs.Dirent[];
-        try {
-            entries = fs.readdirSync(rootPath, { withFileTypes: true });
-        } catch {
-            return [];
-        }
-
-        const hasCargoToml = entries.some(e => e.isFile() && e.name === 'Cargo.toml');
-
-        if (hasCargoToml) {
-            const cargoPath = path.join(rootPath, 'Cargo.toml');
-            const cargoContent = fs.readFileSync(cargoPath, 'utf-8');
-
-            if (cargoContent.includes('soroban-sdk')) {
-                const nameMatch = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
-                const contractName = nameMatch ? nameMatch[1] : path.basename(rootPath);
-
-                const wasmPath = path.join(rootPath, 'target', 'wasm32-unknown-unknown', 'release');
-                const isBuilt = fs.existsSync(wasmPath) &&
-                    fs.readdirSync(wasmPath).some((f: string) => f.endsWith('.wasm'));
-
-                const deployedContracts = this._context.workspaceState.get<Record<string, string>>(
-                    'stellarSuite.deployedContracts', {}
-                );
-                const contractId = deployedContracts[rootPath];
-                const config = vscode.workspace.getConfiguration('stellarSuite');
-                const lastDeployment = contractId
-                    ? [...deploymentHistory].reverse().find(d => d.contractId === contractId)
-                    : undefined;
-
-                // ── Version info ──────────────────────────────
-                const versionState = this.versionTracker.getContractVersionState(
-                    cargoPath, contractName
-                );
-
-                const manualTemplateAssignments = this._context.workspaceState.get<Record<string, string>>(
-                    'stellarSuite.manualTemplateAssignments',
-                    {}
-                );
-
-                // FIX: Removed duplicate manualTemplateId key; keeping the one that uses manualTemplateAssignments
-                const templateResult = this.templateService.detectTemplate({
-                    cargoTomlPath: cargoPath,
-                    contractDir: rootPath,
-                    contractName,
-                    manualTemplateId: manualTemplateAssignments[cargoPath],
-                    customTemplates: [],
-                });
-
-                results.push({
-                    name: contractName,
-                    path: cargoPath,
-                    contractId,
-                    isBuilt,
-                    hasWasm: isBuilt,
-                    deployedAt: lastDeployment?.deployedAt,
-                    lastDeployed: lastDeployment?.deployedAt,
-                    network: lastDeployment?.network ?? config.get<string>('network', 'testnet'),
-                    source: lastDeployment?.source ?? config.get<string>('source', 'dev'),
-                    localVersion: versionState.localVersion,
-                    deployedVersion: versionState.deployedVersion,
-                    hasVersionMismatch: versionState.hasMismatch,
-                    versionMismatchMessage: versionState.mismatch?.message,
-                    templateId: templateResult.templateId,
-                    templateCategory: templateResult.category,
-                    templateDisplayName: templateResult.displayName,
-                    templateSource: templateResult.source,
-                    templateConfidence: templateResult.confidence,
-                    templateMatchedPatterns: templateResult.matchedPatterns,
-                });
-                return results;
-            }
-        }
-
-        for (const entry of entries) {
-            if (!entry.isDirectory()) { continue; }
-            if (['target', 'node_modules', '.git', 'out'].includes(entry.name)) { continue; }
-            results.push(...this._findContracts(path.join(rootPath, entry.name), depth + 1, deploymentHistory));
-        }
-
+        results.push({
+          name: contractName,
+          path: cargoPath,
+          contractId,
+          isBuilt,
+          hasWasm: isBuilt,
+          deployedAt: lastDeployment?.deployedAt,
+          lastDeployed: lastDeployment?.deployedAt,
+          network:
+            lastDeployment?.network ?? config.get<string>("network", "testnet"),
+          source: lastDeployment?.source ?? config.get<string>("source", "dev"),
+          localVersion: versionState.localVersion,
+          deployedVersion: versionState.deployedVersion,
+          hasVersionMismatch: versionState.hasMismatch,
+          versionMismatchMessage: versionState.mismatch?.message,
+          templateId: templateResult.templateId,
+          templateCategory: templateResult.category,
+          templateDisplayName: templateResult.displayName,
+          templateSource: templateResult.source,
+          templateConfidence: templateResult.confidence,
+          templateMatchedPatterns: templateResult.matchedPatterns,
+        });
         return results;
+      }
     }
 
-    private _getDeploymentHistory(): DeploymentRecord[] {
-        return this._context.workspaceState.get<DeploymentRecord[]>('stellarSuite.deploymentHistory', []);
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      if (["target", "node_modules", ".git", "out"].includes(entry.name)) {
+        continue;
+      }
+      results.push(
+        ...this._findContracts(
+          path.join(rootPath, entry.name),
+          depth + 1,
+          deploymentHistory,
+        ),
+      );
     }
 
-    private _getVersionStates(contracts: ContractInfo[]): ContractVersionState[] {
-        return contracts.map(c =>
-            this.versionTracker.getContractVersionState(c.path, c.name)
+    return results;
+  }
+
+  private _getDeploymentHistory(): DeploymentRecord[] {
+    return this._context.workspaceState.get<DeploymentRecord[]>(
+      "stellarSuite.deploymentHistory",
+      [],
+    );
+  }
+
+  private _getVersionStates(contracts: ContractInfo[]): ContractVersionState[] {
+    return contracts.map((c) =>
+      this.versionTracker.getContractVersionState(c.path, c.name),
+    );
+  }
+
+  private _getSimulationHistoryService(): SimulationHistoryService | undefined {
+    if (!this._simulationHistoryService) {
+      this._simulationHistoryService = new SimulationHistoryService(
+        this._context,
+        this.outputChannel,
+      );
+    }
+    return this._simulationHistoryService;
+  }
+
+  /**
+   * Enrich contract info with dependency data
+   */
+  private async _enrichWithDependencyInfo(
+    contracts: ContractInfo[],
+  ): Promise<void> {
+    try {
+      const metadataService = new ContractMetadataService(
+        vscode.workspace as any,
+        this.outputChannel,
+      );
+      const scan = await metadataService.scanWorkspace();
+
+      if (scan.contracts.length === 0) {
+        return;
+      }
+
+      this.dependencyGraph = await this.dependencyService.buildDependencyGraph(
+        scan.contracts,
+        {
+          detectImports: true,
+          includeDevDependencies: false,
+          includeBuildDependencies: true,
+        },
+      );
+
+      for (const contract of contracts) {
+        const contractMeta = scan.contracts.find(
+          (c) => c.cargoTomlPath === contract.path,
         );
-    }
-
-    private _getSimulationHistoryService(): SimulationHistoryService | undefined {
-        if (!this._simulationHistoryService) {
-            this._simulationHistoryService = new SimulationHistoryService(
-                this._context,
-                this.outputChannel
-            );
-        }
-        return this._simulationHistoryService;
-    }
-
-    /**
-     * Enrich contract info with dependency data
-     */
-    private async _enrichWithDependencyInfo(contracts: ContractInfo[]): Promise<void> {
-        try {
-            const metadataService = new ContractMetadataService(
-                vscode.workspace as any,
-                this.outputChannel
-            );
-            const scan = await metadataService.scanWorkspace();
-
-            if (scan.contracts.length === 0) {
-                return;
-            }
-
-            this.dependencyGraph = await this.dependencyService.buildDependencyGraph(scan.contracts, {
-                detectImports: true,
-                includeDevDependencies: false,
-                includeBuildDependencies: true,
-            });
-
-            for (const contract of contracts) {
-                const contractMeta = scan.contracts.find(c => c.cargoTomlPath === contract.path);
-                if (!contractMeta) {
-                    continue;
-                }
-
-                const node = Array.from(this.dependencyGraph.nodes.values()).find(
-                    n => n.name === contractMeta.contractName
-                );
-
-                if (node) {
-                    contract.dependencies = node.dependencies;
-                    contract.dependents = node.dependents;
-                    contract.dependencyCount = node.dependencyCount;
-                    contract.dependentCount = node.dependentCount;
-                    contract.dependencyDepth = node.depth;
-                    contract.hasCircularDependency = this.dependencyGraph.cycles.some(cycle =>
-                        cycle.some(path => path.includes(contractMeta.contractName))
-                    );
-                }
-            }
-        } catch (error) {
-            this.outputChannel.appendLine(`[Sidebar] Failed to build dependency graph: ${error}`);
-        }
-    }
-
-    private _enrichWithStatusInfo(contracts: ContractInfo[]): void {
-        const networkStatus = this._getNetworkStatus();
-
-        for (const contract of contracts) {
-            // Compilation status
-            const statusData = this._getCompilationStatusForContract(contract.path);
-            Object.assign(contract, statusData);
-
-            // Deploy status derived from contractId
-            contract.deployStatus = contract.contractId ? 'deployed' : 'idle';
-
-            // Network health
-            contract.networkHealth = networkStatus.networkHealth;
-            contract.networkHealthDetail = networkStatus.networkHealthDetail;
-        }
-    }
-
-    /**
-     * Serialize dependency graph for webview
-     */
-    private _serializeDependencyGraph(): any {
-        if (!this.dependencyGraph) {
-            return null;
+        if (!contractMeta) {
+          continue;
         }
 
-        return {
-            nodes: Array.from(this.dependencyGraph.nodes.values()).map(node => ({
-                name: node.name,
-                dependencies: node.dependencies,
-                dependents: node.dependents,
-                dependencyCount: node.dependencyCount,
-                dependentCount: node.dependentCount,
-                depth: node.depth,
-                isExternal: node.isExternal,
-            })),
-            edges: this.dependencyGraph.edges.map(edge => ({
-                from: edge.from,
-                to: edge.to,
-                reason: edge.reason,
-                dependencyName: edge.dependencyName,
-                source: edge.source,
-                isExternal: edge.isExternal,
-            })),
-            cycles: this.dependencyGraph.cycles,
-            deploymentOrder: this.dependencyGraph.deploymentOrder,
-            deploymentLevels: this.dependencyGraph.deploymentLevels,
-            statistics: this.dependencyGraph.statistics,
-        };
+        const node = Array.from(this.dependencyGraph.nodes.values()).find(
+          (n) => n.name === contractMeta.contractName,
+        );
+
+        if (node) {
+          contract.dependencies = node.dependencies;
+          contract.dependents = node.dependents;
+          contract.dependencyCount = node.dependencyCount;
+          contract.dependentCount = node.dependentCount;
+          contract.dependencyDepth = node.depth;
+          contract.hasCircularDependency = this.dependencyGraph.cycles.some(
+            (cycle) =>
+              cycle.some((path) => path.includes(contractMeta.contractName)),
+          );
+        }
+      }
+    } catch (error) {
+      this.outputChannel.appendLine(
+        `[Sidebar] Failed to build dependency graph: ${error}`,
+      );
+    }
+  }
+
+  private _enrichWithStatusInfo(contracts: ContractInfo[]): void {
+    const networkStatus = this._getNetworkStatus();
+
+    for (const contract of contracts) {
+      // Compilation status
+      const statusData = this._getCompilationStatusForContract(contract.path);
+      Object.assign(contract, statusData);
+
+      // Deploy status derived from contractId
+      contract.deployStatus = contract.contractId ? "deployed" : "idle";
+
+      // Network health
+      contract.networkHealth = networkStatus.networkHealth;
+      contract.networkHealthDetail = networkStatus.networkHealthDetail;
+    }
+  }
+  /**
+   * Serialize dependency graph for webview
+   */
+  private _serializeDependencyGraph(): any {
+    if (!this.dependencyGraph) {
+      return null;
     }
 
-    // ── HTML ──────────────────────────────────────────────────
+    return {
+      nodes: Array.from(this.dependencyGraph.nodes.values()).map((node) => ({
+        name: node.name,
+        dependencies: node.dependencies,
+        dependents: node.dependents,
+        dependencyCount: node.dependencyCount,
+        dependentCount: node.dependentCount,
+        depth: node.depth,
+        isExternal: node.isExternal,
+      })),
+      edges: this.dependencyGraph.edges.map((edge) => ({
+        from: edge.from,
+        to: edge.to,
+        reason: edge.reason,
+        dependencyName: edge.dependencyName,
+        source: edge.source,
+        isExternal: edge.isExternal,
+      })),
+      cycles: this.dependencyGraph.cycles,
+      deploymentOrder: this.dependencyGraph.deploymentOrder,
+      deploymentLevels: this.dependencyGraph.deploymentLevels,
+      statistics: this.dependencyGraph.statistics,
+    };
+  }
 
-    private _getHtmlForWebview(_webview: vscode.Webview): string {
-        return /* html */`<!DOCTYPE html>
+  // ── HTML ──────────────────────────────────────────────────
+
+  private _getHtmlForWebview(_webview: vscode.Webview): string {
+    return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1284,6 +1524,92 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         .badge-template-custom  { background: rgba(187, 134, 252, .14); color: #c59bff; border: 1px solid rgba(187, 134, 252, .36); }
         .badge-template-unknown { background: rgba(255,255,255,.05); color: var(--color-muted); border: 1px solid var(--color-border); }
 
+<<<<<<< HEAD
+        /* ── Dependency info ─────────────────────────────────────── */
+        .dependency-info {
+            display:      flex;
+            flex-wrap:    wrap;
+            gap:          4px;
+            margin-top:   6px;
+            margin-bottom: 8px;
+        }
+        .dep-badge {
+            background:   rgba(100, 150, 255, .12);
+            color:        #88b4ff;
+            border:       1px solid rgba(100, 150, 255, .3);
+            padding:      2px 6px;
+            border-radius: 8px;
+            white-space:  nowrap;
+            font-size:    9px;
+            font-weight:  500;
+        }
+        .dep-circular {
+            background:   rgba(241, 76, 76, .15);
+            color:        var(--color-danger);
+            border:       1px solid rgba(241, 76, 76, .4);
+            font-weight:  600;
+        }
+
+        .contract-meta {
+            font-size:     11px;
+            color:         var(--color-muted);
+            margin-bottom: 8px;
+            line-height:   1.5;
+        }
+        .contract-id {
+            font-family:   monospace;
+            font-size:     10px;
+            color:         var(--color-muted);
+            word-break:    break-all;
+            margin-bottom: 6px;
+            background:    rgba(255,255,255,.04);
+            padding:       3px 5px;
+            border-radius: 3px;
+        }
+
+        .card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        .action-btn {
+            background:    var(--color-btn-bg);
+            color:         var(--color-btn-fg);
+            border:        none;
+            border-radius: 4px;
+            padding:       4px 10px;
+            font-size:     11px;
+            font-weight:   500;
+            cursor:        pointer;
+            transition:    background 0.15s;
+        }
+        .action-btn:hover    { background: var(--color-btn-hover); }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .action-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--color-border);
+            color: var(--color-fg);
+        }
+        .action-btn.secondary:hover { background: var(--color-card-hover); }
+
+        /* ── Context Menu ───────────────────────────────────────── */
+        #context-menu {
+            position: fixed;
+            background: var(--vscode-menu-background, var(--color-card));
+            border: 1px solid var(--vscode-menu-border, var(--color-border));
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            min-width: 200px;
+            max-width: 260px;
+            z-index: 1000;
+            overflow: hidden;
+            padding: 4px 0;
+            display: none;
+            animation:     menuIn 0.08s ease;
+        }
+        @keyframes menuIn {
+            from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+        #context-menu.visible { display: block; }
+
+=======
         /* ── Status indicators ─────────────────────────────────── */
         .status-indicators {
             display: flex;
@@ -1427,6 +1753,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         }
         #context-menu.visible { display: block; }
 
+>>>>>>> upstream/main
         .menu-item {
             display: flex;
             align-items: center;
@@ -1622,6 +1949,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             color: var(--color-danger);
             margin-bottom: 8px;
         }
+<<<<<<< HEAD
+=======
         .cli-version-warning {
             background: rgba(255, 167, 38, .1);
             border: 1px solid rgba(255, 167, 38, .4);
@@ -1641,6 +1970,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             padding: 0;
             line-height: 1;
         }
+>>>>>>> upstream/main
 
         /* ── Deployments ────────────────────────────────────────── */
         #deployments-list { padding: 0 8px 16px; }
@@ -1953,9 +2283,12 @@ window.addEventListener('message', (event) => {
             renderFilteredContracts();
             renderDeployments(msg.deployments || []);
             renderVersionMismatches(_versionStates);
+<<<<<<< HEAD
+=======
             if (msg.networkStatus) {
                 updateNetworkBanner(msg.networkStatus.networkHealth, msg.networkStatus.networkHealthDetail);
             }
+>>>>>>> upstream/main
             break;
         case 'contextMenu:show':
             showContextMenu(msg);
@@ -1985,6 +2318,8 @@ window.addEventListener('message', (event) => {
                 });
             }
             break;
+<<<<<<< HEAD
+=======
         case 'cli:versionWarning':
             renderCliVersionWarning(msg.data);
             break;
@@ -2009,6 +2344,7 @@ window.addEventListener('message', (event) => {
             updateNetworkBanner(msg.networkHealth, msg.networkHealthDetail);
             break;
         }
+>>>>>>> upstream/main
     }
 });
 
@@ -2511,6 +2847,8 @@ function renderContracts(contracts, totalCount = contracts.length) {
                     \${c.hasCircularDependency ? \`<span class="dep-badge dep-circular" title="Circular dependency detected">⚠️ circular</span>\` : ''}
                 </div>
             \` : ''}
+<<<<<<< HEAD
+=======
 
             <div class="status-indicators" data-status-path="\${esc(c.path)}">
                 <span class="status-dot status-build-\${c.buildStatus || 'idle'}\${c.buildStatus === 'in_progress' ? ' status-spin' : ''}"
@@ -2533,6 +2871,7 @@ function renderContracts(contracts, totalCount = contracts.length) {
                     </span>
                 \` : ''}
             </div>
+>>>>>>> upstream/main
 
             <div class="card-actions">
                 <button class="action-btn"
@@ -2855,6 +3194,8 @@ function renderVersionMismatches(states) {
     contractsList?.parentNode?.insertBefore(banner, contractsList);
 }
 
+<<<<<<< HEAD
+=======
 // ── CLI version warning banner ────────────────────────────────
 
 function renderCliVersionWarning(data) {
@@ -2876,6 +3217,7 @@ function renderCliVersionWarning(data) {
     contractsList?.parentNode?.insertBefore(banner, contractsList);
 }
 
+>>>>>>> upstream/main
 // ── Version history panel ─────────────────────────────────────
 
 function showVersionHistory(contractPath, card) {
@@ -3080,5 +3422,5 @@ function esc(str) {
 <\/script>
 <\/body>
 <\/html>`;
-    }
+  }
 }

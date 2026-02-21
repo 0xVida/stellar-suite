@@ -179,7 +179,6 @@ Settings can be configured in VS Code settings under `stellarSuite.notifications
 - **Verbose** – All types, longer duration, sound and actions enabled
 
 User preferences (saved via the Notification Preferences UI) override the above settings.
-
 ## Integration Example
 
 Here's how to integrate the toast notification system in a command:
@@ -275,6 +274,8 @@ Run the unit tests:
 
 ```bash
 npm run test:toast-notification
+```
+
 npm run test:notification-preferences
 ```
 
@@ -333,5 +334,6 @@ Potential future improvements:
 - Custom webview for richer notification UI
 - Notification templates
 - Persistent notification history
+- User preference for notification position
 - Sound playback when `soundEnabled` is true (API-dependent)
 - Desktop notifications integration

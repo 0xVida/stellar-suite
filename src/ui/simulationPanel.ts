@@ -36,13 +36,20 @@ export class SimulationPanel {
 
     // Handle messages from the webview
     this._panel.webview.onDidReceiveMessage(
-      async (message: { command: string }) => {
+      async (message: {
+        command: string;
+        chartId?: string;
+        dataUrl?: string;
+      }) => {
         switch (message.command) {
           case "refresh":
             this._update();
             return;
           case "exportStateDiff":
             await this.exportStateDiff();
+            return;
+          case "exportChartAsPng":
+            await this._exportChartAsPng(message.chartId!, message.dataUrl!);
             return;
           case "exportAsJson":
             await this.exportCurrentResult("json");
@@ -209,6 +216,34 @@ export class SimulationPanel {
     }
   }
 
+  private async _exportChartAsPng(chartId: string, dataUrl: string) {
+    if (!dataUrl) {
+      vscode.window.showErrorMessage(`Failed to export chart: ${chartId}`);
+      return;
+    }
+
+    try {
+      const uri = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file(`simulation-chart-${chartId}.png`),
+        filters: {
+          Images: ["png"],
+        },
+      });
+
+      if (uri) {
+        // Remove the data:image/png;base64, prefix
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+        const imageBuffer = Buffer.from(base64Data, "base64");
+
+        await vscode.workspace.fs.writeFile(uri, imageBuffer);
+        vscode.window.showInformationMessage(`Chart exported to ${uri.fsPath}`);
+      }
+    } catch (error) {
+      console.error("Error saving chart image:", error);
+      vscode.window.showErrorMessage(`Failed to save chart: ${error}`);
+    }
+  }
+
   private sanitizeForFileName(value: string): string {
     return value.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 48) || "simulation";
   }
@@ -244,7 +279,6 @@ export class SimulationPanel {
 </body>
 </html>`;
   }
-
   private _getChartsHtml(result: SimulationResult): string {
     const sections: string[] = [];
 
@@ -362,7 +396,6 @@ export class SimulationPanel {
     const statusClass = result.success ? "success" : "error";
     const statusIcon = result.success ? "✓" : "✗";
     const statusText = result.success ? "Success" : "Failed";
-
     const resourceUsageHtml = result.resourceUsage
       ? `
             <div class="section">
@@ -716,7 +749,6 @@ export class SimulationPanel {
     ${stateDiffHtml}
 
     ${this._getChartsHtml(result)}
-
     <script>
         const vscode = acquireVsCodeApi();
         function exportStateDiff() {

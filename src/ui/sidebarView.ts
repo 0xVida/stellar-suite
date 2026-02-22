@@ -51,7 +51,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         this.refresh();
 
         webviewView.webview.onDidReceiveMessage(
-            async message => {
+            async (message: any) => {
                 try {
                     switch (message.command) {
                         case 'refresh':
@@ -84,6 +84,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                                 type: 'cliHistory:data',
                                 history: history
                             });
+                            break;
+                        case 'clearDeployments':
+                            await this.clearDeployments();
                             break;
                     }
                 } catch (error) {
@@ -207,8 +210,16 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
             'stellarSuite.deploymentHistory',
             []
         );
-        deploymentHistory.push(deployment);
-        this._context.workspaceState.update('stellarSuite.deploymentHistory', deploymentHistory);
+        
+        const exists = deploymentHistory.some(d => 
+            d.contractId === deployment.contractId && 
+            d.deployedAt === deployment.deployedAt
+        );
+        
+        if (!exists) {
+            deploymentHistory.push(deployment);
+            this._context.workspaceState.update('stellarSuite.deploymentHistory', deploymentHistory);
+        }
         
         const deployedContracts = this._context.workspaceState.get<Record<string, string>>(
             'stellarSuite.deployedContracts',
@@ -222,5 +233,41 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
     public showSimulationResult(contractId: string, result: any) {
         this.refresh();
+    }
+
+    public async clearDeployments() {
+        await this._context.workspaceState.update('stellarSuite.deploymentHistory', []);
+        await this._context.workspaceState.update('stellarSuite.deployedContracts', {});
+        await this._context.workspaceState.update('lastContractId', undefined);
+        await this.refresh();
+    }
+
+    public addCliHistoryEntry(command: string, args?: string[]) {
+        const history = this._context.workspaceState.get<any[]>(
+            'stellarSuite.cliHistory',
+            []
+        );
+        
+        const entry = {
+            command: command,
+            args: args || [],
+            timestamp: new Date().toISOString()
+        };
+        
+        history.push(entry);
+        
+        if (history.length > 50) {
+            history.shift();
+        }
+        
+        this._context.workspaceState.update('stellarSuite.cliHistory', history);
+        
+        if (this._view && this._webView) {
+            const currentHistory = this.getCliHistory();
+            this._view.webview.postMessage({
+                type: 'cliHistory:data',
+                history: currentHistory
+            });
+        }
     }
 }

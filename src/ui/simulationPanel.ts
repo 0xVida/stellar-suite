@@ -120,7 +120,7 @@ export class SimulationPanel {
         };
 
         const statusClass = result.success ? 'success' : 'error';
-        const statusIcon = result.success ? '✓' : '✗';
+        const statusIcon = result.success ? '[OK]' : '[FAIL]';
         const statusText = result.success ? 'Success' : 'Failed';
 
         const resourceUsageHtml = result.resourceUsage

@@ -211,6 +211,11 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     } else {
                         progress.report({ increment: 50, message: 'Executing simulation...' });
                         result = await cliService.simulateTransaction(contractId, functionName, args, network);
+                        
+                        if (sidebarProvider) {
+                            const argsStr = args.length > 0 ? JSON.stringify(args) : '';
+                            sidebarProvider.addCliHistoryEntry('stellar contract invoke', ['--id', contractId, '--source', source, '--network', network, '--', functionName, argsStr].filter(Boolean));
+                        }
                     }
                 } else {
                     progress.report({ increment: 30, message: 'Connecting to RPC...' });
@@ -218,6 +223,11 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     
                     progress.report({ increment: 50, message: 'Executing simulation...' });
                     result = await rpcService.simulateTransaction(contractId, functionName, args);
+                    
+                    if (sidebarProvider) {
+                        const argsStr = args.length > 0 ? JSON.stringify(args[0]) : '';
+                        sidebarProvider.addCliHistoryEntry('RPC simulateTransaction', [contractId, functionName, argsStr].filter(Boolean));
+                    }
                 }
 
                 progress.report({ increment: 100, message: 'Complete' });

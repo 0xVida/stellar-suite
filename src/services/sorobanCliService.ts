@@ -1,19 +1,8 @@
 import { execFile, exec } from 'child_process';
 import { promisify } from 'util';
+import { formatCliError } from '../utils/errorFormatter';
 import * as os from 'os';
 import * as path from 'path';
-
-function formatCliError(stderr: string): string {
-    const lines = stderr.split('\n').filter(line => line.trim().length > 0);
-    
-    for (const line of lines) {
-        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
-            return line.trim();
-        }
-    }
-
-    return lines[0] || stderr.trim() || 'Unknown CLI error';
-}
 
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
@@ -119,7 +108,6 @@ export class SorobanCliService {
 
             try {
                 const output = stdout.trim();
-                
                 try {
                     const parsed = JSON.parse(output);
                     return {
@@ -143,7 +131,6 @@ export class SorobanCliService {
                             } : undefined
                         };
                     }
-
                     return {
                         success: true,
                         result: output
@@ -204,11 +191,6 @@ export class SorobanCliService {
             } catch {
             }
         }
-
         return null;
-    }
-
-    setSource(source: string): void {
-        this.source = source;
     }
 }

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "types": ["node", "jest", "mocha"],
+    "types": ["node", "vscode"],
     "module": "commonjs",
     "target": "ES2020",
     "outDir": "out",
@@ -14,5 +14,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
+  "exclude": ["node_modules", ".vscode-test", "**/*.test.ts", "src/test/**/*", "src/types/**/*"]
 }

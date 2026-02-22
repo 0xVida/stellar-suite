@@ -72,6 +72,26 @@ export class SidebarWebView {
             color: var(--vscode-foreground);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .section-title-text {
+            flex: 1;
+        }
+        .clear-btn {
+            background: transparent;
+            color: var(--vscode-descriptionForeground);
+            border: 1px solid var(--vscode-input-border);
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+        .clear-btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+            color: var(--vscode-foreground);
         }
         .filter-bar {
             display: flex;
@@ -250,7 +270,10 @@ export class SidebarWebView {
     </div>
 
     <div class="section">
-        <div class="section-title">Deployments</div>
+        <div class="section-title">
+            <span class="section-title-text">Deployments</span>
+            <button class="clear-btn" onclick="clearDeployments()">Clear</button>
+        </div>
         ${deploymentsHtml}
     </div>
 
@@ -280,6 +303,12 @@ export class SidebarWebView {
         
         function inspectContract(contractId) {
             vscode.postMessage({ command: 'inspectContract', contractId: contractId });
+        }
+        
+        function clearDeployments() {
+            if (confirm('Are you sure you want to clear all deployment history?')) {
+                vscode.postMessage({ command: 'clearDeployments' });
+            }
         }
 
         function applyFilters() {

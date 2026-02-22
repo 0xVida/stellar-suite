@@ -92,7 +92,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                                     return {
                                         label: path.basename(dir),
                                         description: dir,
-                                        detail: hasWasm ? '✓ WASM found' : '⚠ Needs build',
+                                        detail: hasWasm ? 'WASM found' : 'Needs build',
                                         value: dir
                                     };
                                 }),
@@ -228,7 +228,18 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                 if (deployFromWasm && wasmPath) {
                     progress.report({ increment: 30, message: 'Deploying from WASM...' });
                     outputChannel.appendLine(`\nDeploying contract from: ${wasmPath}`);
+                    outputChannel.appendLine('Running: stellar contract deploy\n');
                     result = await deployer.deployFromWasm(wasmPath);
+                    
+                    if (sidebarProvider) {
+                        sidebarProvider.addCliHistoryEntry('stellar contract deploy', ['--wasm', wasmPath, '--source', source, '--network', network]);
+                    }
+                    
+                    if (result.deployOutput) {
+                        outputChannel.appendLine('=== Deployment Output ===');
+                        outputChannel.appendLine(result.deployOutput);
+                        outputChannel.appendLine('');
+                    }
                 } else if (contractDir) {
                     progress.report({ increment: 10, message: 'Building contract...' });
                     outputChannel.appendLine(`\nBuilding contract in: ${contractDir}`);
@@ -236,9 +247,25 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                     
                     result = await deployer.buildAndDeploy(contractDir);
                     
+                    if (sidebarProvider) {
+                        sidebarProvider.addCliHistoryEntry('stellar contract build', [contractDir]);
+                        if (result.success && result.contractId) {
+                            const wasmPath = WasmDetector.getExpectedWasmPath(contractDir);
+                            const fs = require('fs');
+                            const actualWasmPath = wasmPath && fs.existsSync(wasmPath) ? wasmPath : 'unknown';
+                            sidebarProvider.addCliHistoryEntry('stellar contract deploy', ['--wasm', actualWasmPath, '--source', source, '--network', network]);
+                        }
+                    }
+                    
                     if (result.buildOutput) {
                         outputChannel.appendLine('=== Build Output ===');
                         outputChannel.appendLine(result.buildOutput);
+                        outputChannel.appendLine('');
+                    }
+                    
+                    if (result.deployOutput) {
+                        outputChannel.appendLine('=== Deployment Output ===');
+                        outputChannel.appendLine(result.deployOutput);
                         outputChannel.appendLine('');
                     }
                 } else {
@@ -251,7 +278,7 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                 outputChannel.appendLine('=== Deployment Result ===');
                 
                 if (result.success) {
-                    outputChannel.appendLine(`✅ Deployment successful!`);
+                    outputChannel.appendLine('Deployment successful!');
                     if (result.contractId) {
                         outputChannel.appendLine(`Contract ID: ${result.contractId}`);
                     }
@@ -270,43 +297,25 @@ export async function deployContract(context: vscode.ExtensionContext, sidebarPr
                         };
                         
                         context.workspaceState.update('lastContractId', result.contractId);
-                        
-                        const deploymentHistory = context.workspaceState.get<any[]>(
-                            'stellarSuite.deploymentHistory',
-                            []
-                        );
-                        deploymentHistory.push(deploymentRecord);
-                        context.workspaceState.update('stellarSuite.deploymentHistory', deploymentHistory);
-
-                        const deployedContracts = context.workspaceState.get<Record<string, string>>(
-                            'stellarSuite.deployedContracts',
-                            {}
-                        );
-                        if (contractDir) {
-                            deployedContracts[contractDir] = result.contractId;
-                        }
-                        context.workspaceState.update('stellarSuite.deployedContracts', deployedContracts);
 
                         if (sidebarProvider) {
                             sidebarProvider.showDeploymentResult(deploymentRecord);
                         }
 
-                        const action = await vscode.window.showInformationMessage(
-                            `Contract deployed successfully!\nContract ID: ${result.contractId}`,
-                            'Copy Contract ID',
-                            'Use for Simulation'
+                        vscode.window.showInformationMessage(
+                            `Contract deployed successfully! Contract ID: ${result.contractId}`
                         );
-
-                        if (action === 'Copy Contract ID' && result.contractId) {
-                            await vscode.env.clipboard.writeText(result.contractId);
-                            vscode.window.showInformationMessage('Contract ID copied to clipboard');
-                        } else if (action === 'Use for Simulation') {
-                            vscode.commands.executeCommand('stellarSuite.simulateTransaction');
-                        }
+                        
+                        await vscode.env.clipboard.writeText(result.contractId);
                     }
                 } else {
-                    outputChannel.appendLine(`❌ Deployment failed!`);
+                    outputChannel.appendLine('Deployment failed!');
                     outputChannel.appendLine(`Error: ${result.error || 'Unknown error'}`);
+                    
+                    if (result.buildOutput) {
+                        outputChannel.appendLine('\n=== Build Output ===');
+                        outputChannel.appendLine(result.buildOutput);
+                    }
                     
                     if (result.deployOutput) {
                         outputChannel.appendLine('\n=== Deployment Output ===');

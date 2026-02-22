@@ -78,15 +78,23 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
 
                 const deployer = new ContractDeployer(cliPath, 'dev', 'testnet');
                 const buildResult = await deployer.buildContract(contractDir);
+                
+                if (sidebarProvider) {
+                    sidebarProvider.addCliHistoryEntry('stellar contract build', [contractDir]);
+                }
 
                 progress.report({ increment: 90, message: 'Finalizing...' });
 
                 outputChannel.appendLine('=== Build Result ===');
                 
                 if (buildResult.success) {
-                    outputChannel.appendLine(`✅ Build successful!`);
+                    outputChannel.appendLine('Build successful!');
                     if (buildResult.wasmPath) {
                         outputChannel.appendLine(`WASM file: ${buildResult.wasmPath}`);
+                    }
+                    if (buildResult.output) {
+                        outputChannel.appendLine('\n=== Full Build Output ===');
+                        outputChannel.appendLine(buildResult.output);
                     }
                     vscode.window.showInformationMessage('Contract built successfully!');
                     
@@ -94,8 +102,12 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                         await sidebarProvider.refresh();
                     }
                 } else {
-                    outputChannel.appendLine(`❌ Build failed!`);
+                    outputChannel.appendLine('Build failed!');
                     outputChannel.appendLine(`Error: ${buildResult.output}`);
+                    if (buildResult.output) {
+                        outputChannel.appendLine('\n=== Full Build Output ===');
+                        outputChannel.appendLine(buildResult.output);
+                    }
                     vscode.window.showErrorMessage(`Build failed: ${buildResult.output}`);
                 }
 

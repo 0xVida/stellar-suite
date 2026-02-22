@@ -160,15 +160,20 @@ export class ContractDeployer {
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
             let errorOutput = errorMessage;
+            let fullOutput = errorMessage;
+            
             if (error instanceof Error && 'stderr' in error) {
-                errorOutput = (error as any).stderr || errorMessage;
+                const stderr = (error as any).stderr || '';
+                const stdout = (error as any).stdout || '';
+                fullOutput = stdout + stderr;
+                errorOutput = stderr || errorMessage;
             }
 
             return {
                 success: false,
-                error: errorOutput
+                error: errorOutput,
+                deployOutput: fullOutput
             };
         }
     }

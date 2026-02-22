@@ -1,0 +1,20 @@
+{
+  "name": "example",
+  "displayName": "Example Contract Template",
+  "description": "CONTRACT DETAILS: This is a placeholder template demonstrating the structure. Replace with actual contract description.",
+  "version": "0.1.0",
+  "category": "example",
+  "author": "CONTRACT AUTHOR",
+  "tags": ["example", "placeholder"],
+  "dependencies": {
+    "soroban-sdk": "20.0.0"
+  },
+  "functions": [
+    "CONTRACT FUNCTION 1",
+    "CONTRACT FUNCTION 2"
+  ],
+  "examples": [
+    "USAGE EXAMPLE 1: describe a typical invocation of this contract"
+  ],
+  "license": "Apache-2.0"
+}

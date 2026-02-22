@@ -24,7 +24,13 @@
     "onCommand:stellarSuite.simulateTransaction",
     "onCommand:stellarSuite.deployContract",
     "onCommand:stellarSuite.buildContract",
-    "onCommand:stellarSuite.refreshContracts"
+    "onCommand:stellarSuite.configureCli",
+    "onCommand:stellarSuite.refreshContracts",
+    "onCommand:stellarSuite.clearSimulationCache",
+    "onCommand:stellarSuite.showSimulationCacheStats",
+    "onCommand:stellarSuite.deployBatch",
+    "onCommand:stellarSuite.manageRpcAuth",
+    "onCommand:stellarSuite.manageEnvVariables"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -62,6 +68,21 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "stellarSuite.clearSimulationCache",
+        "title": "Stellar Suite: Clear Simulation Cache",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "stellarSuite.showSimulationCacheStats",
+        "title": "Stellar Suite: Simulation Cache Stats",
+        "icon": "$(info)"
+      },
+      {
+        "command": "stellarSuite.deployBatch",
+        "title": "Stellar Suite: Deploy Batch",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "stellarSuite.deployFromSidebar",
         "title": "Deploy Contract",
         "icon": "$(cloud-upload)"
@@ -74,6 +95,178 @@
       {
         "command": "stellarSuite.buildContract",
         "title": "Stellar Suite: Build Contract"
+      },
+      {
+        "command": "stellarSuite.configureCli",
+        "title": "Stellar Suite: Configure CLI"
+      },
+      {
+        "command": "stellarSuite.showSimulationHistory",
+        "title": "Stellar Suite: Show Simulation History"
+      },
+      {
+        "command": "stellarSuite.clearSimulationHistory",
+        "title": "Stellar Suite: Clear Simulation History"
+      },
+      {
+        "command": "stellarSuite.exportSimulationHistory",
+        "title": "Stellar Suite: Export Simulation History"
+      },
+      {
+        "command": "stellarSuite.importSimulationHistory",
+        "title": "Stellar Suite: Import Simulation History"
+      },
+      {
+        "command": "stellarSuite.searchSimulationHistory",
+        "title": "Stellar Suite: Search Simulation History"
+      },
+      {
+        "command": "stellarSuite.showCompilationStatus",
+        "title": "Stellar Suite: Show Compilation Status"
+      },
+      {
+        "command": "stellarSuite.createBackup",
+        "title": "Stellar Suite: Create State Backup"
+      },
+      {
+        "command": "stellarSuite.restoreBackup",
+        "title": "Stellar Suite: Restore State from Backup"
+      },
+      {
+        "command": "stellarSuite.showBackupHistory",
+        "title": "Stellar Suite: Show Backup History"
+      },
+      {
+        "command": "stellarSuite.deleteBackup",
+        "title": "Stellar Suite: Delete Backup"
+      },
+      {
+        "command": "stellarSuite.validateBackups",
+        "title": "Stellar Suite: Validate Backups"
+      },
+      {
+        "command": "stellarSuite.clearAllBackups",
+        "title": "Stellar Suite: Clear All Backups"
+      },
+      {
+        "command": "stellarSuite.exportBackups",
+        "title": "Stellar Suite: Export Backups"
+      },
+      {
+        "command": "stellarSuite.importBackups",
+        "title": "Stellar Suite: Import Backups"
+      },
+      {
+        "command": "stellarSuite.replaySimulation",
+        "title": "Stellar Suite: Replay Simulation"
+      },
+      {
+        "command": "stellarSuite.replayWithModifications",
+        "title": "Stellar Suite: Replay Simulation with Modifications"
+      },
+      {
+        "command": "stellarSuite.batchReplaySimulations",
+        "title": "Stellar Suite: Batch Replay Simulations"
+      },
+      {
+        "command": "stellarSuite.exportReplayResults",
+        "title": "Stellar Suite: Export Replay Results"
+      },
+      {
+        "command": "stellarSuite.compareSimulations",
+        "title": "Stellar Suite: Compare Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSelected",
+        "title": "Stellar Suite: Compare Selected Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLastN",
+        "title": "Stellar Suite: Compare Last N Simulations"
+      },
+      {
+        "command": "stellarSuite.compareSameContract",
+        "title": "Stellar Suite: Compare Simulations (Same Contract)"
+      },
+      {
+        "command": "stellarSuite.compareSameFunction",
+        "title": "Stellar Suite: Compare Simulations (Same Function)"
+      },
+      {
+        "command": "stellarSuite.showSimulationDiff",
+        "title": "Stellar Suite: Show Simulation Diff"
+      },
+      {
+        "command": "stellarSuite.compareWithPrevious",
+        "title": "Stellar Suite: Compare With Previous Simulation"
+      },
+      {
+        "command": "stellarSuite.compareTwoSimulations",
+        "title": "Stellar Suite: Compare Two Simulations"
+      },
+      {
+        "command": "stellarSuite.compareLatestWithAny",
+        "title": "Stellar Suite: Compare Latest With Any"
+      },
+      {
+        "command": "stellarSuite.showResourceProfile",
+        "title": "Stellar Suite: Show Resource Profile"
+      },
+      {
+        "command": "stellarSuite.compareResourceProfiles",
+        "title": "Stellar Suite: Compare Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.exportResourceProfiles",
+        "title": "Stellar Suite: Export Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.importResourceProfiles",
+        "title": "Stellar Suite: Import Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.showResourceStats",
+        "title": "Stellar Suite: Show Resource Statistics"
+      },
+      {
+        "command": "stellarSuite.clearResourceProfiles",
+        "title": "Stellar Suite: Clear Resource Profiles"
+      },
+      {
+        "command": "stellarSuite.manageRpcAuth",
+        "title": "Stellar Suite: Manage RPC Authentication"
+      },
+      {
+        "command": "stellarSuite.manageEnvVariables",
+        "title": "Stellar Suite: Manage Environment Variables"
+      },
+      {
+        "command": "stellarSuite.checkCliVersion",
+        "title": "Stellar Suite: Check CLI Version"
+      },
+      {
+        "command": "stellarSuite.openNotificationPreferences",
+        "title": "Stellar Suite: Open Notification Preferences"
+      },
+      {
+        "command": "stellarSuite.generateAbi",
+        "title": "Stellar Suite: Generate Contract ABI"
+      },
+      {
+        "command": "stellarSuite.exportAbi",
+        "title": "Stellar Suite: Export Contract ABI"
+      },
+      {
+        "command": "stellarSuite.importAbi",
+        "title": "Stellar Suite: Import Contract ABI"
+      },
+      {
+        "command": "stellarSuite.showAbiDetails",
+        "title": "Stellar Suite: Show ABI Details"
+      },
+      {
+        "command": "stellarSuite.parseContractSource",
+        "title": "Stellar Suite: Parse Contract Source Code"
       }
     ],
     "menus": {
@@ -97,6 +290,32 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "stellarSuite.buildContract",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.deployContract",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.simulateTransaction",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      },
+      {
+        "command": "stellarSuite.refreshContracts",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "focusedView == 'stellarSuite.contractsView'"
+      }
+    ],
     "configuration": {
       "title": "Stellar Suite",
       "properties": {
@@ -104,6 +323,40 @@
           "type": "string",
           "default": "https://soroban-testnet.stellar.org:443",
           "description": "Stellar RPC endpoint URL for transaction simulation"
+        },
+        "stellarSuite.simulationCacheEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching for simulation results."
+        },
+        "stellarSuite.simulationCacheTtlSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "Simulation cache TTL in seconds. 0 disables caching via immediate expiry."
+        },
+        "stellarSuite.simulationCacheMaxEntries": {
+          "type": "number",
+          "default": 200,
+          "minimum": 0,
+          "description": "Maximum number of cached simulation results. 0 disables caching."
+        },
+        "stellarSuite.rpcEndpoints": {
+          "type": "array",
+          "default": [
+            {
+              "url": "https://soroban-testnet.stellar.org:443",
+              "priority": 0,
+              "enabled": true,
+              "name": "Default Testnet"
+            }
+          ],
+          "description": "List of Stellar RPC endpoints for fallback and health monitoring."
+        },
+        "stellarSuite.automaticFailover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically failover to the next healthy RPC endpoint if the current one fails."
         },
         "stellarSuite.useLocalCli": {
           "type": "boolean",
@@ -124,6 +377,154 @@
           "type": "string",
           "default": "testnet",
           "description": "Network to use for deployments and invocations (testnet, mainnet, etc.)"
+        },
+        "stellarSuite.rpc.rateLimit.maxRetries": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of times to retry an RPC request after hitting a rate limit."
+        },
+        "stellarSuite.rpc.rateLimit.initialBackoffMs": {
+          "type": "number",
+          "default": 1000,
+          "description": "Initial backoff time (in milliseconds) before the first retry."
+        },
+        "stellarSuite.rpc.rateLimit.maxBackoffMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Maximum backoff time (in milliseconds) when rate-limited."
+        },
+        "stellarSuite.keyboard.showHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show keyboard shortcut hints on contract cards in the sidebar."
+        },
+        "stellarSuite.signing.defaultMethod": {
+          "type": "string",
+          "enum": [
+            "interactive",
+            "keypairFile",
+            "storedKeypair",
+            "hardwareWallet",
+            "sourceAccount"
+          ],
+          "default": "interactive",
+          "description": "Default signing method for deployment transactions."
+        },
+        "stellarSuite.signing.requireValidatedSignature": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require successful signature validation before deployment is submitted."
+        },
+        "stellarSuite.signing.enableSecureKeyStorage": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow storing deployment keypairs in VS Code SecretStorage."
+        },
+        "stellarSuite.minimumCliVersion": {
+          "type": "string",
+          "default": "21.0.0",
+          "description": "Minimum required Stellar CLI version"
+        },
+        "stellarSuite.cliVersionCheck.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic CLI version detection and compatibility checks"
+        },
+        "stellarSuite.cliVersionCheck.intervalMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "How often to re-check CLI version (0 = only on activation)"
+        },
+        "stellarSuite.deployment.retry.maxAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of deployment attempts (initial attempt + retries)."
+        },
+        "stellarSuite.deployment.retry.initialDelayMs": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "description": "Initial backoff delay in milliseconds before the first retry."
+        },
+        "stellarSuite.deployment.retry.maxDelayMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Maximum backoff delay in milliseconds between retry attempts."
+        },
+        "stellarSuite.deployment.retry.backoffMultiplier": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "description": "Exponential backoff multiplier applied after each failed attempt."
+        },
+        "stellarSuite.deployment.retry.useJitter": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add random jitter to retry delays to prevent thundering-herd retries."
+        },
+        "stellarSuite.deployment.retry.attemptTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "description": "Per-attempt timeout in milliseconds. Timed-out attempts are retried if attempts remain."
+        },
+        "stellarSuite.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable toast notifications."
+        },
+        "stellarSuite.notifications.maxVisible": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of visible toast notifications at once."
+        },
+        "stellarSuite.notifications.maxQueued": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Maximum number of notifications in the queue."
+        },
+        "stellarSuite.notifications.defaultDuration": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 0,
+          "maximum": 300000,
+          "description": "Default notification duration in milliseconds (0 = no auto-dismiss)."
+        },
+        "stellarSuite.notifications.position": {
+          "type": "string",
+          "enum": [
+            "top-right",
+            "top-left",
+            "bottom-right",
+            "bottom-left",
+            "top-center",
+            "bottom-center"
+          ],
+          "default": "bottom-right",
+          "description": "Position of toast notifications on screen."
+        },
+        "stellarSuite.notifications.enableAnimations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable animations for toast notifications."
+        },
+        "stellarSuite.notifications.soundEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Play sound when a notification is shown (reserved for future use)."
+        },
+        "stellarSuite.notifications.actionsEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show action buttons on notifications when available."
         }
       }
     }
@@ -132,12 +533,73 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile"
+    "pretest": "npm run compile",
+    "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:rpc-service && npm run test:rpc-retry-service && npm run test:keyboard-shortcuts && npm run test:simulation-comparison && npm run test:simulation-diff && npm run test:progress-indicators && npm run test:contract-deployer && npm run test:deployment-workflow-integration && npm run test:toast-notification && npm run test:notification-preferences && npm run test:cli-version && npm run test:form-generator && npm run test:form-validator && npm run test:abi-form-generator && npm run test:offline-simulation && npm run test:state-persistence && npm run test:simulation-performance && npm run test:contract-detection-perf && npm run test:e2e-deployment && npm run test:e2e-multi-contract && npm run test:e2e-contract-management && npm run test:form-templates && npm run test:simulation-workflow-integration && npm run test:contract-abi && npm run test:cli-integration && npm run test:rust-parser",
+    "test:form-templates": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/formTemplate.ts src/services/formTemplateService.ts src/test/formTemplate.test.ts && node out-test/test/formTemplate.test.js",
+    "test:contract-deployer": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractDeployer.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/fixtures/deploymentFixtures.ts src/test/contractDeployer.test.ts && node out-test/test/contractDeployer.test.js",
+    "test:deployment-workflow-integration": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliCancellation.ts src/services/cliTimeoutService.ts src/utils/streamBuffer.ts src/utils/cliCleanupUtilities.ts src/ui/timeoutIndicators.ts src/services/cliOutputStreamingService.ts src/services/cliConfigurationService.ts src/services/deploymentRetryService.ts src/services/contractDeployer.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/fixtures/deploymentFixtures.ts src/test/fixtures/deploymentWorkflowFixtures.ts src/test/deploymentWorkflow.integration.test.ts && node out-test/test/deploymentWorkflow.integration.test.js",
+    "test:cli-errors": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/test/cliErrorParser.test.ts && node out-test/test/cliErrorParser.test.js",
+    "test:cli-streaming": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/streamBuffer.ts src/services/cliOutputStreamingService.ts src/services/cliTimeoutService.ts src/services/cliCancellation.ts src/ui/timeoutIndicators.ts src/utils/cliCleanupUtilities.ts src/test/cliOutputStreamingService.test.ts && node out-test/test/cliOutputStreamingService.test.js",
+    "test:version-tracker": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/services/contractVersionTracker.ts src/test/versionTracker.test.ts && node out-test/test/versionTracker.test.js",
+    "test:cli-history": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliHistoryService.ts src/test/cliHistoryService.test.ts && node out-test/test/cliHistoryService.test.js",
+    "test:state-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateValidationService.ts src/test/stateValidationService.test.ts && node out-test/test/stateValidationService.test.js",
+    "test:cargo-metadata": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/test/cargoTomlParser.test.ts && node out-test/test/cargoTomlParser.test.js",
+    "test:batch-deps": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/deploymentDependencyResolver.ts src/test/deploymentDependencyResolver.test.ts && node out-test/test/deploymentDependencyResolver.test.js",
+    "test:batch-deploy": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/batchDeploymentService.ts src/test/batchDeploymentService.test.ts && node out-test/test/batchDeploymentService.test.js",
+    "test:compilation-status": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/compilationStatus.ts src/services/compilationStatusMonitor.ts src/test/compilationStatus.test.ts && node out-test/test/compilationStatus.test.js",
+    "test:sidebar-status-indicators": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/compilationStatus.ts src/services/compilationStatusMonitor.ts src/ui/sidebarView.ts src/test/sidebarStatusIndicators.test.ts && node out-test/test/sidebarStatusIndicators.test.js",
+    "test:cli-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/cliValidation.ts src/services/parameterValidator.ts src/services/environmentValidator.ts src/services/fileValidator.ts src/services/networkValidator.ts src/services/cliValidationService.ts src/services/preFlightCheckService.ts src/test/cliValidation.test.ts && node out-test/test/cliValidation.test.js",
+    "test:state-diff": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/stateCaptureService.ts src/services/stateDiffService.ts src/test/stateDiffService.test.ts && node out-test/test/stateDiffService.test.js",
+    "test:simulation-history": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/test/simulationHistory.test.ts && node out-test/test/simulationHistory.test.js",
+    "test:state-backup": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/stateBackupService.ts src/test/stateBackup.test.ts && node out-test/test/stateBackup.test.js",
+    "test:sidebar-export-import": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/sidebarExport.ts src/services/sidebarExportService.ts src/services/sidebarImportService.ts src/test/sidebarExportImport.test.ts && node out-test/test/sidebarExportImport.test.js",
+    "test:simulation-replay": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationReplay.test.ts && node out-test/test/simulationReplay.test.js",
+    "test:template-detection": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/templateDetection.test.ts && node out-test/test/templateDetection.test.js",
+    "test:soroban-cli": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sorobanCliService.ts src/services/cliHistoryService.ts src/test/sorobanCliService.test.ts && node out-test/test/sorobanCliService.test.js",
+    "test:cli-config": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliConfigurationService.ts src/test/cliConfigurationService.test.ts && node out-test/test/cliConfigurationService.test.js",
+    "test:cli-integration": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/utils/cliErrorParser.ts src/utils/streamBuffer.ts src/utils/cliCleanupUtilities.ts src/services/cliCancellation.ts src/services/cliTimeoutService.ts src/ui/timeoutIndicators.ts src/services/cliOutputStreamingService.ts src/services/cliHistoryService.ts src/services/sorobanCliService.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/cliIntegration.test.ts && node out-test/test/cliIntegration.test.js",
+    "test:sidebar-refresh": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sidebarAutoRefreshService.ts src/test/sidebarAutoRefreshService.test.ts && node out-test/test/sidebarAutoRefreshService.test.js",
+    "test:transaction-signing": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/transactionSigningService.ts src/test/transactionSigningService.test.ts && node out-test/test/transactionSigningService.test.js",
+    "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js",
+    "test:resource-profiling": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/resourceProfile.ts src/services/resourceProfilingService.ts src/test/resourceProfiling.test.ts && node out-test/test/resourceProfiling.test.js",
+    "test:rpc-auth": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcAuth.ts src/services/rpcAuthService.ts src/test/rpcAuth.test.ts && node out-test/test/rpcAuth.test.js",
+    "test:env-variable": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/envVariable.ts src/services/envVariableService.ts src/test/envVariable.test.ts && node out-test/test/envVariable.test.js",
+    "test:simulation-validation": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/simulationValidationService.test.ts && node out-test/test/simulationValidationService.test.js",
+    "test:rpc-rate-limit": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/test/rpcRateLimitService.test.ts && node out-test/test/rpcRateLimitService.test.js",
+    "test:keyboard-shortcuts": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/contextMenu.ts src/types/keyboardShortcuts.ts src/services/contractTemplateService.ts src/services/contextMenuService.ts src/test/keyboardShortcuts.test.ts && node out-test/test/keyboardShortcuts.test.js",
+    "test:simulation-comparison": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationComparisonService.ts src/test/simulationComparison.test.ts && node out-test/test/simulationComparison.test.js",
+    "test:simulation-diff": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationDiffService.ts src/test/simulationDiff.test.ts && node out-test/test/simulationDiff.test.js",
+    "test:success-notification": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/successNotification.ts src/services/successNotificationService.ts src/test/successNotification.test.ts && node out-test/test/successNotification.test.js",
+    "test:progress-indicators": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/progressIndicatorService.ts src/test/progressIndicatorService.test.ts && node out-test/test/progressIndicatorService.test.js",
+    "test:toast-notification": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/toastNotification.ts src/services/toastNotificationService.ts src/test/toastNotification.test.ts && node out-test/test/toastNotification.test.js",
+    "test:form-autocomplete": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/formAutocomplete.ts src/services/formAutocompleteService.ts src/test/formAutocomplete.test.ts && node out-test/test/formAutocomplete.test.js",
+    "test:notification-preferences": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/toastNotification.ts src/types/notificationPreferences.ts src/services/notificationPreferencesService.ts src/test/notificationPreferences.test.ts && node out-test/test/notificationPreferences.test.js",
+    "test:rpc-service": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cliErrorParser.ts src/utils/errorFormatter.ts src/types/simulationState.ts src/types/rpcRateLimit.ts src/services/rpcRateLimitService.ts src/services/rpcService.ts src/test/mocks/mockRpcServer.ts src/test/rpcService.test.ts && node out-test/test/rpcService.test.js",
+    "test:rpc-retry-service": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/circuitBreaker.ts src/services/rpcRetryService.ts src/test/rpcRetryService.test.ts && node out-test/test/rpcRetryService.test.js",
+    "test:cli-version": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/types/cliVersion.ts src/services/cliVersionService.ts src/test/cliVersion.test.ts && node out-test/test/cliVersion.test.js",
+    "test:form-generator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/utils/jsonParser.ts src/test/mocks/testableContractInspector.ts src/test/fixtures/formGenerationFixtures.ts src/test/formGenerator.test.ts && node out-test/test/formGenerator.test.js",
+    "test:form-validator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/fixtures/formGenerationFixtures.ts src/test/formValidator.test.ts && node out-test/test/formValidator.test.js",
+    "test:offline-simulation": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/offlineSimulation.ts src/services/contractCacheService.ts src/services/offlineModeDetectionService.ts src/services/offlineSimulationService.ts src/services/simulationHistoryService.ts src/test/offlineSimulation.test.ts && node out-test/test/offlineSimulation.test.js",
+    "test:abi-form-generator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/inputSanitizationService.ts src/utils/abiParser.ts src/services/abiFormGeneratorService.ts src/services/formValidationService.ts src/test/abiFormGenerator.test.ts && node out-test/test/abiFormGenerator.test.js",
+    "test:ui-performance": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/performanceMonitoringService.ts src/services/abiFormGeneratorService.ts src/services/formValidationService.ts src/services/inputSanitizationService.ts src/utils/abiParser.ts src/test/uiPerformance.test.ts && node out-test/test/uiPerformance.test.js",
+    "test:performance-reporting": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/performanceMonitoringService.ts src/services/performanceReportService.ts src/test/performanceReporting.test.ts && node out-test/test/performanceReporting.test.js",
+    "test:large-workspace": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/services/deploymentDependencyResolver.ts src/test/fixtures/largeWorkspaceFixtures.ts src/test/largeWorkspacePerformance.test.ts && node out-test/test/largeWorkspacePerformance.test.js",
+    "test:simulation-performance": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationPerformance.test.ts && node out-test/test/simulationPerformance.test.js",
+    "test:contract-detection-perf": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/contractDetectionPerformance.test.ts && node out-test/test/contractDetectionPerformance.test.js",
+    "test:e2e-deployment": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractDeployer.ts src/test/e2eDeployment.test.ts && node out-test/test/e2eDeployment.test.js",
+    "test:state-persistence": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateBackupService.ts src/services/stateValidationService.ts src/services/contractWorkStateService.ts src/test/fixtures/statePersistenceFixtures.ts src/test/statePersistence.integration.test.ts && node out-test/test/statePersistence.integration.test.js",
+    "test:e2e-multi-contract": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/test/e2eMultiContractWorkspace.test.ts && node out-test/test/e2eMultiContractWorkspace.test.js",
+    "test:e2e-contract-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/test/e2eContractManagement.test.ts && node out-test/test/e2eContractManagement.test.js",
+    "test:contract-abi": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/utils/abiParser.ts src/types/contractAbi.ts src/services/contractAbiService.ts src/test/contractAbi.test.ts && node out-test/test/contractAbi.test.js",
+    "test:rust-parser": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rustParser.ts src/utils/rustSourceParser.ts src/services/contractInspector.ts src/services/signatureCacheService.ts src/services/sourceInspectorService.ts src/test/rustSourceParser.test.ts && node out-test/test/rustSourceParser.test.js"
+    "test:simulation-workflow-integration": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationCacheCore.ts src/services/simulationCacheKey.ts src/services/stateDiffService.ts src/services/stateCaptureService.ts src/test/fixtures/simulationFixtures.ts src/test/simulationWorkflow.integration.test.ts && node out-test/test/simulationWorkflow.integration.test.js"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.33",
     "@types/vscode": "^1.80.0",
     "typescript": "^5.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "vscode": "^1.1.37"
+  }
 }

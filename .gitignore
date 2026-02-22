@@ -1,5 +1,6 @@
 node_modules/
 out/
+out-test/
 issue-details/
 frontend-issues/
 .vscode-test/
@@ -10,3 +11,5 @@ ISSUES.md
 .env
 .env.local
 stellar-suite-*.vsix
+out-test/
+

@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^npx tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity\\.ts src/services/stateValidationService\\.ts src/test/stateValidationService\\.test\\.ts 2>&1 \\| head -5 ; true$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

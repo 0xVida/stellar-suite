@@ -1,0 +1,36 @@
+{
+    "name": "nft",
+    "displayName": "NFT Contract",
+    "description": "Standard NFT contract with minting, transfers, metadata storage, and royalty support.",
+    "version": "0.1.0",
+    "category": "nft",
+    "author": "Stellar Suite",
+    "tags": [
+        "nft",
+        "token",
+        "non-fungible",
+        "metadata",
+        "royalty",
+        "mint"
+    ],
+    "dependencies": {
+        "soroban-sdk": "20.0.0"
+    },
+    "functions": [
+        "initialize",
+        "mint",
+        "transfer",
+        "get_metadata",
+        "get_owner",
+        "get_royalty",
+        "set_royalty"
+    ],
+    "examples": [
+        "Initialize contract with admin and token details",
+        "Mint an NFT with associated metadata",
+        "Transfer NFT ownership to another address",
+        "Fetch and verify NFT metadata and ownership",
+        "Set and calculate royalties for secondary sales"
+    ],
+    "license": "Apache-2.0"
+}

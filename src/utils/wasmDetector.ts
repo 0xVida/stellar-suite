@@ -22,7 +22,7 @@ export class WasmDetector {
                     '**/node_modules/**',
                     50
                 );
-                wasmFiles.push(...files.map(f => f.fsPath));
+                wasmFiles.push(...files.map((f: { fsPath: string }) => f.fsPath));
             }
         }
 
@@ -112,14 +112,14 @@ export class WasmDetector {
         for (const pattern of commonPaths) {
             const dir = path.dirname(pattern);
             if (fs.existsSync(dir)) {
-                const files = fs.readdirSync(dir).filter(f => f.endsWith('.wasm'));
-                if (files.length > 0) {
-                    const contractName = path.basename(contractDir).replace(/-/g, '_');
-                    const wasmFile = files.find(f => f.includes(contractName)) || files[0];
-                    return path.join(dir, wasmFile);
+                        const files = fs.readdirSync(dir).filter((f: string) => f.endsWith('.wasm'));
+                        if (files.length > 0) {
+                            const contractName = path.basename(contractDir).replace(/-/g, '_');
+                            const wasmFile = files.find((f: string) => f.includes(contractName)) || files[0];
+                            return path.join(dir, wasmFile);
+                        }
+                    }
                 }
-            }
-        }
 
         return null;
     }

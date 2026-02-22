@@ -8,6 +8,10 @@ try {
     vscodeRuntime = null;
 }
 
+import { StateMetadata } from '../types/stateConflict';
+import { StateConflictDetectionService } from './stateConflictDetectionService';
+import { StateConflictResolutionService } from './stateConflictResolutionService';
+
 export interface ContractDeploymentRecord {
     contractId: string;
     contractName: string;
@@ -42,6 +46,7 @@ export interface WorkspaceContractState {
 
 export interface ContractWorkspaceStateSnapshot {
     schemaVersion: number;
+    metadata?: StateMetadata;
     workspaces: Record<string, WorkspaceContractState>;
 }
 
@@ -55,10 +60,18 @@ const STORAGE_KEY = 'stellarSuite.contractWorkspaceState';
 const SCHEMA_VERSION = 2;
 
 export class ContractWorkspaceStateService {
+    private readonly clientId: string;
+    private conflictDetection: StateConflictDetectionService;
+    private conflictResolution: StateConflictResolutionService;
+
     constructor(
         private readonly context: { workspaceState: vscode.Memento },
         private readonly outputChannel: { appendLine(value: string): void },
-    ) {}
+    ) {
+        this.clientId = vscodeRuntime?.env?.machineId ?? 'unknown-client';
+        this.conflictDetection = new StateConflictDetectionService();
+        this.conflictResolution = new StateConflictResolutionService();
+    }
 
     public async initialize(): Promise<void> {
         const snapshot = this.loadSnapshot();
@@ -186,16 +199,52 @@ export class ContractWorkspaceStateService {
         try {
             const raw = this.context.workspaceState.get<ContractWorkspaceStateSnapshot | undefined>(STORAGE_KEY, undefined);
             if (!raw) {
-                return { schemaVersion: SCHEMA_VERSION, workspaces: {} };
+                return {
+                    schemaVersion: SCHEMA_VERSION,
+                    workspaces: {},
+                    metadata: { version: 0, updatedAt: new Date().toISOString(), clientId: this.clientId }
+                };
             }
             return this.normalizeSnapshot(raw);
         } catch (error) {
             this.outputChannel.appendLine(`[ContractWorkspaceState] Corruption detected, resetting state: ${String(error)}`);
-            return { schemaVersion: SCHEMA_VERSION, workspaces: {} };
+            return {
+                schemaVersion: SCHEMA_VERSION,
+                workspaces: {},
+                metadata: { version: 0, updatedAt: new Date().toISOString(), clientId: this.clientId }
+            };
         }
     }
 
     private async saveSnapshot(snapshot: ContractWorkspaceStateSnapshot): Promise<void> {
+        const current = this.loadSnapshot();
+
+        // Optimistic locking check
+        if (snapshot.metadata && current.metadata && snapshot.metadata.version < current.metadata.version) {
+            this.outputChannel.appendLine(`[ContractWorkspaceState] CONFLICT: Version mismatch (Local: ${snapshot.metadata.version}, Current: ${current.metadata.version}). Starting resolution...`);
+
+            const conflicts = this.conflictDetection.detectConflicts(
+                snapshot.workspaces,
+                current.workspaces,
+                snapshot.metadata,
+                current.metadata
+            );
+
+            if (conflicts.length > 0) {
+                // For now, auto-resolve with MERGE or notify
+                const resolution = this.conflictResolution.resolve(snapshot.workspaces, conflicts);
+                snapshot.workspaces = resolution.resolvedState;
+                this.outputChannel.appendLine(`[ContractWorkspaceState] AUTO-RESOLVED ${conflicts.length} conflicts via merge.`);
+            }
+        }
+
+        // Increment version and update metadata
+        snapshot.metadata = {
+            version: (current.metadata?.version ?? 0) + 1,
+            updatedAt: new Date().toISOString(),
+            clientId: this.clientId
+        };
+
         await this.context.workspaceState.update(STORAGE_KEY, snapshot);
     }
 

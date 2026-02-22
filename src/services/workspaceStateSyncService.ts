@@ -4,12 +4,13 @@ import * as vscode from 'vscode';
 // Type Definitions
 // ============================================================
 
-export enum ConflictResolutionStrategy {
-    LOCAL_WINS = 'local_wins',
-    REMOTE_WINS = 'remote_wins',
-    MERGE = 'merge',
-    MANUAL = 'manual'
-}
+import {
+    ConflictResolutionStrategy,
+    StateConflictType,
+    ResolutionResult
+} from '../types/stateConflict';
+import { StateConflictDetectionService } from './stateConflictDetectionService';
+import { StateConflictResolutionService } from './stateConflictResolutionService';
 
 export enum SyncStatus {
     IDLE = 'idle',
@@ -82,10 +83,15 @@ export class WorkspaceStateSyncService {
     private syncStatusEmitter = new vscode.EventEmitter<SyncEvent>();
     readonly onSyncStatusChange = this.syncStatusEmitter.event;
 
+    private conflictDetection: StateConflictDetectionService;
+    private conflictResolution: StateConflictResolutionService;
+
     constructor(context: vscode.ExtensionContext) {
         this.globalState = context.globalState;
         this.workspaceState = context.workspaceState;
         this.outputChannel = vscode.window.createOutputChannel('StellarSuite Sync');
+        this.conflictDetection = new StateConflictDetectionService();
+        this.conflictResolution = new StateConflictResolutionService();
     }
 
     /**
@@ -248,23 +254,25 @@ export class WorkspaceStateSyncService {
      * Handle synchronization conflict with resolution strategy.
      */
     resolveConflict(conflict: SyncConflict): any {
-        switch (conflict.strategy) {
-            case ConflictResolutionStrategy.LOCAL_WINS:
-                return conflict.local;
+        const stateConflict = this.mapSyncConflictToStateConflict(conflict);
+        const resolution = this.conflictResolution.resolve(conflict.local, [stateConflict], conflict.strategy);
 
-            case ConflictResolutionStrategy.REMOTE_WINS:
-                return conflict.remote;
-
-            case ConflictResolutionStrategy.MERGE:
-                return this.mergeValues(conflict.local, conflict.remote);
-
-            case ConflictResolutionStrategy.MANUAL:
-                // Return null to indicate manual resolution needed
-                return null;
-
-            default:
-                return conflict.local;
+        if (conflict.strategy === ConflictResolutionStrategy.MANUAL) {
+            return null;
         }
+
+        return resolution.resolvedState;
+    }
+
+    private mapSyncConflictToStateConflict(syncConflict: SyncConflict): any {
+        return {
+            type: StateConflictType.SYNC_CONFLICT,
+            path: syncConflict.key,
+            localValue: syncConflict.local,
+            remoteValue: syncConflict.remote,
+            localMetadata: { version: 0, updatedAt: new Date().toISOString(), clientId: 'local' },
+            remoteMetadata: { version: 0, updatedAt: new Date().toISOString(), clientId: 'remote' }
+        };
     }
 
     // ============================================================
@@ -556,7 +564,7 @@ class SyncResult {
     conflicts: number = 0;
     conflictList: SyncConflict[] = [];
 
-    constructor(readonly type: string) {}
+    constructor(readonly type: string) { }
 
     get processedItems(): number {
         return this.newItems + this.skippedItems + this.conflicts;

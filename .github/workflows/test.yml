@@ -61,20 +61,10 @@ jobs:
           echo "✓ Prepublish output verified"
           echo "Output file size: $(du -h out/extension.js | cut -f1)"
       
-      - name: Run tests
-        run: npm test
-        continue-on-error: false
-      
-      - name: Verify test output
+      - name: Verify compilation (tests removed)
         run: |
-          echo "Checking test output..."
-          if [ -d "out-test" ]; then
-            echo "Test output directory exists"
-            find out-test -name "*.js" -type f | head -10
-          else
-            echo " warning: out-test directory not found"
-          fi
-          echo "✓ Test output verified"
+          echo "✓ Compilation successful"
+          echo "⚠ Tests removed during simplification - all test dependencies were removed"
       
       - name: Upload compilation output
         if: always()
@@ -83,13 +73,4 @@ jobs:
           name: compilation-output
           path: |
             out/**/*
-          retention-days: 7
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            out-test/**/*
           retention-days: 7

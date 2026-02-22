@@ -3,6 +3,7 @@ out/
 out-test/
 issue-details/
 frontend-issues/
+stellar-suite/
 .vscode-test/
 *.vsix
 .DS_Store
@@ -15,4 +16,3 @@ stellar-suite-*.vsix
 frontend/node_modules/
 frontend/.env
 frontend/.next
-frontend/package-lock.json

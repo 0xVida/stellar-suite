@@ -19,19 +19,6 @@
     "soroban",
     "developer-tools"
   ],
-  "activationEvents": [
-    "onView:stellarSuite.contractsView",
-    "onCommand:stellarSuite.simulateTransaction",
-    "onCommand:stellarSuite.deployContract",
-    "onCommand:stellarSuite.buildContract",
-    "onCommand:stellarSuite.configureCli",
-    "onCommand:stellarSuite.refreshContracts",
-    "onCommand:stellarSuite.clearSimulationCache",
-    "onCommand:stellarSuite.showSimulationCacheStats",
-    "onCommand:stellarSuite.deployBatch",
-    "onCommand:stellarSuite.manageRpcAuth",
-    "onCommand:stellarSuite.manageEnvVariables"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -267,6 +254,30 @@
       {
         "command": "stellarSuite.parseContractSource",
         "title": "Stellar Suite: Parse Contract Source Code"
+      },
+      {
+        "command": "stellarSuite.showRpcHealth",
+        "title": "Stellar Suite: Show RPC Health"
+      },
+      {
+        "command": "stellarSuite.checkRpcHealth",
+        "title": "Stellar Suite: Check RPC Health"
+      },
+      {
+        "command": "stellarSuite.viewRpcHistory",
+        "title": "Stellar Suite: View RPC History"
+      },
+      {
+        "command": "stellarSuite.switchRpcEndpoint",
+        "title": "Stellar Suite: Switch RPC Endpoint"
+      },
+      {
+        "command": "stellarSuite.viewCircuitBreakerStatus",
+        "title": "Stellar Suite: View Circuit Breaker Status"
+      },
+      {
+        "command": "stellarSuite.resetCircuitBreaker",
+        "title": "Stellar Suite: Reset Circuit Breaker"
       }
     ],
     "menus": {
@@ -532,6 +543,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "package": "npm run compile && vsce package",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:rpc-service && npm run test:rpc-retry-service && npm run test:keyboard-shortcuts && npm run test:simulation-comparison && npm run test:simulation-diff && npm run test:progress-indicators && npm run test:contract-deployer && npm run test:deployment-workflow-integration && npm run test:toast-notification && npm run test:notification-preferences && npm run test:cli-version && npm run test:form-generator && npm run test:form-validator && npm run test:abi-form-generator && npm run test:offline-simulation && npm run test:state-persistence && npm run test:simulation-performance && npm run test:contract-detection-perf && npm run test:e2e-deployment && npm run test:e2e-multi-contract && npm run test:e2e-contract-management && npm run test:form-templates && npm run test:simulation-workflow-integration && npm run test:contract-abi && npm run test:cli-integration && npm run test:rust-parser",
@@ -597,9 +609,8 @@
   "devDependencies": {
     "@types/node": "^20.19.33",
     "@types/vscode": "^1.80.0",
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.0.0",
     "vscode": "^1.1.37"
   }
 }

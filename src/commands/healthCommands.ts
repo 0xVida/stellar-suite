@@ -61,7 +61,7 @@ async function checkRpcHealth(monitor: RpcHealthMonitor): Promise<void> {
         }
     );
 
-    vscode.window.showInformationMessage('✓ RPC health check completed');
+    vscode.window.showInformationMessage('RPC health check completed');
 }
 
 /**
@@ -113,7 +113,7 @@ async function switchRpcEndpoint(monitor: RpcHealthMonitor): Promise<void> {
     if (selected) {
         const config = vscode.workspace.getConfiguration('stellarSuite');
         await config.update('rpcUrl', selected.endpoint, vscode.ConfigurationTarget.Global);
-        vscode.window.showInformationMessage(`✓ Switched to ${selected.endpoint}`);
+        vscode.window.showInformationMessage(`Switched to ${selected.endpoint}`);
     }
 }
 

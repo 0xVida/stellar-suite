@@ -1,29 +1,28 @@
 import { execFile, exec } from 'child_process';
 import { promisify } from 'util';
-import { StateDiff, StateSnapshot } from '../types/simulationState';
-import {
-    CliErrorContext,
-    CliErrorType,
-    formatCliErrorForDisplay,
-    formatCliErrorForNotification,
-    logCliError,
-    looksLikeCliError,
-    parseCliErrorOutput,
-} from '../utils/cliErrorParser';
 import * as os from 'os';
 import * as path from 'path';
-import { CliOutputStreamingService } from './cliOutputStreamingService';
-import { CancellationToken } from './cliCancellation';
-import { CliHistoryService } from './cliHistoryService';
+
+function formatCliError(stderr: string): string {
+    const lines = stderr.split('\n').filter(line => line.trim().length > 0);
+    
+    for (const line of lines) {
+        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
+            return line.trim();
+        }
+    }
+
+    return lines[0] || stderr.trim() || 'Unknown CLI error';
+}
 
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
 
-function getEnvironmentWithPath(customEnv?: Record<string, string>): NodeJS.ProcessEnv {
+function getEnvironmentWithPath(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     const homeDir = os.homedir();
     const cargoBin = path.join(homeDir, '.cargo', 'bin');
-
+    
     const additionalPaths = [
         cargoBin,
         path.join(homeDir, '.local', 'bin'),
@@ -31,15 +30,11 @@ function getEnvironmentWithPath(customEnv?: Record<string, string>): NodeJS.Proc
         '/opt/homebrew/bin',
         '/opt/homebrew/sbin'
     ];
-
+    
     const currentPath = env.PATH || env.Path || '';
     env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
     env.Path = env.PATH;
-
-    // Merge custom environment variables (profile overrides)
-    if (customEnv) {
-        Object.assign(env, customEnv);
-    }
+    
     return env;
 }
 
@@ -47,55 +42,27 @@ export interface SimulationResult {
     success: boolean;
     result?: any;
     error?: string;
-    errorSummary?: string;
-    errorType?: CliErrorType;
-    errorCode?: string;
-    errorSuggestions?: string[];
-    errorContext?: CliErrorContext;
-    rawError?: string;
     resourceUsage?: {
         cpuInstructions?: number;
         memoryBytes?: number;
     };
-    validationWarnings?: string[];
-    rawResult?: unknown;
-    stateSnapshotBefore?: StateSnapshot;
-    stateSnapshotAfter?: StateSnapshot;
-    stateDiff?: StateDiff;
 }
 
 export class SorobanCliService {
     private cliPath: string;
     private source: string;
-    private streamingService: CliOutputStreamingService;
-    private historyService?: CliHistoryService;
-    private customEnv: Record<string, string> = {};
 
-    constructor(
-        cliPath: string,
-        source: string = 'dev',
-        historyService?: CliHistoryService
-    ) {
+    constructor(cliPath: string, source: string = 'dev') {
         this.cliPath = cliPath;
         this.source = source;
-        this.streamingService = new CliOutputStreamingService();
-        this.historyService = historyService;
     }
 
     async simulateTransaction(
         contractId: string,
         functionName: string,
         args: any[],
-        network: string = 'testnet',
-        options: { cancellationToken?: CancellationToken; timeoutMs?: number } = {},
-        historySource: 'manual' | 'replay' | null = 'manual'
+        network: string = 'testnet'
     ): Promise<SimulationResult> {
-        const startTime = Date.now();
-        let stdoutText = '';
-        let stderrText = '';
-        let exitCode = 0;
-        let success = false;
-
         try {
             const commandParts = [
                 this.cliPath,
@@ -113,7 +80,6 @@ export class SorobanCliService {
                 const argObj = args[0];
                 for (const [key, value] of Object.entries(argObj)) {
                     commandParts.push(`--${key}`);
-                    // Convert value to string, handling JSON for complex types
                     if (typeof value === 'object') {
                         commandParts.push(JSON.stringify(value));
                     } else {
@@ -121,9 +87,7 @@ export class SorobanCliService {
                     }
                 }
             } else {
-                // Array format: pass as positional arguments
                 for (const arg of args) {
-                    // Convert argument to string
                     if (typeof arg === 'object') {
                         commandParts.push(JSON.stringify(arg));
                     } else {
@@ -132,110 +96,47 @@ export class SorobanCliService {
                 }
             }
 
-            // Get environment with proper PATH + custom env vars
-            const env = getEnvironmentWithPath(this.customEnv);
-
-            const result = await this.streamingService.run({
-                command: commandParts[0],
-                args: commandParts.slice(1),
-                env: env as Record<string, string>,
-                timeoutMs: options.timeoutMs ?? 30000,
-                maxBufferedBytes: 10 * 1024 * 1024,
-                cancellationToken: options.cancellationToken,
-            });
-
-            const stdout = result.stdout;
-            const stderr = result.stderr;
-
-            if (result.timedOut) {
-                return {
-                    success: false,
-                    error: `Simulation timed out after ${options.timeoutMs ?? 30000}ms.`,
-                    errorSummary: 'Simulation timed out.',
-                    errorType: 'execution',
-                    errorSuggestions: ['Try again or increase the operation timeout limit.'],
-                    rawError: result.error,
-                };
-            }
-
-            if (result.cancelled) {
-                return {
-                    success: false,
-                    error: 'Simulation cancelled by user.',
-                    errorSummary: 'Simulation cancelled by user.',
-                    errorType: 'execution',
-                    errorSuggestions: ['Re-run the simulation when ready.'],
-                    rawError: result.error,
-                };
-            }
-
-            stdoutText = stdout;
-            stderrText = stderr;
-            success = true;
-
-            await this.recordExecution(
+            const env = getEnvironmentWithPath();
+            
+            const { stdout, stderr } = await execFileAsync(
                 commandParts[0],
                 commandParts.slice(1),
-                true,
-                0,
-                stdoutText,
-                stderrText,
-                Date.now() - startTime,
-                historySource
+                {
+                    env: env,
+                    maxBuffer: 10 * 1024 * 1024,
+                    timeout: 30000
+                }
             );
 
             if (stderr && stderr.trim().length > 0) {
-                // CLI may output warnings to stderr, but if it looks like an error, treat it as such
-                if (looksLikeCliError(stderr)) {
-                    const parsedError = parseCliErrorOutput(stderr, {
-                        command: 'stellar contract invoke',
-                        contractId,
-                        functionName,
-                        network,
-                    });
-                    logCliError(parsedError, '[Simulation CLI]');
-                    return this.toSimulationError(parsedError);
+                if (stderr.toLowerCase().includes('error') || stderr.toLowerCase().includes('failed')) {
+                    return {
+                        success: false,
+                        error: formatCliError(stderr)
+                    };
                 }
             }
 
-            if (!result.success && !result.timedOut && !result.cancelled) {
-                const combined = result.combinedOutput || result.error || 'Execution failed';
-                const parsedError = parseCliErrorOutput(combined, {
-                    command: 'stellar contract invoke',
-                    contractId,
-                    functionName,
-                    network,
-                });
-                logCliError(parsedError, '[Simulation CLI]');
-                return this.toSimulationError(parsedError);
-            }
-
-            // Parse the output from Soroban CLI
-            // The official CLI outputs structured data, often in JSON format
             try {
                 const output = stdout.trim();
-
-                // Try to parse as JSON first (CLI may output pure JSON)
+                
                 try {
                     const parsed = JSON.parse(output);
                     return {
                         success: true,
                         result: parsed.result || parsed.returnValue || parsed,
-                        rawResult: parsed,
                         resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
                             cpuInstructions: parsed.cpu_instructions,
                             memoryBytes: parsed.memory_bytes
                         } : undefined
                     };
                 } catch {
-                    // If not pure JSON, try to extract JSON from mixed output
                     const jsonMatch = output.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const parsed = JSON.parse(jsonMatch[0]);
                         return {
                             success: true,
                             result: parsed.result || parsed.returnValue || parsed,
-                            rawResult: parsed,
                             resourceUsage: parsed.resource_usage || parsed.resourceUsage || parsed.cpu_instructions ? {
                                 cpuInstructions: parsed.cpu_instructions,
                                 memoryBytes: parsed.memory_bytes
@@ -243,124 +144,37 @@ export class SorobanCliService {
                         };
                     }
 
-                    // If no JSON found, return raw output (CLI may output plain text)
                     return {
                         success: true,
-                        result: output,
-                        rawResult: output,
+                        result: output
                     };
                 }
             } catch (parseError) {
-                // If parsing fails, return raw output
                 return {
                     success: true,
-                    result: stdout.trim(),
-                    rawResult: stdout.trim(),
+                    result: stdout.trim()
                 };
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            const cliContext: CliErrorContext = {
-                command: 'stellar contract invoke',
-                contractId,
-                functionName,
-                network,
-            };
-
-            stderrText = this.getExecErrorStream(error, 'stderr');
-            stdoutText = this.getExecErrorStream(error, 'stdout');
-            exitCode = (error as any)?.code ?? 1;
-            success = false;
-
-            const combined = [stderrText, stdoutText, errorMessage].filter(Boolean).join('\n');
-
-            const parsedError = parseCliErrorOutput(combined || errorMessage, cliContext);
-
+            
             if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
-                parsedError.message = `Stellar CLI not found at "${this.cliPath}".`;
-                parsedError.suggestions = [
-                    'Install Stellar CLI, or update `stellarSuite.cliPath` to a valid executable.',
-                    ...parsedError.suggestions,
-                ];
+                return {
+                    success: false,
+                    error: `Stellar CLI not found at "${this.cliPath}". Make sure it is installed and in your PATH, or configure the stellarSuite.cliPath setting.`
+                };
             }
 
-            await this.recordExecution(
-                this.cliPath,
-                [
-                    'contract', 'invoke',
-                    '--id', contractId,
-                    '--source', this.source,
-                    '--network', network,
-                    '--', functionName,
-                    ...args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a))
-                ],
-                false,
-                exitCode,
-                stdoutText,
-                stderrText,
-                Date.now() - startTime,
-                historySource
-            );
-
-            logCliError(parsedError, '[Simulation CLI]');
-            return this.toSimulationError(parsedError);
+            return {
+                success: false,
+                error: `CLI execution failed: ${errorMessage}`
+            };
         }
     }
 
-    private async recordExecution(
-        command: string,
-        args: string[],
-        success: boolean,
-        exitCode: number,
-        stdout: string,
-        stderr: string,
-        durationMs: number,
-        source: 'manual' | 'replay' | null
-    ): Promise<void> {
-        if (this.historyService && source) {
-            await this.historyService.recordCommand({
-                command,
-                args,
-                outcome: success ? 'success' : 'failure',
-                exitCode,
-                stdout,
-                stderr,
-                durationMs,
-                source
-            });
-        }
-    }
-
-    private getExecErrorStream(error: unknown, stream: 'stderr' | 'stdout'): string {
-        if (typeof error !== 'object' || error === null) {
-            return '';
-        }
-        const value = (error as Record<string, unknown>)[stream];
-        return typeof value === 'string' ? value : '';
-    }
-
-    private toSimulationError(parsedError: ReturnType<typeof parseCliErrorOutput>): SimulationResult {
-        return {
-            success: false,
-            error: formatCliErrorForDisplay(parsedError),
-            errorSummary: formatCliErrorForNotification(parsedError),
-            errorType: parsedError.type,
-            errorCode: parsedError.code,
-            errorSuggestions: parsedError.suggestions,
-            errorContext: parsedError.context,
-            rawError: parsedError.normalized,
-        };
-    }
-
-    /**
-     * Check if Stellar CLI is available.
-     * Uses the official CLI version command.
-     *
-     * @returns True if CLI is accessible
-     */
     async isAvailable(): Promise<boolean> {
         try {
-            const env = getEnvironmentWithPath(this.customEnv);
+            const env = getEnvironmentWithPath();
             await execFileAsync(this.cliPath, ['--version'], { env: env, timeout: 5000 });
             return true;
         } catch {
@@ -368,14 +182,9 @@ export class SorobanCliService {
         }
     }
 
-    /**
-     * Try to find Stellar CLI in common installation locations.
-     *
-     * @returns Path to CLI if found, or null
-     */
     static async findCliPath(): Promise<string | null> {
         const commonPaths = [
-            'stellar', // Try PATH first
+            'stellar',
             path.join(os.homedir(), '.cargo', 'bin', 'stellar'),
             '/usr/local/bin/stellar',
             '/opt/homebrew/bin/stellar',
@@ -386,38 +195,20 @@ export class SorobanCliService {
         for (const cliPath of commonPaths) {
             try {
                 if (cliPath === 'stellar') {
-                    // Use exec for PATH lookup with proper environment
                     await execAsync('stellar --version', { env: env, timeout: 5000 });
                     return 'stellar';
                 } else {
-                    // Use execFile for absolute paths
                     await execFileAsync(cliPath, ['--version'], { env: env, timeout: 5000 });
                     return cliPath;
                 }
             } catch {
-                // Continue to next path
             }
         }
 
         return null;
     }
 
-    /**
-     * Set the source identity to use for transactions.
-     *
-     * @param source - Source identity name (e.g., 'dev')
-     */
     setSource(source: string): void {
         this.source = source;
-    }
-
-    /**
-     * Set custom environment variables for CLI execution.
-     * These are merged into the process environment on every call.
-     *
-     * @param env - Key–value pairs to inject
-     */
-    setCustomEnv(env: Record<string, string>): void {
-        this.customEnv = { ...env };
     }
 }

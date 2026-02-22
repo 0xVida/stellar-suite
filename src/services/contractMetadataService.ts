@@ -140,8 +140,6 @@ export class ContractMetadataService {
      * `invalidate()` has been called since the last scan.
      */
     public async scanWorkspace(): Promise<WorkspaceScanResult> {
-        this.log('[MetadataService] Starting workspace scan for Cargo.toml files...');
-
         const files = await this.workspace.findFiles(
             '**/Cargo.toml',
             '**/target/**',
@@ -162,7 +160,6 @@ export class ContractMetadataService {
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
                 errors.push({ path: file.fsPath, error: message });
-                this.log(`[MetadataService] Error processing ${file.fsPath}: ${message}`);
             }
         }
 
@@ -172,11 +169,6 @@ export class ContractMetadataService {
             errors,
             scannedAt: new Date().toISOString(),
         };
-
-        this.log(
-            `[MetadataService] Scan complete: ${contracts.length} contract(s), ` +
-            `${workspaceRoots.length} workspace root(s), ${errors.length} error(s).`
-        );
 
         return result;
     }
@@ -198,7 +190,6 @@ export class ContractMetadataService {
 
         const meta = this.parseFile(normalised);
         this.cache.set(normalised, meta);
-        this.log(`[MetadataService] Parsed and cached metadata for ${normalised}`);
         return meta;
     }
 

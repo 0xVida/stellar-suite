@@ -186,9 +186,6 @@ export class ContractDependencyDetectionService {
             ...options,
         };
 
-        this.log('[DependencyDetection] Building dependency graph...');
-        this.log(`[DependencyDetection] Analyzing ${contracts.length} contracts`);
-
         // Step 1: Resolve Cargo.toml dependencies
         const cargoResolution = resolveDeploymentDependencies(contracts, {
             includeDevDependencies: opts.includeDevDependencies,
@@ -198,8 +195,6 @@ export class ContractDependencyDetectionService {
         const imports = opts.detectImports
             ? await this.detectImportDependencies(contracts, opts)
             : [];
-
-        this.log(`[DependencyDetection] Found ${imports.length} import statements`);
 
         // Step 3: Build enhanced edges
         const enhancedEdges = this.buildEnhancedEdges(
@@ -234,9 +229,6 @@ export class ContractDependencyDetectionService {
 
         this.cachedGraph = graph;
         this.lastScanTime = Date.now();
-
-        this.log('[DependencyDetection] Graph built successfully');
-        this.logGraphSummary(graph);
 
         return graph;
     }

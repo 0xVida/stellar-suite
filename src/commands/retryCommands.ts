@@ -15,7 +15,7 @@ export function registerRetryCommands(
         async () => {
             const cbStats = retryService.getCircuitStats();
             const statusText = `
-🔌 Circuit Breaker Status
+Circuit Breaker Status
 ${'='.repeat(50)}
 
 **Current State**
@@ -49,7 +49,7 @@ ${getCircuitStateExplanation(cbStats.state)}
             }
 
             const statsText = `
-📊 RPC Retry Statistics
+RPC Retry Statistics
 ${'='.repeat(50)}
 
 ${Array.from(allStats.entries())
@@ -87,7 +87,7 @@ ${Array.from(allStats.entries())
                 .map(
                     (attempt, index) => `
 ${index + 1}. Attempt ${attempt.attempt}
-   - Status: ${attempt.success ? '✓ Success' : '✗ Failed'}
+   - Status: ${attempt.success ? '[OK] Success' : '[FAIL] Failed'}
    - Response Time: ${attempt.responseTime}ms
    - Next Retry: ${attempt.nextRetryDelayMs ? `${attempt.nextRetryDelayMs}ms` : 'N/A'}
    - Error: ${attempt.error?.message || 'None'}
@@ -123,7 +123,7 @@ ${index + 1}. Attempt ${attempt.attempt}
 
             if (confirm === 'Reset') {
                 retryService.resetCircuit();
-                vscode.window.showInformationMessage('✓ Circuit breaker reset to CLOSED');
+                vscode.window.showInformationMessage('Circuit breaker reset to CLOSED');
             }
         }
     );

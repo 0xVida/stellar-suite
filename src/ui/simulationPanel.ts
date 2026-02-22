@@ -73,9 +73,8 @@ export class SimulationPanel {
   public static createOrShow(
     context: vscode.ExtensionContext,
   ): SimulationPanel {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const editor = vscode.window.activeTextEditor;
+    const column = editor ? editor.viewColumn : undefined;
 
     // If we already have a panel, show it
     if (SimulationPanel.currentPanel) {
@@ -123,9 +122,9 @@ export class SimulationPanel {
   /**
    * Export the current simulation result.
    */
-  private async exportCurrentResult(
+  public exportCurrentResult = async (
     format: "json" | "csv" | "pdf",
-  ): Promise<void> {
+  ): Promise<void> => {
     if (!this._latestResult) {
       vscode.window.showInformationMessage(
         "Stellar Suite: No simulation result to export.",
@@ -134,8 +133,9 @@ export class SimulationPanel {
     }
 
     // Import the export command
-    const { exportCurrentSimulation } =
-      await import("../commands/exportCommands");
+    const { exportCurrentSimulation } = await import(
+      "../commands/exportCommands"
+    );
 
     // Create a history entry from the current result
     const entry = {
@@ -158,7 +158,7 @@ export class SimulationPanel {
     };
 
     await exportCurrentSimulation(this._context, entry, format);
-  }
+  };
 
   /**
    * Dispose of the panel and clean up resources.
@@ -424,8 +424,8 @@ export class SimulationPanel {
 
     const suggestionsHtml =
       !result.success &&
-      result.errorSuggestions &&
-      result.errorSuggestions.length > 0
+        result.errorSuggestions &&
+        result.errorSuggestions.length > 0
         ? `
             <h3>Suggested Resolution</h3>
             <ul class="error-suggestions">
@@ -723,8 +723,7 @@ export class SimulationPanel {
     </div>
 
     ${validationWarningsHtml}
-    ${
-      result.success
+    ${result.success
         ? `
         <div class="section">
             <h3>Return Value</h3>
@@ -744,7 +743,7 @@ export class SimulationPanel {
             ${suggestionsHtml}
         </div>
         `
-    }
+      }
 
     ${stateDiffHtml}
 

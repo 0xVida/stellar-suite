@@ -20,15 +20,13 @@ export class WasmDetector {
                 const files = await vscode.workspace.findFiles(
                     new vscode.RelativePattern(folder, pattern),
                     '**/node_modules/**',
-                    100
+                    50
                 );
                 wasmFiles.push(...files.map((f: { fsPath: string }) => f.fsPath));
             }
         }
 
-        // Remove duplicates and filter
-        const uniqueFiles = [...new Set(wasmFiles)];
-        return uniqueFiles.filter(file => {
+        return wasmFiles.filter(file => {
             const dir = path.dirname(file);
             return dir.includes('target') || dir.includes('wasm32');
         });
@@ -65,7 +63,7 @@ export class WasmDetector {
                 const files = await vscode.workspace.findFiles(
                     new vscode.RelativePattern(folder, pattern),
                     '**/node_modules/**',
-                    100
+                    20
                 );
                 
                 for (const file of files) {
@@ -78,8 +76,7 @@ export class WasmDetector {
             }
         }
 
-        // Remove duplicates
-        return [...new Set(contractDirs)];
+        return contractDirs;
     }
 
     static getActiveContractDirectory(): string | null {

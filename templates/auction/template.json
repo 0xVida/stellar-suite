@@ -1,0 +1,28 @@
+{
+    "name": "auction",
+    "displayName": "Auction Contract Template",
+    "description": "A comprehensive auction template supporting English auctions with reserve prices, time-based closing, and secure bid management.",
+    "version": "0.1.0",
+    "category": "defi",
+    "author": "Stellar Suite",
+    "tags": [
+        "auction",
+        "bidding",
+        "marketplace",
+        "defi"
+    ],
+    "dependencies": {
+        "soroban-sdk": "20.0.0"
+    },
+    "functions": [
+        "create_auction",
+        "place_bid",
+        "settle",
+        "withdraw_outbid",
+        "get_auction_details"
+    ],
+    "examples": [
+        "Create an auction for an NFT/Token with a 100 XLM reserve price ending in 24 hours."
+    ],
+    "license": "Apache-2.0"
+}

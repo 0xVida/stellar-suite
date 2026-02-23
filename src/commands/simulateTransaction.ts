@@ -5,7 +5,7 @@ import { ContractInspector, ContractFunction } from '../services/contractInspect
 import { WorkspaceDetector } from '../utils/workspaceDetector';
 import { SimulationPanel } from '../ui/simulationPanel';
 import { SidebarViewProvider } from '../ui/sidebarView';
-import { parseFunctionArgs } from '../utils/jsonParser';
+import { getFormValidationService } from '../services/formValidationService';
 import { formatError } from '../utils/errorFormatter';
 
 export async function simulateTransaction(context: vscode.ExtensionContext, sidebarProvider?: SidebarViewProvider) {
@@ -30,19 +30,13 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
         } catch (error) {
         }
 
+        const formValidation = getFormValidationService();
+
         const contractId = await vscode.window.showInputBox({
             prompt: 'Enter the contract ID (address)',
             placeHolder: defaultContractId || 'e.g., C...',
             value: defaultContractId,
-            validateInput: (value: string) => {
-                if (!value || value.trim().length === 0) {
-                    return 'Contract ID is required';
-                }
-                if (!value.match(/^C[A-Z0-9]{55}$/)) {
-                    return 'Invalid contract ID format (should start with C and be 56 characters)';
-                }
-                return null;
-            }
+            validateInput: formValidation.getContractIdValidator()
         });
 
         if (!contractId) {
@@ -84,12 +78,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             const input = await vscode.window.showInputBox({
                 prompt: 'Enter the function name to call',
                 placeHolder: 'e.g., hello',
-                validateInput: (value: string) => {
-                    if (!value || value.trim().length === 0) {
-                        return 'Function name is required';
-                    }
-                    return null;
-                }
+                validateInput: formValidation.getFunctionNameValidator()
             });
 
             if (!input) {
@@ -114,12 +103,7 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
                     prompt: `Enter value for parameter: ${param.name}${param.type ? ` (${param.type})` : ''}${param.required ? '' : ' (optional)'}`,
                     placeHolder: param.description || `Value for ${param.name}`,
                     ignoreFocusOut: !param.required,
-                    validateInput: (value: string) => {
-                        if (param.required && (!value || value.trim().length === 0)) {
-                            return `${param.name} is required`;
-                        }
-                        return null;
-                    }
+                    validateInput: formValidation.getParameterValidator(param)
                 });
 
                 if (param.required && paramValue === undefined) {
@@ -140,10 +124,17 @@ export async function simulateTransaction(context: vscode.ExtensionContext, side
             const argsInput = await vscode.window.showInputBox({
                 prompt: 'Enter function arguments as JSON object (e.g., {"name": "value"})',
                 placeHolder: 'e.g., {"name": "world"}',
-                value: '{}'
+                value: '{}',
+                validateInput: formValidation.getJsonArgsValidator()
             });
 
             if (argsInput === undefined) {
+                return;
+            }
+
+            const jsonValidation = formValidation.validateJsonArgs(argsInput || '{}');
+            if (!jsonValidation.valid) {
+                vscode.window.showErrorMessage(jsonValidation.errors[0]?.message ?? 'Invalid arguments');
                 return;
             }
 

@@ -19,19 +19,6 @@
     "soroban",
     "developer-tools"
   ],
-  "activationEvents": [
-    "onView:stellarSuite.contractsView",
-    "onCommand:stellarSuite.simulateTransaction",
-    "onCommand:stellarSuite.deployContract",
-    "onCommand:stellarSuite.buildContract",
-    "onCommand:stellarSuite.configureCli",
-    "onCommand:stellarSuite.refreshContracts",
-    "onCommand:stellarSuite.clearSimulationCache",
-    "onCommand:stellarSuite.showSimulationCacheStats",
-    "onCommand:stellarSuite.deployBatch",
-    "onCommand:stellarSuite.manageRpcAuth",
-    "onCommand:stellarSuite.manageEnvVariables"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -267,6 +254,30 @@
       {
         "command": "stellarSuite.parseContractSource",
         "title": "Stellar Suite: Parse Contract Source Code"
+      },
+      {
+        "command": "stellarSuite.showRpcHealth",
+        "title": "Stellar Suite: Show RPC Health"
+      },
+      {
+        "command": "stellarSuite.checkRpcHealth",
+        "title": "Stellar Suite: Check RPC Health"
+      },
+      {
+        "command": "stellarSuite.viewRpcHistory",
+        "title": "Stellar Suite: View RPC History"
+      },
+      {
+        "command": "stellarSuite.switchRpcEndpoint",
+        "title": "Stellar Suite: Switch RPC Endpoint"
+      },
+      {
+        "command": "stellarSuite.viewCircuitBreakerStatus",
+        "title": "Stellar Suite: View Circuit Breaker Status"
+      },
+      {
+        "command": "stellarSuite.resetCircuitBreaker",
+        "title": "Stellar Suite: Reset Circuit Breaker"
       }
     ],
     "menus": {
@@ -532,9 +543,11 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
+    "lint": "tsc --noEmit",
+    "package": "npm run compile && vsce package",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:rpc-service && npm run test:rpc-retry-service && npm run test:keyboard-shortcuts && npm run test:simulation-comparison && npm run test:simulation-diff && npm run test:progress-indicators && npm run test:contract-deployer && npm run test:deployment-workflow-integration && npm run test:toast-notification && npm run test:notification-preferences && npm run test:cli-version && npm run test:form-generator && npm run test:form-validator && npm run test:abi-form-generator && npm run test:offline-simulation && npm run test:state-persistence && npm run test:simulation-performance && npm run test:contract-detection-perf && npm run test:wasm-detector && npm run test:workspace-detector && npm run test:e2e-deployment && npm run test:e2e-multi-contract && npm run test:e2e-contract-management && npm run test:form-templates && npm run test:simulation-workflow-integration && npm run test:contract-abi && npm run test:cli-integration && npm run test:rust-parser",
+    "test": "npm run test:cli-history && npm run test:cli-errors && npm run test:cli-streaming && npm run test:version-tracker && npm run test:state-validation && npm run test:cargo-metadata && npm run test:state-diff && npm run test:simulation-history && npm run test:cli-validation && npm run test:compilation-status && npm run test:state-backup && npm run test:sidebar-export-import && npm run test:simulation-replay && npm run test:transaction-signing && npm run test:keypair-management && npm run test:resource-profiling && npm run test:env-variable && npm run test:template-detection && npm run test:simulation-validation && npm run test:rpc-auth && npm run test:rpc-rate-limit && npm run test:rpc-service && npm run test:rpc-retry-service && npm run test:keyboard-shortcuts && npm run test:simulation-comparison && npm run test:simulation-diff && npm run test:progress-indicators && npm run test:contract-deployer && npm run test:deployment-workflow-integration && npm run test:toast-notification && npm run test:notification-preferences && npm run test:cli-version && npm run test:form-generator && npm run test:form-validator && npm run test:abi-form-generator && npm run test:offline-simulation && npm run test:state-persistence && npm run test:simulation-performance && npm run test:contract-detection-perf && npm run test:e2e-deployment && npm run test:e2e-multi-contract && npm run test:e2e-contract-management && npm run test:form-templates && npm run test:simulation-workflow-integration && npm run test:contract-abi && npm run test:cli-integration && npm run test:rust-parser",
     "test:form-templates": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/formTemplate.ts src/services/formTemplateService.ts src/test/formTemplate.test.ts && node out-test/test/formTemplate.test.js",
     "test:contract-deployer": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractDeployer.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/fixtures/deploymentFixtures.ts src/test/contractDeployer.test.ts && node out-test/test/contractDeployer.test.js",
     "test:deployment-workflow-integration": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliCancellation.ts src/services/cliTimeoutService.ts src/utils/streamBuffer.ts src/utils/cliCleanupUtilities.ts src/ui/timeoutIndicators.ts src/services/cliOutputStreamingService.ts src/services/cliConfigurationService.ts src/services/deploymentRetryService.ts src/services/contractDeployer.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/fixtures/deploymentFixtures.ts src/test/fixtures/deploymentWorkflowFixtures.ts src/test/deploymentWorkflow.integration.test.ts && node out-test/test/deploymentWorkflow.integration.test.js",
@@ -586,22 +599,25 @@
     "test:large-workspace": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractMetadataService.ts src/services/deploymentDependencyResolver.ts src/test/fixtures/largeWorkspaceFixtures.ts src/test/largeWorkspacePerformance.test.ts && node out-test/test/largeWorkspacePerformance.test.js",
     "test:simulation-performance": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/simulationHistoryService.ts src/services/simulationReplayService.ts src/test/simulationPerformance.test.ts && node out-test/test/simulationPerformance.test.js",
     "test:contract-detection-perf": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/contractDetectionPerformance.test.ts && node out-test/test/contractDetectionPerformance.test.js",
-    "test:wasm-detector": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node,vscode --esModuleInterop --skipLibCheck --outDir out-test src/utils/wasmDetector.ts src/test/wasmDetector.test.ts && node out-test/test/wasmDetector.test.js",
-    "test:workspace-detector": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node,vscode --esModuleInterop --skipLibCheck --outDir out-test src/utils/workspaceDetector.ts src/test/workspaceDetector.test.ts && node out-test/test/workspaceDetector.test.js",
     "test:e2e-deployment": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractDeployer.ts src/test/e2eDeployment.test.ts && node out-test/test/e2eDeployment.test.js",
     "test:state-persistence": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/stateIntegrity.ts src/services/stateBackupService.ts src/services/stateValidationService.ts src/services/contractWorkStateService.ts src/test/fixtures/statePersistenceFixtures.ts src/test/statePersistence.integration.test.ts && node out-test/test/statePersistence.integration.test.js",
     "test:e2e-multi-contract": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/test/e2eMultiContractWorkspace.test.ts && node out-test/test/e2eMultiContractWorkspace.test.js",
     "test:e2e-contract-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/test/e2eContractManagement.test.ts && node out-test/test/e2eContractManagement.test.js",
     "test:contract-abi": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/utils/abiParser.ts src/types/contractAbi.ts src/services/contractAbiService.ts src/test/contractAbi.test.ts && node out-test/test/contractAbi.test.js",
-    "test:rust-parser": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rustParser.ts src/utils/rustSourceParser.ts src/services/contractInspector.ts src/services/signatureCacheService.ts src/services/sourceInspectorService.ts src/test/rustSourceParser.test.ts && node out-test/test/rustSourceParser.test.js",
+    "test:rust-parser": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/rustParser.ts src/utils/rustSourceParser.ts src/services/contractInspector.ts src/services/signatureCacheService.ts src/services/sourceInspectorService.ts src/test/rustSourceParser.test.ts && node out-test/test/rustSourceParser.test.js"
     "test:simulation-workflow-integration": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/services/simulationHistoryService.ts src/services/simulationCacheCore.ts src/services/simulationCacheKey.ts src/services/stateDiffService.ts src/services/stateCaptureService.ts src/test/fixtures/simulationFixtures.ts src/test/simulationWorkflow.integration.test.ts && node out-test/test/simulationWorkflow.integration.test.js"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.0",
     "@types/node": "^20.19.33",
+    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.80.0",
-    "typescript": "^5.0.0"
-  },
-  "dependencies": {
+    "@vscode/vsce": "^2.22.0",
+    "mocha": "^10.0.0",
+    "nyc": "^17.1.0",
+    "sinon": "^21.0.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0",
     "vscode": "^1.1.37"
   }
 }

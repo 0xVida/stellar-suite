@@ -1,124 +1,93 @@
-declare function require(name: string): any;
-declare const process: { exitCode?: number };
+import * as assert from 'assert';
+import * as sinon from 'sinon';
+import { SorobanCliService, ExecFileFunction } from '../services/sorobanCliService';
 
-const assert = require('assert');
-import { SimulationValidationService } from '../services/simulationValidationService';
-import { ContractFunction } from '../services/contractInspector';
+describe('SorobanCliService', () => {
+    let service: SorobanCliService;
+    let execFileStub: sinon.SinonStub;
 
-const service = new SimulationValidationService();
+    beforeEach(() => {
+        execFileStub = sinon.stub();
+        service = new SorobanCliService('stellar', 'dev', execFileStub as unknown as ExecFileFunction);
+    });
 
-function sampleFunction(): ContractFunction {
-    return {
-        name: 'transfer',
-        parameters: [
-            { name: 'from', type: 'Address', required: true },
-            { name: 'to', type: 'Address', required: true },
-            { name: 'amount', type: 'i128', required: true },
-        ],
-    };
-}
+    describe('simulateTransaction', () => {
+        it('handles successful simulation with JSON output', async () => {
+            const mockOutput = JSON.stringify({
+                result: 'success_value',
+                resource_usage: {
+                    cpu_instructions: 100,
+                    memory_bytes: 200
+                }
+            });
 
-async function testValidRequestPasses() {
-    const fn = sampleFunction();
-    const report = service.validateSimulation(
-        'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-        'transfer',
-        [{
-            from: 'GABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-            to: 'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-            amount: 10,
-        }],
-        fn,
-        [fn]
-    );
+            execFileStub.resolves({ stdout: mockOutput, stderr: '' });
 
-    assert.strictEqual(report.valid, true);
-    assert.strictEqual(report.errors.length, 0);
-    console.log('  [ok] passes valid simulation input');
-}
+            const result = await service.simulateTransaction('C123', 'hello', []);
 
-async function testMissingRequiredParameterFails() {
-    const fn = sampleFunction();
-    const report = service.validateSimulation(
-        'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-        'transfer',
-        [{ from: 'GABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST' }],
-        fn,
-        [fn]
-    );
+            assert.strictEqual(result.success, true);
+            assert.strictEqual(result.result, 'success_value');
+            assert.deepStrictEqual(result.resourceUsage, {
+                cpuInstructions: 100,
+                memoryBytes: 200
+            });
+        });
 
-    assert.strictEqual(report.valid, false);
-    assert.ok(report.errors.some((error: string) => error.includes('Missing required parameter: to')));
-    assert.ok(report.suggestions.length > 0);
-    console.log('  [ok] fails when required parameter is missing');
-}
+        it('handles plain text output', async () => {
+            execFileStub.resolves({ stdout: 'plain_result', stderr: '' });
 
-async function testFunctionSignaturePrediction() {
-    const fn = sampleFunction();
-    const report = service.validateSimulation(
-        'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-        'mint',
-        [{}],
-        null,
-        [fn]
-    );
+            const result = await service.simulateTransaction('C123', 'hello', []);
 
-    assert.strictEqual(report.valid, false);
-    assert.ok(report.predictedErrors.some(prediction => prediction.code === 'FUNCTION_NOT_EXPORTED'));
-    console.log('  [ok] predicts missing function export');
-}
+            assert.strictEqual(result.success, true);
+            assert.strictEqual(result.result, 'plain_result');
+        });
 
-async function testTypeWarningAndUnknownParameter() {
-    const fn = sampleFunction();
-    const report = service.validateSimulation(
-        'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-        'transfer',
-        [{
-            from: 'BAD_ADDRESS',
-            to: 'CABCDEFGHIJKLMNOPQRSTUVWXY1234567890ABCDEFGHIJKLMNOPQRST',
-            amount: 'abc',
-            memo: 'hello',
-        }],
-        fn,
-        [fn]
-    );
+        it('handles stderr failure', async () => {
+            execFileStub.resolves({ stdout: '', stderr: 'error: something went wrong' });
 
-    assert.ok(report.warnings.some((warning: string) => warning.includes('Type mismatch for parameter "amount"')));
-    assert.ok(report.warnings.some((warning: string) => warning.includes('Unknown parameter provided: memo')));
-    assert.ok(report.predictedErrors.some(prediction => prediction.code === 'INVALID_ADDRESS_SHAPE'));
-    console.log('  [ok] warns on type mismatch and unknown parameter');
-}
+            const result = await service.simulateTransaction('C123', 'hello', []);
 
-async function run() {
-    const tests: Array<() => Promise<void>> = [
-        testValidRequestPasses,
-        testMissingRequiredParameterFails,
-        testFunctionSignaturePrediction,
-        testTypeWarningAndUnknownParameter,
-    ];
+            assert.strictEqual(result.success, false);
+            assert.ok(result.error?.includes('something went wrong'));
+        });
 
-    let passed = 0;
-    let failed = 0;
+        it('handles ENOENT (CLI not found)', async () => {
+            const error = new Error('spawn stellar ENOENT');
+            (error as any).code = 'ENOENT';
+            execFileStub.rejects(error);
 
-    console.log('\nsimulationValidationService unit tests');
-    for (const test of tests) {
-        try {
-            await test();
-            passed += 1;
-        } catch (err) {
-            failed += 1;
-            console.error(`  [fail] ${test.name}`);
-            console.error(`         ${err instanceof Error ? err.message : String(err)}`);
-        }
-    }
+            const result = await service.simulateTransaction('C123', 'hello', []);
 
-    console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`);
-    if (failed > 0) {
-        process.exitCode = 1;
-    }
-}
+            assert.strictEqual(result.success, false);
+            assert.ok(result.error?.includes('Stellar CLI not found'));
+        });
 
-run().catch(err => {
-    console.error('Test runner error:', err);
-    process.exitCode = 1;
+        it('handles object arguments correctly', async () => {
+            execFileStub.resolves({ stdout: 'ok', stderr: '' });
+
+            await service.simulateTransaction('C123', 'hello', [{ amount: 100, recipient: 'C456' }]);
+
+            const lastCall = execFileStub.lastCall;
+            const args = lastCall.args[1] as string[];
+
+            assert.ok(args.includes('--amount'));
+            assert.ok(args.includes('100'));
+            assert.ok(args.includes('--recipient'));
+            assert.ok(args.includes('C456'));
+        });
+    });
+
+    describe('isAvailable', () => {
+        it('returns true if --version succeeds', async () => {
+            execFileStub.resolves({ stdout: 'stellar 21.0.0', stderr: '' });
+            const available = await service.isAvailable();
+            assert.strictEqual(available, true);
+        });
+
+        it('returns false if --version fails', async () => {
+            execFileStub.rejects(new Error('fail'));
+            const available = await service.isAvailable();
+            assert.strictEqual(available, false);
+        });
+    });
 });

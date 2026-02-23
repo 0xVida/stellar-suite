@@ -1,8 +1,3 @@
-import {
-    CliErrorContext,
-    formatCliErrorForDisplay,
-    parseCliErrorOutput,
-} from './cliErrorParser';
 
 export interface FormattedError {
     title: string;
@@ -46,7 +41,14 @@ export function formatError(error: unknown, context?: string): FormattedError {
     };
 }
 
-export function formatCliError(stderr: string, context?: CliErrorContext): string {
-    const parsed = parseCliErrorOutput(stderr, context);
-    return formatCliErrorForDisplay(parsed);
+export function formatCliError(stderr: string): string {
+    const lines = stderr.split('\n').filter(line => line.trim().length > 0);
+    
+    for (const line of lines) {
+        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
+            return line.trim();
+        }
+    }
+
+    return lines[0] || stderr.trim() || 'Unknown CLI error';
 }

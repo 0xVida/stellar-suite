@@ -237,7 +237,7 @@ impl VotingContract {
         );
 
         // Get voting power (token balance + delegated power)
-        let voting_power = Self::get_voting_power(&env, &voter);
+        let voting_power = Self::internal_voting_power(&env, &voter);
         assert!(voting_power > 0, "No voting power");
 
         // Record vote
@@ -430,7 +430,12 @@ impl VotingContract {
     ///
     /// # Returns
     /// * `u128` - Total voting power
-    pub fn get_voting_power(env: &Env, voter: &Address) -> u128 {
+    pub fn get_voting_power(env: Env, voter: Address) -> u128 {
+        Self::internal_voting_power(&env, &voter)
+    }
+
+    /// Internal helper to compute voting power from within the contract
+    fn internal_voting_power(env: &Env, voter: &Address) -> u128 {
         let config: GovernanceConfig = env
             .storage()
             .instance()

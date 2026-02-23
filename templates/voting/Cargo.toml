@@ -8,14 +8,14 @@ license = "Apache-2.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "voting_contract"
 
 [dependencies]
-soroban-sdk = { version = "20.0.0", features = [] }
+soroban-sdk = { version = "22.0.9", features = [] }
 
 [dev-dependencies]
-soroban-sdk = { version = "20.0.0", features = ["testutils"] }
+soroban-sdk = { version = "22.0.9", features = ["testutils"] }
 
 [profile.release]
 opt-level = "z"

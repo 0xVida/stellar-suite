@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Suite Banner Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            margin: 0;
+            padding: 40px;
+        }
+        h1, h2 {
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .banner-section {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+        .preview {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            display: block;
+            margin-bottom: 16px;
+            background-color: #000;
+        }
+        .btn {
+            background-color: #238636;
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background-color: #2ea043;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stellar Suite Banner Asset Generator</h1>
+        <p>This utility allows you to preview the vector SVGs and export them as high-quality PNGs.</p>
+        <p style="color: #a5d6ff;"><em>Tip: If the download button doesn't work locally, run a static server in this folder (<code>npx serve ./</code>).</em></p>
+
+        <div class="banner-section">
+            <h2>Marketplace Banner (1024x256)</h2>
+            <img src="../variations/marketplace-banner-1024x256.svg" alt="Marketplace Banner" class="preview" id="img-marketplace">
+            <button class="btn" onclick="downloadPng('img-marketplace', 'marketplace-banner-1024x256.png', 1024, 256)">Download PNG</button>
+        </div>
+
+        <div class="banner-section">
+            <h2>Social Card / Repo Banner (1280x640)</h2>
+            <img src="../variations/social-card-1280x640.svg" alt="Social Card" class="preview" id="img-social" style="max-width: 800px;">
+            <br>
+            <button class="btn" onclick="downloadPng('img-social', 'social-card-1280x640.png', 1280, 640)">Download PNG</button>
+        </div>
+
+        <div class="banner-section">
+            <h2>Sidebar Minimal (300x250)</h2>
+            <img src="../variations/sidebar-banner-300x250.svg" alt="Sidebar" class="preview" id="img-sidebar">
+            <button class="btn" onclick="downloadPng('img-sidebar', 'sidebar-banner-300x250.png', 300, 250)">Download PNG</button>
+        </div>
+    </div>
+
+    <script>
+        async function downloadPng(imgId, filename, width, height) {
+            const img = document.getElementById(imgId);
+            const svgUrl = img.src;
+            
+            try {
+                const response = await fetch(svgUrl);
+                const svgText = await response.text();
+                
+                const blob = new Blob([svgText], {type: 'image/svg+xml;charset=utf-8'});
+                const url = URL.createObjectURL(blob);
+                
+                const drawImg = new Image();
+                drawImg.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(drawImg, 0, 0, width, height);
+                    
+                    const pngUrl = canvas.toDataURL('image/png');
+                    const a = document.createElement('a');
+                    a.href = pngUrl;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+                drawImg.src = url;
+            } catch (error) {
+                alert("Export failed. If you opened the file directly, CORS may block local file fetching. Run a local server or use an image editor to convert the generated SVG files.");
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F0F1A" />
+      <stop offset="50%" stop-color="#1A1A2E" />
+      <stop offset="100%" stop-color="#050510" />
+    </linearGradient>
+    <linearGradient id="text-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="640" fill="url(#bg)" />
+
+  <!-- Decorative grid -->
+  <g stroke="#ffffff" stroke-opacity="0.04" stroke-width="1.5">
+    <path d="M 0 128 L 1280 128 M 0 256 L 1280 256 M 0 384 L 1280 384 M 0 512 L 1280 512" />
+    <path d="M 256 0 L 256 640 M 512 0 L 512 640 M 768 0 L 768 640 M 1024 0 L 1024 640" />
+  </g>
+  
+  <rect x="0" y="0" width="1280" height="8" fill="url(#text-glow)" />
+
+  <g transform="translate(640, 320)">
+    <!-- Abstract Design Element Center/Background -->
+    <circle cx="0" cy="0" r="280" fill="none" stroke="url(#text-glow)" stroke-width="2" filter="url(#glow)" opacity="0.3" />
+    <circle cx="0" cy="0" r="180" fill="none" stroke="#8b5cf6" stroke-width="1.5" opacity="0.3" />
+    <path d="M -200 0 L 200 0 M 0 -200 L 0 200" stroke="#ffffff" stroke-width="1" opacity="0.1" />
+  </g>
+
+  <!-- Content -->
+  <g transform="translate(640, 320)" text-anchor="middle">
+    <!-- Icon Placeholder or Core Node -->
+    <circle cx="0" cy="-100" r="36" fill="#3b82f6" opacity="0.9" filter="url(#glow)" />
+    
+    <!-- Title -->
+    <text x="0" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="96" font-weight="800" fill="#ffffff" letter-spacing="-2.5">
+      Stellar Suite
+    </text>
+    
+    <!-- Subtitle -->
+    <text x="0" y="90" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="36" fill="#a1a1aa" font-weight="500">
+      Build, Deploy, and Simulate Smart Contracts in VS Code
+    </text>
+
+    <!-- Features -->
+    <text x="0" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20" fill="#60a5fa" font-weight="600" letter-spacing="3">
+      INTERACTIVE EXPERIENCES • SEAMLESS DEPLOYS • RPC MANAGEMENT
+    </text>
+  </g>
+</svg>

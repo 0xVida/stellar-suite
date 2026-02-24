@@ -3,28 +3,71 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --cosmic-navy: #0B1021;
+  --slate-gray: #1A2035;
+  --electric-cyan: #00D2FF;
+  --stellar-blue: #3A5AFE;
+  --stardust-white: #F8F9FA;
+  --muted-silver: #8E9CAE;
+  --success: #00E676;
+  --warning: #FFD600;
+  --error: #FF1744;
+  --border-subtle: #2A324A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cosmic-navy: var(--cosmic-navy);
+  --color-slate-gray: var(--slate-gray);
+  --color-electric-cyan: var(--electric-cyan);
+  --color-stellar-blue: var(--stellar-blue);
+  --color-stardust-white: var(--stardust-white);
+  --color-muted-silver: var(--muted-silver);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-border-subtle: var(--border-subtle);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
+  --radius: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0B1021;
+    --foreground: #F8F9FA;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Animations — minimal and purposeful */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 16px rgba(0, 210, 255, 0.08); }
+  50% { box-shadow: 0 0 32px rgba(0, 210, 255, 0.2); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
 @layer utilities {
   .animate-fade-in-up {
     animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;

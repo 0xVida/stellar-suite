@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { COMPARISON_DATA } from "@/lib/data/features";
 import { Section, SectionHeader } from "@/components/ui/Section";
 
@@ -96,6 +97,14 @@ export function ComparisonTool() {
             </div>
           </div>
         ))}
+      </div>
+      <div className="mt-8 text-center">
+        <Link
+          href="/features-comparison"
+          className="inline-flex items-center justify-center rounded-md border border-electric-cyan/20 bg-electric-cyan/10 px-6 py-2 text-sm font-medium text-electric-cyan transition-colors hover:bg-electric-cyan/20"
+        >
+          View Full Comparison
+        </Link>
       </div>
     </Section>
   );

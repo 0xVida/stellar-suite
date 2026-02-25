@@ -69,6 +69,60 @@ export const FEATURE_CONTENT: ContentItem[] = [
   },
 ];
 
+export interface FeatureComparisonRow {
+  feature: string;
+  cli: string;
+  extension: string;
+}
+
+export const FEATURE_COMPARISON_DATA: FeatureComparisonRow[] = [
+  {
+    feature: "Project Initialization",
+    cli: "Manual folder creation & config setup",
+    extension: "One-click scaffolding with templates",
+  },
+  {
+    feature: "Smart Contract Deployment",
+    cli: "Complex CLI flags & key management",
+    extension: "Interactive UI with network selection",
+  },
+  {
+    feature: "Network Configuration",
+    cli: "Manual TOML editing or flag passing",
+    extension: "Pre-configured networks (Testnet/Mainnet)",
+  },
+  {
+    feature: "Logs & Feedback",
+    cli: "Standard terminal output",
+    extension: "Real-time, color-coded logs in panel",
+  },
+  {
+    feature: "Error Visibility",
+    cli: "Stack traces in terminal",
+    extension: "Inline error highlighting & context",
+  },
+  {
+    feature: "Developer Workflow",
+    cli: "Context switching between editor & terminal",
+    extension: "Integrated workflow within VS Code",
+  },
+  {
+    feature: "IDE Integration",
+    cli: "None (External tool)",
+    extension: "Native VS Code sidebar & commands",
+  },
+  {
+    feature: "Command Discoverability",
+    cli: "Requires memorizing commands/flags",
+    extension: "Visual menus & command palette",
+  },
+  {
+    feature: "Productivity / DX",
+    cli: "Steep learning curve",
+    extension: "Accelerated development cycle",
+  },
+];
+
 export interface ComparisonRow {
   task: string;
   cli: { steps: string; command: string; time: string };

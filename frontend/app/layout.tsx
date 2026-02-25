@@ -15,6 +15,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  title: "Stellar Suite Documentation",
+  description: "Build, deploy, and manage Soroban smart contracts on the Stellar network — directly from VS Code.",
   title: "Stellar Suite - Smart Contract Development Toolkit for Stellar",
   description:
     "Build, deploy, and manage Soroban smart contracts on Stellar — all from VS Code. One-click builds, interactive simulation, signing workflows, and 8 production-ready templates.",

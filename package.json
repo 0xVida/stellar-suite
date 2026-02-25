@@ -549,7 +549,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run docs",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "lint": "tsc --noEmit",
     "package": "npm run compile && vsce package",

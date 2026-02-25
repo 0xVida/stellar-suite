@@ -19,6 +19,7 @@ export function Navbar() {
             alt="Stellar Suite"
             width={24}
             height={24}
+            priority
           />
           <span className="text-sm font-semibold text-stardust-white">
             Stellar Suite

@@ -37,6 +37,7 @@ export function ScreenshotGallery() {
               alt={shot.alt}
               width={600}
               height={400}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
             <div className="bg-slate-gray/30 px-3 py-2 text-left text-xs text-muted-silver">
@@ -56,6 +57,7 @@ export function ScreenshotGallery() {
             alt={SCREENSHOTS[selectedIndex].alt}
             width={1200}
             height={800}
+            sizes="90vw"
             className="rounded-[var(--radius)]"
           />
         )}

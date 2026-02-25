@@ -55,7 +55,7 @@ impl StakingContract {
         let client = token::Client::new(&env, &token_addr);
         client.transfer(&user, &env.current_contract_address(), &amount);
 
-        let mut position = Self::get_position(&env, &user).unwrap_or(StakingPosition {
+        let mut position = Self::get_position(env.clone(), user.clone()).unwrap_or(StakingPosition {
             amount: 0,
             lock_end_time: 0,
             last_accrual_time: env.ledger().timestamp(),
@@ -80,7 +80,7 @@ impl StakingContract {
         let total_staked = env.storage().persistent().get::<_, i128>(&DataKey::TotalStaked).unwrap_or(0);
         env.storage().persistent().set(&DataKey::TotalStaked, &(total_staked + amount));
         
-        env.storage().persistent().set(&DataKey::Position(user), &position);
+        env.storage().persistent().set(&DataKey::Position(user.clone()), &position);
         
         log!(&env, "Staked amount: {}, user: {}, lock_end: {}", amount, user, position.lock_end_time);
     }
@@ -89,7 +89,7 @@ impl StakingContract {
     pub fn unstake(env: Env, user: Address, amount: i128) {
         user.require_auth();
         
-        let mut position = Self::get_position(&env, &user).expect("No staking position found");
+        let mut position = Self::get_position(env.clone(), user.clone()).expect("No staking position found");
         
         if amount <= 0 || amount > position.amount {
             panic!("Invalid unstake amount");
@@ -115,9 +115,9 @@ impl StakingContract {
         env.storage().persistent().set(&DataKey::TotalStaked, &(total_staked - amount));
 
         if position.amount == 0 && position.accumulated_rewards == 0 {
-            env.storage().persistent().remove(&DataKey::Position(user));
+            env.storage().persistent().remove(&DataKey::Position(user.clone()));
         } else {
-            env.storage().persistent().set(&DataKey::Position(user), &position);
+            env.storage().persistent().set(&DataKey::Position(user.clone()), &position);
         }
 
         log!(&env, "Unstaked amount: {}, user: {}", amount, user);
@@ -127,7 +127,7 @@ impl StakingContract {
     pub fn claim_rewards(env: Env, user: Address) {
         user.require_auth();
 
-        let mut position = Self::get_position(&env, &user).expect("No staking position found");
+        let mut position = Self::get_position(env.clone(), user.clone()).expect("No staking position found");
         
         let total_rewards = Self::calculate_pending_rewards(&env, &position);
         if total_rewards <= 0 {
@@ -170,13 +170,13 @@ impl StakingContract {
     }
 
     /// View: Get staking position of a user
-    pub fn get_position(env: &Env, user: &Address) -> Option<StakingPosition> {
-        env.storage().persistent().get(&DataKey::Position(user.clone()))
+    pub fn get_position(env: Env, user: Address) -> Option<StakingPosition> {
+        env.storage().persistent().get(&DataKey::Position(user))
     }
 
     /// View: Get current pending rewards for a user (unclaimed)
     pub fn get_pending_rewards(env: Env, user: Address) -> i128 {
-        let position = Self::get_position(&env, &user).unwrap_or(StakingPosition {
+        let position = Self::get_position(env.clone(), user.clone()).unwrap_or(StakingPosition {
             amount: 0,
             lock_end_time: 0,
             last_accrual_time: 0,

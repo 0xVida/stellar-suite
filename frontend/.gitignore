@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/docs
+/PR_SUMMARY.md
+
 
 # next.js
 /.next/

@@ -557,12 +557,11 @@
     "docs": "typedoc"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.1.6",
     "@types/node": "^20.19.33",
     "@types/vscode": "^1.80.0",
+    "cross-env": "^10.1.0",
     "typedoc": "^0.25.0",
     "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "react-icons": "^5.5.0"
   }
 }

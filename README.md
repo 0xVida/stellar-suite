@@ -4,10 +4,7 @@
 [![License](https://img.shields.io/github/license/0xVida/stellar-suite?style=flat-square)](LICENSE.md)
 [![Stellar](https://img.shields.io/badge/Stellar-Soroban-black?style=flat-square&logo=stellar)](https://stellar.org)
 
-Stellar Suite** is the ultimate developer toolkit for 
-building, deploying, and managing smart contracts on the 
-Stellar network—directly from your editor.
-Build, deploy, and simulate Soroban contracts from VS Code. No need to jump between the terminal and your editor—the Stellar CLI is wired into a sidebar and commands so you can stay in the flow.
+**Stellar Suite** is a developer toolkit for building, deploying, and managing smart contracts on the Stellar network—directly from your editor. Build, deploy, and simulate Soroban contracts from VS Code without jumping between the terminal and the editor: the Stellar CLI is wired into a sidebar and commands so you can stay in the flow.
 
 ---
 
@@ -19,11 +16,9 @@ Build, deploy, and simulate Soroban contracts from VS Code. No need to jump betw
 - **Signing** is built in: interactive prompt, keypair file, VS Code secure storage, or paste a signature from a hardware wallet.
 - **Errors and progress** from the CLI are streamed and parsed so you get clear feedback when something fails.
 
+![Stellar Suite MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
 
-![Stellar Suite MVP Screenshot](https://raw.
-githubusercontent.com/0xVida/stellar-suite/refs/heads/main/
-assets/screenshot.png)
-*Screenshot showing the current Stellar Suite MVP*
+*Screenshot of the current Stellar Suite MVP.*
 
 ---
 

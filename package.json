@@ -4,6 +4,7 @@
   "description": "Improves the developer experience when building smart contracts on Stellar. Build, deploy, and manage contracts directly from VS Code.",
   "version": "0.1.0",
   "publisher": "stellar-suite",
+  "icon": "ico.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/0xVida/stellar-suite.git"
@@ -554,6 +555,8 @@
     "package": "npm run compile && vsce package",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
+    "test": "node scripts/test-templates.js",
+    "test:templates": "node scripts/test-templates.js",
     "docs": "typedoc"
   },
   "devDependencies": {

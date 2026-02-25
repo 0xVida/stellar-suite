@@ -42,7 +42,7 @@ const NewsSection = () => {
               <p className="text-sm opacity-80 leading-relaxed">{news[0].description}</p>
             </div>
             <div className="flex justify-end mt-6">
-              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors cursor-pointer">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
                 <ArrowUpRight className="h-5 w-5" />
               </span>
             </div>
@@ -55,7 +55,7 @@ const NewsSection = () => {
               <p className="text-sm opacity-80 leading-relaxed">{news[1].description}</p>
             </div>
             <div className="flex justify-end mt-4">
-              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors cursor-pointer">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
                 <ArrowUpRight className="h-5 w-5" />
               </span>
             </div>
@@ -69,7 +69,7 @@ const NewsSection = () => {
                 <p className="text-sm opacity-80 leading-relaxed">{news[2].description}</p>
               </div>
               <div className="flex justify-end mt-4">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors cursor-pointer">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
                   <ArrowUpRight className="h-5 w-5" />
                 </span>
               </div>
@@ -80,7 +80,7 @@ const NewsSection = () => {
                 <p className="text-sm opacity-80 leading-relaxed">{news[3].description}</p>
               </div>
               <div className="flex justify-end mt-4">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors cursor-pointer">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
                   <ArrowUpRight className="h-5 w-5" />
                 </span>
               </div>

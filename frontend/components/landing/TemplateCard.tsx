@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ContentItem } from "@/lib/data/content";
-import { Badge } from "@/components/ui/Badge";
+import { CategoryBadge } from "@/components/ui/CategoryBadge";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 
 const CATEGORY_VARIANT: Record<string, "cyan" | "blue" | "default"> = {
@@ -27,16 +27,16 @@ export function TemplateCard({ template }: TemplateCardProps) {
           <h3 className="text-sm font-semibold text-stardust-white">
             {template.title}
           </h3>
-          <Badge variant={CATEGORY_VARIANT[template.category] ?? "default"}>
+          <CategoryBadge variant={CATEGORY_VARIANT[template.category] ?? "default"}>
             {template.category}
-          </Badge>
+          </CategoryBadge>
         </div>
         <p className="text-sm leading-relaxed text-muted-silver">
           {template.description}
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {template.tags.map((tag) => (
-            <Badge key={tag}>{tag}</Badge>
+            <CategoryBadge key={tag}>{tag}</CategoryBadge>
           ))}
         </div>
         {template.codeSnippet && (

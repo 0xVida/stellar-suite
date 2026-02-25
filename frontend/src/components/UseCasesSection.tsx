@@ -79,7 +79,7 @@ const UseCasesSection = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap justify-center gap-2 mb-14">
+        <div className="flex flex-wrap justify-center gap-2 mb-14" role="tablist" aria-label="Use cases">
           {tabs.map((tab, i) => (
             <button
               key={tab.label}
@@ -89,6 +89,10 @@ const UseCasesSection = () => {
                   ? "border-foreground bg-background text-foreground shadow-sm"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
+              role="tab"
+              id={`use-case-tab-${i}`}
+              aria-selected={active === i}
+              aria-controls={`use-case-panel-${i}`}
             >
               {tab.label}
             </button>
@@ -96,7 +100,12 @@ const UseCasesSection = () => {
         </div>
 
         {/* Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start"
+          role="tabpanel"
+          id={`use-case-panel-${active}`}
+          aria-labelledby={`use-case-tab-${active}`}
+        >
           <div>
             <p className="font-body text-muted-foreground text-base leading-relaxed mb-8">
               {current.description}

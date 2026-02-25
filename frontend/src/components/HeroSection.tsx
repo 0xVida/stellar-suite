@@ -9,7 +9,7 @@ const HeroSection = () => {
   const [activeShot, setActiveShot] = useState<"simulate" | "deploy">("simulate");
 
   return (
-    <section className="pt-40 pb-20 px-6" style={{ background: "hsl(var(--hero-bg))" }}>
+    <section className="pt-32 sm:pt-36 md:pt-40 pb-16 sm:pb-20 px-6" style={{ background: "hsl(var(--hero-bg))" }}>
       <div className="container mx-auto max-w-4xl text-center">
         {/* Heading */}
         <h1
@@ -48,7 +48,7 @@ const HeroSection = () => {
 
       {/* Screenshot tabs */}
       <div className="container mx-auto max-w-5xl mt-16 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-        <div className="flex justify-center gap-3 mb-6">
+        <div className="flex justify-center gap-3 mb-6" role="tablist" aria-label="Extension views">
           <button
             onClick={() => setActiveShot("simulate")}
             className={`rounded-full px-5 py-2 text-sm font-semibold font-display transition-all duration-200 border ${
@@ -56,6 +56,10 @@ const HeroSection = () => {
                 ? "border-white/40 bg-white/10 text-white"
                 : "border-transparent text-white/60 hover:text-white/90"
             }`}
+            role="tab"
+            id="hero-tab-simulate"
+            aria-selected={activeShot === "simulate"}
+            aria-controls="hero-screenshot"
           >
             Simulation
           </button>
@@ -66,16 +70,26 @@ const HeroSection = () => {
                 ? "border-white/40 bg-white/10 text-white"
                 : "border-transparent text-white/60 hover:text-white/90"
             }`}
+            role="tab"
+            id="hero-tab-deploy"
+            aria-selected={activeShot === "deploy"}
+            aria-controls="hero-screenshot"
           >
             Deployment
           </button>
         </div>
 
-        <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+        <div
+          id="hero-screenshot"
+          className="rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+          role="tabpanel"
+          aria-labelledby={activeShot === "simulate" ? "hero-tab-simulate" : "hero-tab-deploy"}
+        >
           <Image
             src={activeShot === "simulate" ? screenshotSimulate : screenshotDeploy}
             alt={activeShot === "simulate" ? "Stellar Suite VS Code extension — transaction simulation" : "Stellar Suite VS Code extension — contract deployment"}
             className="w-full"
+            sizes="(max-width: 768px) 100vw, 900px"
           />
         </div>
       </div>

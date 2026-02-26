@@ -10,7 +10,8 @@ Please verify the implementation by navigating to the following pages and taking
 3. **Feedback Widget**: Click the floating button on any page.
 4. **Social Share Buttons**: `http://localhost:3000/features-demo`
 5. **Blog Comment System**: `http://localhost:3000/features-demo`
-6. **Community Page**: `http://localhost:3000/community`
+6. **Homepage Navbar**: capture the navigation bar showing the new “Community” link (desktop & mobile).
+7. **Community Page**: `http://localhost:3000/community`
 7. **Community Guidelines**: `http://localhost:3000/community/guidelines`
 8. **Contributors List**: `http://localhost:3000/community/contributors`
 9. **Support Ticket Form**: open the community page and scroll to "Support Tickets"

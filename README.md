@@ -111,4 +111,15 @@ Fork the repo, clone it, run `npm install` and `npm run compile`. Use `npm test`
 
 ## Support
 
-Open an issue on GitHub for bugs or feature ideas.
+Open an issue on GitHub for bugs or feature ideas, or visit our
+[community page](https://stellar-suite.com/community) for discussions,
+community guidelines, and a support ticket form (used internally when the
+website is deployed).
+
+The front‑end site also includes:
+
+- **Forum integration** via GitHub Discussions
+- **Support ticket system** with issue creation
+- **Community guidelines** (see docs/community-guidelines.md)
+- **Contributor recognition** that pulls data from GitHub
+- **Discussion/comment sections** with basic moderation tools

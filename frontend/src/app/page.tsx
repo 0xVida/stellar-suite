@@ -7,6 +7,7 @@ import NewsSection from "@/components/NewsSection";
 import TrustSection from "@/components/TrustSection";
 import CtaSection from "@/components/CtaSection";
 import Footer from "@/components/Footer";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 
 export default function Home() {
   return (
@@ -20,6 +21,7 @@ export default function Home() {
       <TrustSection />
       <CtaSection />
       <Footer />
+      <ScrollToTopButton />
     </main>
   );
 }

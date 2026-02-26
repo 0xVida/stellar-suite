@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/Providers";
+import RouteTopLoader from "@/components/RouteTopLoader";
 import "@/app/globals.css";
 import Navbar from "@/components/Navbar";
 
@@ -52,6 +53,8 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>
+<<<<<<< HEAD
+        <RouteTopLoader />
         <Navbar />
         <div className="pt-16">
           <Providers>{children}</Providers>

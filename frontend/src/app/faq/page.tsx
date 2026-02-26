@@ -32,10 +32,10 @@ export default function FaqPage() {
       <Navbar />
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
-      <section className="pt-32 pb-14 px-6 border-b border-border">
+      <section className="pt-20 pb-8 px-4 sm:pt-24 sm:pb-12 sm:px-6 md:pt-32 md:pb-14 border-b border-border">
         <div className="mx-auto max-w-3xl text-center">
           {/* Breadcrumb */}
-          <nav className="flex items-center justify-center gap-2 mb-8 text-sm font-body text-muted-foreground">
+          <nav className="flex items-center justify-center gap-2 mb-6 sm:mb-8 text-xs sm:text-sm font-body text-muted-foreground">
             <Link href="/" className="hover:text-foreground transition-colors">
               Home
             </Link>
@@ -43,21 +43,21 @@ export default function FaqPage() {
             <span className="text-foreground">FAQ</span>
           </nav>
 
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 mb-5">
+          <div className="inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-primary/10 mb-4 sm:mb-5">
             <HelpCircle className="h-6 w-6 text-primary" />
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-display font-extrabold tracking-tight text-foreground leading-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-extrabold tracking-tight text-foreground leading-tight">
             Frequently asked
             <br className="hidden sm:block" /> questions
           </h1>
-          <p className="mt-4 text-lg font-body text-muted-foreground max-w-xl mx-auto">
+          <p className="mt-3 sm:mt-4 text-base sm:text-lg font-body text-muted-foreground max-w-xl mx-auto">
             {totalQuestions} answers to the most common questions about Stellar
             Suite.
           </p>
 
           {/* Search */}
-          <div className="mt-10">
+          <div className="mt-6 sm:mt-8 lg:mt-10">
             <FaqSearch
               value={query}
               onChange={(v) => {
@@ -71,7 +71,7 @@ export default function FaqPage() {
       </section>
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
-      <main id="main-content" className="py-16 px-6">
+      <main id="main-content" className="py-12 px-4 sm:py-14 sm:px-6 md:py-16">
         <div className="mx-auto max-w-3xl">
           {/* ── Search results ── */}
           {isSearching ? (
@@ -105,7 +105,7 @@ export default function FaqPage() {
             <div>
               {/* Category filter tabs */}
               <div
-                className="flex flex-wrap gap-2 mb-10"
+                className="flex flex-wrap gap-2 mb-6 sm:mb-8 lg:mb-10"
                 role="tablist"
                 aria-label="FAQ categories"
               >
@@ -113,7 +113,7 @@ export default function FaqPage() {
                   role="tab"
                   aria-selected={activeCategory === ALL_ID}
                   onClick={() => setActiveCategory(ALL_ID)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold font-display transition-all duration-200 border ${
+                  className={`rounded-full px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold font-display transition-all duration-200 border touch-manipulation ${
                     activeCategory === ALL_ID
                       ? "border-primary bg-primary text-primary-foreground shadow-sm"
                       : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
@@ -127,7 +127,7 @@ export default function FaqPage() {
                     role="tab"
                     aria-selected={activeCategory === cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold font-display transition-all duration-200 border ${
+                    className={`rounded-full px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold font-display transition-all duration-200 border touch-manipulation ${
                       activeCategory === cat.id
                         ? "border-primary bg-primary text-primary-foreground shadow-sm"
                         : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
@@ -139,7 +139,7 @@ export default function FaqPage() {
               </div>
 
               {/* Accordion sections */}
-              <div className="flex flex-col gap-12">
+              <div className="flex flex-col gap-8 sm:gap-10 lg:gap-12">
                 {visibleCategories.map((cat) => (
                   <section
                     key={cat.id}
@@ -147,11 +147,11 @@ export default function FaqPage() {
                   >
                     <h2
                       id={`cat-heading-${cat.id}`}
-                      className="text-xs font-bold uppercase tracking-widest text-muted-foreground font-display mb-4"
+                      className="text-xs sm:text-sm font-bold uppercase tracking-widest text-muted-foreground font-display mb-3 sm:mb-4"
                     >
                       {cat.label}
                     </h2>
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 sm:gap-3">
                       {cat.items.map((item) => (
                         <FaqItem key={item.id} item={item} />
                       ))}
@@ -163,19 +163,19 @@ export default function FaqPage() {
           )}
 
           {/* ── CTA ── */}
-          <div className="mt-20 rounded-2xl border border-border bg-card p-8 text-center">
-            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 mb-4">
+          <div className="mt-16 sm:mt-20 rounded-2xl border border-border bg-card p-6 sm:p-8 text-center">
+            <div className="inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary/10 mb-3 sm:mb-4">
               <MessageSquare className="h-5 w-5 text-primary" />
             </div>
-            <h2 className="font-display font-bold text-foreground text-lg mb-2">
+            <h2 className="font-display font-bold text-foreground text-base sm:text-lg mb-2">
               Still have questions?
             </h2>
-            <p className="text-sm font-body text-muted-foreground mb-6 max-w-sm mx-auto">
+            <p className="text-xs sm:text-sm font-body text-muted-foreground mb-4 sm:mb-6 max-w-sm mx-auto">
               Can&apos;t find what you&apos;re looking for? Our team is happy to help.
             </p>
             <ContactDialog
               trigger={
-                <span className="btn-primary cursor-pointer">Contact us</span>
+                <span className="btn-primary cursor-pointer text-sm sm:text-base">Contact us</span>
               }
             />
           </div>

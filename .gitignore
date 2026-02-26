@@ -16,3 +16,8 @@ stellar-suite-*.vsix
 frontend/node_modules/
 frontend/.env
 frontend/.next
+frontend/tsconfig.tsbuildinfo
+frontend/bun.lockb
+
+# Generated test snapshots (regenerate with cargo test)
+**/test_snapshots/

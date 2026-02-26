@@ -1,0 +1,187 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Fallback for no-JS / first paint: respect system preference so no white flash on dark-mode browsers */
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --background: 222 47% 6%;
+      --foreground: 210 40% 96%;
+      --card: 222 44% 9%;
+      --card-foreground: 210 40% 96%;
+      --popover: 222 44% 9%;
+      --popover-foreground: 210 40% 96%;
+      --primary: 228 76% 60%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 228 76% 60%;
+      --accent-foreground: 0 0% 100%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 228 76% 60%;
+    }
+  }
+
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 228 76% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 225 60% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 228 76% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 228 76% 52%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 228 76% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 60% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 228 76% 52%;
+
+    --banner-bg: 230 25% 18%;
+    --banner-foreground: 0 0% 100%;
+    --hero-bg: 230 25% 11%;
+    --hero-foreground: 0 0% 100%;
+    --card-blue: 228 76% 52%;
+    --card-blue-light: 225 70% 96%;
+    --icon-bg: 225 70% 96%;
+    --icon-fg: 228 76% 52%;
+    --news-card: 228 76% 52%;
+    --news-card-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 44% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 44% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 228 76% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 228 76% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 228 76% 60%;
+    --sidebar-background: 222 44% 9%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 228 76% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 228 76% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  [role="tab"]:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .text-gradient-blue {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(228 76% 52%),
+      hsl(262 68% 56%)
+    );
+  }
+}
+
+@layer components {
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-foreground focus:shadow-lg;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:opacity-90 transition-all duration-200 shadow-sm;
+  }
+
+  .btn-outline {
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-xl border border-border px-8 py-3.5 text-base font-semibold text-foreground hover:bg-muted transition-all duration-200;
+  }
+
+  .btn-outline-light {
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-xl border border-white/30 px-8 py-3.5 text-base font-semibold text-white hover:bg-white/10 transition-all duration-200;
+  }
+
+  .section-padding {
+    @apply py-20 md:py-28 px-6;
+  }
+
+  .icon-box {
+    @apply inline-flex items-center justify-center rounded-2xl;
+    background: hsl(var(--icon-bg));
+    color: hsl(var(--icon-fg));
+  }
+
+  .icon-box-sm {
+    @apply icon-box h-10 w-10;
+  }
+
+  .icon-box-md {
+    @apply icon-box h-12 w-12;
+  }
+
+  .icon-box-lg {
+    @apply icon-box h-16 w-16;
+  }
+}

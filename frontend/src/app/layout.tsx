@@ -27,8 +27,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html lang="en" suppressHydrationWarning className="bg-background">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  var theme = localStorage.getItem('theme');
+  var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (theme === 'dark' || (theme !== 'light' && systemDark)) {
+    document.documentElement.classList.add('dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+`,
+          }}
+        />
+      </head>
+      <body className="bg-background text-foreground min-h-screen">
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>

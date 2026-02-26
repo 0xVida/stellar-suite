@@ -5,6 +5,29 @@
 @tailwind utilities;
 
 @layer base {
+  /* Fallback for no-JS / first paint: respect system preference so no white flash on dark-mode browsers */
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --background: 222 47% 6%;
+      --foreground: 210 40% 96%;
+      --card: 222 44% 9%;
+      --card-foreground: 210 40% 96%;
+      --popover: 222 44% 9%;
+      --popover-foreground: 210 40% 96%;
+      --primary: 228 76% 60%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 228 76% 60%;
+      --accent-foreground: 0 0% 100%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 228 76% 60%;
+    }
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;

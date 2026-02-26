@@ -416,7 +416,7 @@ function VSCodeWindow({ tabLabel }: { tabLabel: string }) {
       clearInterval(codeInterval);
       animatingRef.current = false;
     };
-  }, [tabLabel]);
+  }, [tabLabel, mock.lines.length, mock.terminal]);
 
   const statusColor = (s?: "ok" | "warn" | "err") =>
     s === "ok"

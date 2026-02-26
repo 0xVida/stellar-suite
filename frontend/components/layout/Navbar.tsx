@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { ContactDialog } from "../ContactDialog";
 
 const NAV_LINKS = [
   { label: "Features", href: "/#features" },
@@ -41,6 +44,15 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
+
+          {/* Contact trigger */}
+          <ContactDialog
+            trigger={
+              <span className="text-sm text-muted-silver transition-colors hover:text-stardust-white cursor-pointer">
+                Contact
+              </span>
+            }
+          />
         </div>
       </div>
     </nav>

@@ -7,6 +7,7 @@ const Footer = () => {
           <span className="text-sm font-body text-muted-foreground">Stellar Suite — Built for Stellar developers</span>
         </div>
         <div className="flex items-center gap-6 text-sm font-body text-muted-foreground">
+          <a href="/community" className="hover:text-foreground transition-colors">Community</a>
           <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
           <a href="https://stellar.org" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Stellar</a>
           <a href="https://soroban.stellar.org" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Soroban Docs</a>

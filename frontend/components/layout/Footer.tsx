@@ -1,3 +1,7 @@
+import Footer from "../../src/components/Footer";
+
+export default Footer;
+export { Footer };
 "use client";
 
 import { ContactDialog } from "../ContactDialog";

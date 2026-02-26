@@ -11,28 +11,28 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <section id="features" className="section-padding bg-muted/50">
+    <section id="features" className="section-padding bg-muted/50 py-12 sm:py-16 px-4 sm:px-6">
       <div className="container mx-auto max-w-6xl">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-display font-extrabold tracking-tight text-foreground">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-extrabold tracking-tight text-foreground">
             Everything you need to build on Soroban
           </h2>
-          <p className="mt-4 text-lg font-body text-muted-foreground max-w-2xl mx-auto">
+          <p className="mt-3 sm:mt-4 text-base sm:text-lg font-body text-muted-foreground max-w-2xl mx-auto">
             A complete toolkit that replaces the Stellar CLI with a visual, intuitive experience.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {features.map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-border bg-background p-8 hover:shadow-lg transition-shadow duration-300"
+              className="rounded-2xl border border-border bg-background p-6 sm:p-8 hover:shadow-lg transition-shadow duration-300"
             >
-              <div className="mb-5 icon-box-md rounded-xl">
+              <div className="mb-4 sm:mb-5 icon-box-md rounded-xl">
                 <f.icon className="h-5 w-5" strokeWidth={2.2} />
               </div>
-              <h3 className="text-lg font-display font-bold text-foreground mb-2">{f.title}</h3>
-              <p className="text-sm font-body text-muted-foreground leading-relaxed">{f.description}</p>
+              <h3 className="text-base sm:text-lg font-display font-bold text-foreground mb-2">{f.title}</h3>
+              <p className="text-xs sm:text-sm font-body text-muted-foreground leading-relaxed">{f.description}</p>
             </div>
           ))}
         </div>

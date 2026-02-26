@@ -2,14 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import type { Metadata } from "next";
-import { Navbar } from "../../../components/layout/Navbar";
-import { Footer } from "../../../components/layout/Footer";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { FaqItem } from "@/components/faq/FaqItem";
 import { FaqSearch } from "@/components/faq/FaqSearch";
 import { FAQ_CATEGORIES, searchFaq } from "@/lib/faq";
 import { HelpCircle, MessageSquare } from "lucide-react";
-import { ContactDialog } from "../../../components/ContactDialog";
+import ContactDialog from "@/components/ContactDialog";
 
 const ALL_ID = "all";
 
@@ -81,7 +80,7 @@ export default function FaqPage() {
                 <div className="text-center py-20">
                   <p className="text-muted-foreground font-body text-base">
                     No results for{" "}
-                    <strong className="text-foreground">"{query}"</strong>
+                    <strong className="text-foreground">&quot;{query}&quot;</strong>
                   </p>
                   <button
                     onClick={() => setQuery("")}
@@ -172,7 +171,7 @@ export default function FaqPage() {
               Still have questions?
             </h2>
             <p className="text-sm font-body text-muted-foreground mb-6 max-w-sm mx-auto">
-              Can't find what you're looking for? Our team is happy to help.
+              Can&apos;t find what you&apos;re looking for? Our team is happy to help.
             </p>
             <ContactDialog
               trigger={

@@ -2,8 +2,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Navbar } from "../../../../components/layout/Navbar";
-import { Footer } from "../../../../components/layout/Footer";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { formatDate, getAllPosts, getPostBySlug } from "@/lib/post";
 import { PostBody } from "@/components/PostBody";
 import { PostCard } from "@/components/ PostCard";

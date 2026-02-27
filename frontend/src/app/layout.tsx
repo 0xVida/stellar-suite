@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/Providers";
+import RouteTopLoader from "@/components/RouteTopLoader";
 import "@/app/globals.css";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Stellar Kit — Build & Deploy Soroban Contracts in VS Code",
@@ -51,7 +53,11 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">
           Skip to content
         </a>
-        <Providers>{children}</Providers>
+        <RouteTopLoader />
+        <Navbar />
+        <div className="pt-16">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );

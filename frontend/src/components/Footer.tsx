@@ -1,3 +1,4 @@
+import Link from "next/link";
 
 const Footer = () => {
   return (
@@ -10,6 +11,7 @@ const Footer = () => {
           <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
           <a href="https://stellar.org" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Stellar</a>
           <a href="https://soroban.stellar.org" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Soroban Docs</a>
+          <Link href="/changelog" className="hover:text-foreground transition-colors">Changelog</Link>
         </div>
       </div>
     </footer>

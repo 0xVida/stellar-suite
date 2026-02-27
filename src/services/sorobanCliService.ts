@@ -148,7 +148,7 @@ export class SorobanCliService {
             if (errorMessage.includes('ENOENT') || errorMessage.includes('not found')) {
                 return {
                     success: false,
-                    error: `Stellar CLI not found at "${this.cliPath}". Make sure it is installed and in your PATH, or configure the stellarSuite.cliPath setting.`
+                    error: `Stellar CLI not found at "${this.cliPath}". Make sure it is installed and in your PATH, or configure the Stellar Kit CLI path (stellarSuite.cliPath) setting.`
                 };
             }
 

@@ -12,6 +12,7 @@ ISSUES.md
 .env
 .env.local
 stellar-suite-*.vsix
+stellar-kit-*.vsix
 
 frontend/node_modules/
 frontend/.env

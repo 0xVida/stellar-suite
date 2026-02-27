@@ -22,7 +22,7 @@ export class SidebarWebView {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stellar Suite</title>
+    <title>Stellar Kit</title>
     <style>
         * {
             box-sizing: border-box;
@@ -241,7 +241,7 @@ export class SidebarWebView {
 </head>
 <body>
     <div class="header">
-        <h2>Stellar Suite</h2>
+        <h2>Stellar Kit</h2>
         <button class="refresh-btn" onclick="refresh()">Refresh</button>
     </div>
 

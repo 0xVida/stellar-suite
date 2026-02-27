@@ -9,6 +9,18 @@ export interface ChangelogEntry {
 
 export const changelogData: ChangelogEntry[] = [
   {
+    version: "Unreleased",
+    date: "—",
+    entries: [
+      {
+        type: "Changed",
+        items: [
+          "Product rename: Stellar Suite is now Stellar Kit. The extension is published on the VS Code Marketplace as 0xVida.stellar-kit. User-facing names, docs, and marketing have been updated; repo name and config keys (e.g. stellarSuite.*, stellar-suite.templates.json) stay the same for compatibility. MVP screenshots and some assets may still show \"Stellar Suite\" in the UI — they refer to this same product.",
+        ],
+      },
+    ],
+  },
+  {
     version: "0.1.0",
     date: "2024-02-23",
     entries: [

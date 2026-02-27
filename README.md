@@ -20,7 +20,7 @@
 
 ![Stellar Kit MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
 
-*Screenshot of the current Stellar Kit MVP.*
+*Screenshot of the current Stellar Kit MVP. The project and repo were originally released as Stellar Suite; the product is now named Stellar Kit.*
 
 ---
 

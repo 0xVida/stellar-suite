@@ -9,7 +9,7 @@ export default function ChangelogPage() {
             Changelog
           </h1>
           <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-            Version history and release notes for the Stellar Suite extension.
+            Version history and release notes for the Stellar Kit extension (prev. Stellar Suite). MVP screenshots may show the former name in the UI.
           </p>
         </header>
 
@@ -23,11 +23,13 @@ export default function ChangelogPage() {
                   v{release.version}
                 </h2>
                 <time className="text-sm font-medium text-zinc-500 dark:text-zinc-500">
-                  {new Date(release.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+                  {release.date === "—"
+                    ? "Unreleased"
+                    : new Date(release.date).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
                 </time>
               </div>
 

@@ -4,7 +4,7 @@
   "description": "Multi-signature wallet contract with threshold-based approvals, proposal workflows, and secure execution patterns for Soroban.",
   "version": "0.1.0",
   "category": "multisig",
-  "author": "Stellar Suite Contributors",
+  "author": "Stellar Kit Contributors",
   "tags": [
     "multisig",
     "wallet",

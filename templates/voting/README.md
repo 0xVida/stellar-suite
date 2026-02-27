@@ -8,7 +8,7 @@ This template provides a production-ready governance system that enables decentr
 
 **Category:** voting  
 **Version:** 0.1.0  
-**Author:** Stellar Suite  
+**Author:** Stellar Kit  
 **License:** Apache-2.0
 
 ### Key Features
@@ -404,9 +404,9 @@ voting_period: 604_800         // 7 days
 
 ---
 
-## Integration with Stellar Suite
+## Integration with Stellar Kit
 
-To register this template for automatic detection in the Stellar Suite sidebar, add the following entry to your workspace's `stellar-suite.templates.json`:
+To register this template for automatic detection in the Stellar Kit sidebar (prev. Stellar Suite), add the following entry to your workspace's `stellar-suite.templates.json`:
 
 ```json
 {
@@ -484,4 +484,4 @@ Apache-2.0
 
 ## Contributing
 
-This template is part of the Stellar Suite project. Contributions and improvements are welcome! Follow Stellar/Soroban best practices and include tests for new features.
+This template is part of the Stellar Kit project (repo: stellar-suite). Contributions and improvements are welcome! Follow Stellar/Soroban best practices and include tests for new features.

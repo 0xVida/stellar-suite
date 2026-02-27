@@ -72,9 +72,9 @@ CONTRACT DETAILS: Describe what the tests cover and any test-specific setup requ
 
 ---
 
-## Usage with Stellar Suite
+## Usage with Stellar Kit
 
-To register this template for automatic detection in the Stellar Suite sidebar, add the following entry to your workspace's `stellar-suite.templates.json`:
+To register this template for automatic detection in the Stellar Kit sidebar (prev. Stellar Suite), add the following entry to your workspace's `stellar-suite.templates.json`:
 
 ```json
 {

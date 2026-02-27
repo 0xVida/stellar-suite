@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Stellar Suite performance testing suite provides comprehensive tools for measuring, monitoring, and reporting UI performance metrics. It ensures the extension remains responsive and fast across various scenarios.
+The Stellar Kit performance testing suite provides comprehensive tools for measuring, monitoring, and reporting UI performance metrics. It ensures the extension remains responsive and fast across various scenarios.
 
 ## Architecture
 

@@ -4,7 +4,7 @@
   "description": "Decentralized governance contract with proposal creation, voting mechanism, vote counting, quorum logic, and delegation support.",
   "version": "0.1.0",
   "category": "voting",
-  "author": "Stellar Suite",
+  "author": "Stellar Kit",
   "tags": ["governance", "voting", "dao", "proposal", "quorum", "delegation"],
   "dependencies": {
     "soroban-sdk": "20.0.0"

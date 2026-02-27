@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides practical, real-world examples of using Stellar Suite's contract management features. Each example includes complete code and explanations.
+This guide provides practical, real-world examples of using Stellar Kit's contract management features. Each example includes complete code and explanations.
 
 ## Table of Contents
 

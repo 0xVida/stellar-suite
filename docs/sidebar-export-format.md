@@ -7,7 +7,7 @@
 
 ## Overview
 
-The Stellar Suite sidebar export file captures the contract list and associated configurations from a workspace. It enables:
+The Stellar Kit sidebar export file captures the contract list and associated configurations from a workspace. It enables:
 
 - **Sharing** contract setups across workspaces or team members.
 - **Backing up** sidebar organization and deployment records.

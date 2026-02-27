@@ -1,6 +1,6 @@
-# Stellar Suite Promotional Assets
+# Stellar Kit (prev. Stellar Suite) Promotional Assets
 
-This directory contains the promotional banners and design assets for the Stellar Suite VS Code Marketplace listing.
+This directory contains the promotional banners and design assets for the Stellar Kit VS Code Marketplace listing.
 
 ## Contents
 - `GUIDELINES.md`: Design specifications, color palettes, and typography rules.

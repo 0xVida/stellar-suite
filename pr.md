@@ -1,7 +1,7 @@
 # PR: Community + Use Cases Pages, Loading States, and UI Polish
 
 ## Overview
-This PR completes the remaining UX items for the Stellar Suite marketing site. It adds new Community and Use Cases pages, introduces lightweight loading states, and improves navigation with a top route loader and a scroll-to-top affordance. The changes are intentionally small and straightforward.
+This PR completes the remaining UX items for the Stellar Kit (prev. Stellar Suite) marketing site. It adds new Community and Use Cases pages, introduces lightweight loading states, and improves navigation with a top route loader and a scroll-to-top affordance. The changes are intentionally small and straightforward.
 
 ## What’s Included
 - **Community page** with contributor highlights, stats, and contribution paths.

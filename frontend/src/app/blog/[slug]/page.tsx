@@ -22,7 +22,7 @@ export async function generateMetadata({
   const post = getPostBySlug(params.slug);
   if (!post) return {};
   return {
-    title: `${post.title} — Stellar Suite Blog`,
+    title: `${post.title} — Stellar Kit Blog`,
     description: post.excerpt,
     openGraph: {
       title: post.title,

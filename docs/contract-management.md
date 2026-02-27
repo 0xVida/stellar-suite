@@ -1,8 +1,8 @@
-# Contract Management in Stellar Suite
+# Contract Management in Stellar Kit
 
 ## Overview
 
-Stellar Suite provides comprehensive contract management capabilities for Soroban smart contracts. This guide covers all aspects of contract organization, detection, tracking, and workflow optimization.
+Stellar Kit provides comprehensive contract management capabilities for Soroban smart contracts. This guide covers all aspects of contract organization, detection, tracking, and workflow optimization.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ Stellar Suite provides comprehensive contract management capabilities for Soroba
 
 ### Automatic Discovery
 
-Stellar Suite automatically discovers Soroban contracts in your workspace by scanning for `Cargo.toml` files that define contract packages.
+Stellar Kit automatically discovers Soroban contracts in your workspace by scanning for `Cargo.toml` files that define contract packages.
 
 #### Detection Process
 
@@ -38,7 +38,7 @@ The extension looks for:
 You can manually trigger contract discovery:
 
 1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
-2. Run: **Stellar Suite: Refresh Contract List**
+2. Run: **Stellar Kit: Refresh Contract List**
 
 ### Contract Identification
 
@@ -73,7 +73,7 @@ For each detected contract, the following metadata is extracted:
 
 ## Version Tracking
 
-Stellar Suite maintains comprehensive version tracking for your contracts, helping you avoid deployment mismatches and maintain version history.
+Stellar Kit maintains comprehensive version tracking for your contracts, helping you avoid deployment mismatches and maintain version history.
 
 ### Local Version Detection
 
@@ -87,7 +87,7 @@ version = "1.2.3"
 
 ### Deployed Version Tracking
 
-When you deploy a contract, Stellar Suite records:
+When you deploy a contract, Stellar Kit records:
 
 - **Version Number**: Semantic version from Cargo.toml
 - **Deployment Timestamp**: When the deployment occurred
@@ -284,7 +284,7 @@ console.log(`Found ${workspaceRoots.length} workspace roots`);
 
 ## Workspace Organization
 
-Stellar Suite provides powerful organization features to manage multiple contracts effectively.
+Stellar Kit provides powerful organization features to manage multiple contracts effectively.
 
 ### Contract Groups
 
@@ -294,7 +294,7 @@ Organize contracts into logical groups:
 
 **Via Command Palette:**
 1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
-2. Run: **Stellar Suite: Create Contract Group**
+2. Run: **Stellar Kit: Create Contract Group**
 3. Enter group name
 
 **Programmatically:**
@@ -622,10 +622,10 @@ const inModule = contracts.filter(c =>
    - Not in excluded directory (`target/`, `node_modules/`)
 
 3. **Manually Refresh**
-   - Command Palette → **Stellar Suite: Refresh Contract List**
+   - Command Palette → **Stellar Kit: Refresh Contract List**
 
 4. **Check Output Channel**
-   - View → Output → Select "Stellar Suite"
+   - View → Output → Select "Stellar Kit"
    - Look for parsing errors
 
 ### Version Mismatch Warnings

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides comprehensive documentation for the RPC integration test suite in Stellar Suite. The test suite ensures reliable network communication, proper error handling, and robust performance of RPC operations.
+This document provides comprehensive documentation for the RPC integration test suite in Stellar Kit. The test suite ensures reliable network communication, proper error handling, and robust performance of RPC operations.
 
 ## Test Architecture
 
@@ -487,4 +487,4 @@ The CI/CD pipeline includes:
 
 ---
 
-For more information, see the [Stellar Suite Documentation](../README.md) or contact the development team.
+For more information, see the [Stellar Kit Documentation](../README.md) or contact the development team.

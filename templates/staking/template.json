@@ -4,7 +4,7 @@
     "description": "A production-ready staking contract template with asset locking, reward accrual, and time-locked unstaking support.",
     "version": "0.1.0",
     "category": "defi",
-    "author": "Stellar Suite",
+    "author": "Stellar Kit",
     "tags": [
         "staking",
         "rewards",

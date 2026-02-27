@@ -1,8 +1,8 @@
-# Stellar Suite Banner Guidelines
+# Stellar Kit Banner Guidelines
 
 ## Design Specifications
 
-These guidelines define the visual identity for the Stellar Suite VS Code marketplace listing and related promotional materials.
+These guidelines define the visual identity for the Stellar Kit VS Code marketplace listing and related promotional materials.
 
 ### 1. Typography
 - **Primary Font**: System fonts (San Francisco on macOS, Segoe UI on Windows, Roboto on Android, Inter for web).
@@ -26,7 +26,7 @@ These guidelines define the visual identity for the Stellar Suite VS Code market
 
 ### 3. Key Messaging (Extension Value)
 The banner must clearly communicate the core functionality:
-- **Title**: Stellar Suite
+- **Title**: Stellar Kit
 - **Subtitle**: Build, Deploy, and Simulate Smart Contracts in VS Code
 - **Highlights**: INTERACTIVE CLI • ONE-CLICK DEPLOYS • RPC MANAGEMENT
 

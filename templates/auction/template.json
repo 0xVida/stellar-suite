@@ -4,7 +4,7 @@
     "description": "A comprehensive auction template supporting English auctions with reserve prices, time-based closing, and secure bid management.",
     "version": "0.1.0",
     "category": "defi",
-    "author": "Stellar Suite",
+    "author": "Stellar Kit",
     "tags": [
         "auction",
         "bidding",

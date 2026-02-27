@@ -95,7 +95,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     }
                 } catch (error) {
                     const errorMsg = error instanceof Error ? error.message : String(error);
-                    vscode.window.showErrorMessage(`Stellar Suite: ${errorMsg}`);
+                    vscode.window.showErrorMessage(`Stellar Kit: ${errorMsg}`);
                 }
             },
             null,

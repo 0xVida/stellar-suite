@@ -2,7 +2,7 @@
 
 ## Overview
 
-Stellar Suite provides comprehensive workspace organization features to help you manage multiple Soroban contracts efficiently. This guide covers contract grouping, hierarchical organization, and workspace management strategies.
+Stellar Kit provides comprehensive workspace organization features to help you manage multiple Soroban contracts efficiently. This guide covers contract grouping, hierarchical organization, and workspace management strategies.
 
 ## Table of Contents
 
@@ -58,7 +58,7 @@ console.log(`Created group: ${authGroup.name} (${authGroup.id})`);
 #### Via Command Palette
 
 1. Open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`)
-2. Run: **Stellar Suite: Create Contract Group**
+2. Run: **Stellar Kit: Create Contract Group**
 3. Enter group name
 4. Select parent group (or none for top-level)
 

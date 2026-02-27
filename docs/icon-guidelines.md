@@ -1,13 +1,13 @@
-# Stellar Suite Icon Guidelines
+# Stellar Kit Icon Guidelines
 
-This document outlines the usage, context, and variations of the **Stellar Suite** extension icons to ensure maximum brand consistency across the Visual Studio Code ecosystem and external marketing materials.
+This document outlines the usage, context, and variations of the **Stellar Kit** (prev. Stellar Suite) extension icons to ensure maximum brand consistency across the Visual Studio Code ecosystem and external marketing materials.
 
 ## 1. Icon Contexts & Usage
 
 The extension utilizes three distinct categories of icons:
     
 ### A. Marketplace Icons
-The Marketplace icons are full-color, rich representations of the Stellar Suite brand. They should be used for the extension's primary listing on the VS Code Marketplace, GitHub repository main previews, and robust UI sections where the logo commands attention.
+The Marketplace icons are full-color, rich representations of the Stellar Kit brand. They should be used for the extension's primary listing on the VS Code Marketplace, GitHub repository main previews, and robust UI sections where the logo commands attention.
 
 **Marketplace Icon (128x128)**
 ![Marketplace Icon 128](/Users/ogazboiz/code /open_source/stellar-suite/assets/marketplace-icon-128.png)

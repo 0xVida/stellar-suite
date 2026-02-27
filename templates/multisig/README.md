@@ -134,7 +134,7 @@ client.execute(&alice, &proposal_id);
 
 ---
 
-## Usage with Stellar Suite
+## Usage with Stellar Kit
 
 Add to `stellar-suite.templates.json`:
 

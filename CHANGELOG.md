@@ -1,6 +1,11 @@
 # Changelog
 
-All notable changes to the **Stellar Suite** extension will be documented in this file.
+All notable changes to the **Stellar Kit** (prev. Stellar Suite) extension will be documented in this file.
+
+## [Unreleased]
+
+### Changed
+- **Product rename:** Stellar Suite is now **Stellar Kit**. The extension is published on the VS Code Marketplace as `0xVida.stellar-kit`. User-facing names, docs, and marketing have been updated to Stellar Kit; repo name and config keys (e.g. `stellarSuite.*`, `stellar-suite.templates.json`) stay the same for compatibility. MVP screenshots and some assets may still show "Stellar Suite" in the UI — they refer to this same product.
 
 ## [0.1.0] - 2024-02-23
 

@@ -57,7 +57,7 @@ export default function CommunityPage() {
             Community &amp; Contributors
           </h1>
           <p className="mt-5 text-lg font-body text-muted-foreground max-w-2xl mx-auto">
-            Stellar Suite is built in the open. Every release is shaped by
+            Stellar Kit is built in the open (repo: stellar-suite). Every release is shaped by
             builders who care about better Soroban workflows.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">

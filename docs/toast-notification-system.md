@@ -1,6 +1,6 @@
 # Toast Notification System
 
-The toast notification system provides a centralized way to display temporary messages to users in the Stellar Suite extension.
+The toast notification system provides a centralized way to display temporary messages to users in the Stellar Kit extension.
 
 ## Features
 

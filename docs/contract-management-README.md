@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains comprehensive documentation for Stellar Suite's contract management features. The documentation is organized into focused guides covering different aspects of contract management.
+This directory contains comprehensive documentation for Stellar Kit's contract management features. The documentation is organized into focused guides covering different aspects of contract management.
 
 ## Documentation Structure
 
@@ -196,7 +196,7 @@ command --flag value
 
 1. Check relevant documentation section
 2. Review troubleshooting sections in each guide
-3. Check VS Code output channel: View → Output → "Stellar Suite"
+3. Check VS Code output channel: View → Output → "Stellar Kit"
 4. File issue on GitHub repository
 
 ## Contributing
@@ -238,4 +238,4 @@ File issues or submit pull requests on GitHub.
 ---
 
 **Last Updated:** February 21, 2026  
-**Maintainer:** Stellar Suite Team
+**Maintainer:** Stellar Kit Team

@@ -3,12 +3,12 @@ import * as vscode from 'vscode';
 let sharedOutputChannel: vscode.OutputChannel | undefined;
 
 /**
- * Gets or creates the shared "Stellar Suite" output channel.
+ * Gets or creates the shared "Stellar Kit" output channel.
  * This ensures all commands use the same channel instance, preventing switching.
  */
 export function getSharedOutputChannel(): vscode.OutputChannel {
     if (!sharedOutputChannel) {
-        sharedOutputChannel = vscode.window.createOutputChannel('Stellar Suite');
+        sharedOutputChannel = vscode.window.createOutputChannel('Stellar Kit');
     }
     return sharedOutputChannel;
 }

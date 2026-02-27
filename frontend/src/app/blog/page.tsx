@@ -49,7 +49,7 @@ export default function BlogIndex() {
             Blog
           </h1>
           <p className="mt-4 text-lg font-body text-muted-foreground max-w-xl">
-            Release notes, tutorials, and updates from the Stellar Suite team.
+            Release notes, tutorials, and updates from the Stellar Kit team.
           </p>
 
           {/* Filters */}

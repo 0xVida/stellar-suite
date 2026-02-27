@@ -32,7 +32,7 @@ const STATIC_PAGES: SearchResult[] = [
   },
   {
     title: "Get Started",
-    excerpt: "Install Stellar Suite from the VS Code Marketplace and start building.",
+    excerpt: "Install Stellar Kit from the VS Code Marketplace and start building.",
     link: "/#get-started",
     category: "page",
   },

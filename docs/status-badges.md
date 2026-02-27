@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Status Badge System provides real-time visual feedback for operations throughout the Stellar Suite UI. Badges display operation states (running, succeeded, failed, cancelled, warning) with customizable styling, animations, and tooltips.
+The Status Badge System provides real-time visual feedback for operations throughout the Stellar Kit UI. Badges display operation states (running, succeeded, failed, cancelled, warning) with customizable styling, animations, and tooltips.
 
 ## Architecture
 
@@ -475,4 +475,4 @@ When adding new badge functionality:
 
 ## License
 
-Same as Stellar Suite project license.
+Same as Stellar Kit project license.

@@ -1,9 +1,9 @@
-# Stellar Suite Brand Guidelines
+# Stellar Kit Brand Guidelines
 
-This document outlines the visual identity and usage guidelines for the **Stellar Suite** extension.
+This document outlines the visual identity and usage guidelines for the **Stellar Kit** extension (prev. Stellar Suite).
 
 ## 1. Brand Philosophy
-Stellar Suite is a modern, developer-focused tool designed to feel integrated into the cutting-edge aesthetic of the Stellar blockchain ecosystem. The brand represents **simplicity, precision, and cosmic innovation.**
+Stellar Kit is a modern, developer-focused tool designed to feel integrated into the cutting-edge aesthetic of the Stellar blockchain ecosystem. The brand represents **simplicity, precision, and cosmic innovation.**
 
 ## 2. Typography
 The typography system is designed for high readability inside IDEs and web applications.
@@ -40,15 +40,15 @@ The logo system includes a primary icon alongside explicit light and dark variat
 
 ### Primary Logo (`assets/logo.png`)
 Used as the root extension icon and default logo.
-![Stellar Suite Logo](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo.png)
+![Stellar Kit Logo](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo.png)
 
 ### Dark Mode Logo (`assets/logo-dark.png`)
 Optimized to stand out vividly against `#0B1021` backgrounds.
-![Stellar Suite Logo Dark](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo-dark.png)
+![Stellar Kit Logo Dark](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo-dark.png)
 
 ### Light Mode Logo (`assets/logo-light.png`)
 Optimized with harder contrasts for standard light-mode UIs (`#FFFFFF` backgrounds).
-![Stellar Suite Logo Light](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo-light.png)
+![Stellar Kit Logo Light](/Users/ogazboiz/code /open_source/stellar-suite/assets/logo-light.png)
 
 ### Clear Space & Sizing
 - Always maintain clear space around the logo equivalent to 20% of the logo's width.

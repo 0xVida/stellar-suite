@@ -4,7 +4,7 @@ A Soroban escrow template designed for secure party-to-party transactions with c
 
 **Category:** escrow  
 **Version:** 0.1.0  
-**Author:** Stellar Suite  
+**Author:** Stellar Kit  
 **License:** Apache-2.0
 
 ---

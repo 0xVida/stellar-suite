@@ -29,7 +29,7 @@ const vscodeMocks: Record<
           { text: "import", color: "#c792ea" },
           { text: " { StellarSuite } ", color: "#cdd3de" },
           { text: "from", color: "#c792ea" },
-          { text: " 'stellar-suite'", color: "#c3e88d" },
+          { text: " 'stellar-kit'", color: "#c3e88d" },
         ],
       },
       { indent: 0, tokens: [] },
@@ -444,7 +444,7 @@ function VSCodeWindow({ tabLabel }: { tabLabel: string }) {
         <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
         <span className="w-3 h-3 rounded-full bg-[#27c93f]" />
         <span className="ml-3 text-xs text-[#858585] flex-1 text-center">
-          {mock.filename} — Stellar Suite
+          {mock.filename} — Stellar Kit
         </span>
       </div>
 
@@ -515,7 +515,7 @@ function VSCodeWindow({ tabLabel }: { tabLabel: string }) {
               className="text-[10px] font-bold uppercase tracking-widest mb-1"
               style={{ color: "#858585" }}
             >
-              Stellar Suite
+              Stellar Kit
             </div>
             {mock.sidePanel.map((item) => (
               <div key={item.label} className="flex flex-col gap-0.5">
@@ -588,7 +588,7 @@ function VSCodeWindow({ tabLabel }: { tabLabel: string }) {
         style={{ background: "#007acc", color: "#fff" }}
       >
         <span>⎇ main</span>
-        <span>Stellar Suite</span>
+        <span>Stellar Kit</span>
         <span className="ml-auto">TypeScript</span>
         <span>UTF-8</span>
         <span>Ln {mock.lines.length}, Col 1</span>
@@ -744,7 +744,7 @@ const UseCasesSection = () => {
               Endless ways to build on Stellar.
             </h2>
             <p className="mt-4 text-lg font-body text-muted-foreground max-w-2xl mx-auto">
-              From deploying contracts to simulating transactions, Stellar Suite
+              From deploying contracts to simulating transactions, Stellar Kit
               delivers the tools you need. Every workflow is faster, easier, and
               more intuitive.
             </p>
@@ -811,7 +811,7 @@ const UseCasesSection = () => {
             <div className="w-full">
               <VSCodeWindow key={current.label} tabLabel={current.label} />
               <p className="mt-3 text-center text-xs text-muted-foreground font-body">
-                Visual workflow in VS Code · Stellar Suite Extension
+                Visual workflow in VS Code · Stellar Kit (prev. Stellar Suite) extension. MVP screenshots may show &quot;Stellar Suite&quot; in the UI.
               </p>
             </div>
           </div>

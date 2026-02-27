@@ -1,6 +1,6 @@
 # Input Sanitization
 
-Stellar Suite sanitizes all user-supplied inputs before they are passed to CLI
+Stellar Kit sanitizes all user-supplied inputs before they are passed to CLI
 commands, stored in workspace state, or displayed in the UI.  This prevents
 malicious input, data corruption, and injection attacks.
 

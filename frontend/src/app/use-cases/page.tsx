@@ -55,7 +55,7 @@ const EXAMPLES = [
   {
     title: "NFT drop in one afternoon",
     steps: [
-      "Generate a template from Stellar Suite",
+      "Generate a template from Stellar Kit",
       "Simulate mint + transfer flows",
       "Deploy to testnet and share the contract ID",
     ],
@@ -89,7 +89,7 @@ export default function UseCasesPage() {
             Use cases &amp; examples
           </h1>
           <p className="mt-4 sm:mt-5 text-base sm:text-lg font-body text-muted-foreground max-w-2xl mx-auto">
-            Stellar Suite powers teams shipping everything from DeFi primitives
+            Stellar Kit powers teams shipping everything from DeFi primitives
             to community governance. These examples show how builders put the
             workflow to work.
           </p>
@@ -177,7 +177,7 @@ export default function UseCasesPage() {
                 Ship faster with the sidebar
               </h2>
               <p className="mt-3 sm:mt-4 text-xs sm:text-sm text-muted-foreground font-body leading-relaxed">
-                Build, deploy, and simulate contracts in minutes. Stellar Suite
+                Build, deploy, and simulate contracts in minutes. Stellar Kit
                 keeps the CLI, deployment history, and simulation results within
                 reach.
               </p>

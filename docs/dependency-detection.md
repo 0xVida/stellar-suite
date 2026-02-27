@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Stellar Suite extension now includes comprehensive contract dependency detection and tracking capabilities. This feature helps developers understand contract relationships, ensure correct deployment order, and identify potential circular dependencies.
+The Stellar Kit extension now includes comprehensive contract dependency detection and tracking capabilities. This feature helps developers understand contract relationships, ensure correct deployment order, and identify potential circular dependencies.
 
 ## Features
 
@@ -62,7 +62,7 @@ Dependency information displayed in the sidebar:
 ## Commands
 
 ### Show Dependency Graph
-**Command**: `Stellar Suite: Show Dependency Graph`
+**Command**: `Stellar Kit: Show Dependency Graph`
 
 Displays complete dependency graph with:
 - Contract list with dependency/dependent counts
@@ -71,7 +71,7 @@ Displays complete dependency graph with:
 - Circular dependency warnings
 
 ### Show Contract Dependencies
-**Command**: `Stellar Suite: Show Contract Dependencies`
+**Command**: `Stellar Kit: Show Contract Dependencies`
 
 Shows dependencies for a specific contract:
 - Direct dependencies
@@ -79,7 +79,7 @@ Shows dependencies for a specific contract:
 - Contracts that depend on this one
 
 ### Check Circular Dependencies
-**Command**: `Stellar Suite: Check Circular Dependencies`
+**Command**: `Stellar Kit: Check Circular Dependencies`
 
 Scans all contracts and reports any circular dependencies found.
 
@@ -98,7 +98,7 @@ Dependency detection runs automatically:
 Access dependency commands via:
 
 - Command Palette (`Cmd/Ctrl + Shift + P`)
-- Type "Stellar Suite: Dependency" to see available commands
+- Type "Stellar Kit: Dependency" to see available commands
 
 ### Batch Deployment
 
@@ -301,7 +301,7 @@ Cycle detected: contract-a → contract-b → contract-a
 ### Dependency Graph Not Updating
 
 1. Check that file watcher is running: Look for `[DependencyWatcher] started` in output
-2. Manually refresh: Run `Stellar Suite: Show Dependency Graph`
+2. Manually refresh: Run `Stellar Kit: Show Dependency Graph`
 3. Check output channel for errors
 
 ### Circular Dependency False Positives
@@ -366,4 +366,4 @@ To contribute to dependency detection:
 
 ## License
 
-Part of Stellar Suite extension - see main LICENSE file.
+Part of Stellar Kit extension - see main LICENSE file.

@@ -23,15 +23,15 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         id: "gs-1",
-        question: "What is Stellar Suite?",
+        question: "What is Stellar Kit?",
         answer:
-          "Stellar Suite is a VS Code extension that brings the full Soroban smart-contract development workflow into your editor. You can deploy contracts, simulate transactions, build and test, and manage accounts — all without leaving VS Code.",
+          "Stellar Kit (prev. Stellar Suite) is a VS Code extension that brings the full Soroban smart-contract development workflow into your editor. You can deploy contracts, simulate transactions, build and test, and manage accounts — all without leaving VS Code.",
       },
       {
         id: "gs-2",
-        question: "How do I install Stellar Suite?",
+        question: "How do I install Stellar Kit?",
         answer:
-          'Open VS Code, go to the Extensions view (Cmd+Shift+X / Ctrl+Shift+X), search for "Stellar Suite", and click Install. Alternatively, download the .vsix from the GitHub releases page and install it via Extensions → ... → Install from VSIX.',
+          'Open VS Code, go to the Extensions view (Cmd+Shift+X / Ctrl+Shift+X), search for "Stellar Kit", and click Install. Alternatively, download the .vsix from the GitHub releases page and install it via Extensions → ... → Install from VSIX.',
       },
       {
         id: "gs-3",
@@ -41,9 +41,9 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         id: "gs-4",
-        question: "Does Stellar Suite work on Windows, macOS, and Linux?",
+        question: "Does Stellar Kit work on Windows, macOS, and Linux?",
         answer:
-          "Yes. Stellar Suite works on all three platforms wherever VS Code and the Stellar CLI are supported. Some CLI features require WSL on Windows — the extension will surface a clear message if that applies.",
+          "Yes. Stellar Kit works on all three platforms wherever VS Code and the Stellar CLI are supported. Some CLI features require WSL on Windows — the extension will surface a clear message if that applies.",
       },
     ],
   },
@@ -55,7 +55,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: "dep-1",
         question: "How do I deploy a contract to testnet?",
         answer:
-          'Open the Stellar Suite sidebar, select the Deploy tab, choose "Testnet" from the network dropdown, pick your compiled contract, and click Deploy. The extension handles the RPC call and shows the resulting contract ID in the output panel.',
+          'Open the Stellar Kit sidebar, select the Deploy tab, choose "Testnet" from the network dropdown, pick your compiled contract, and click Deploy. The extension handles the RPC call and shows the resulting contract ID in the output panel.',
       },
       {
         id: "dep-2",
@@ -107,7 +107,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
     items: [
       {
         id: "acc-1",
-        question: "How does Stellar Suite store my private keys?",
+        question: "How does Stellar Kit store my private keys?",
         answer:
           "Private keys are stored using VS Code's SecretStorage API, which maps to the OS keychain on macOS, libsecret on Linux, and Windows Credential Manager on Windows. Keys are never written to disk in plaintext and never leave your machine.",
       },
@@ -139,7 +139,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: "ts-1",
         question: "The extension isn't activating. What should I check?",
         answer:
-          "First, confirm you have a folder open in VS Code that contains a Soroban project (a Cargo.toml referencing soroban-sdk is the trigger). Second, check the Output panel → Stellar Suite for activation errors. Third, verify the Stellar CLI is on your PATH by running `stellar --version` in a terminal.",
+          "First, confirm you have a folder open in VS Code that contains a Soroban project (a Cargo.toml referencing soroban-sdk is the trigger). Second, check the Output panel → Stellar Kit for activation errors. Third, verify the Stellar CLI is on your PATH by running `stellar --version` in a terminal.",
       },
       {
         id: "ts-2",
@@ -151,13 +151,13 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
         id: "ts-3",
         question: "Compilation is failing silently. Where are the logs?",
         answer:
-          'Open the Output panel in VS Code (View → Output) and select "Stellar Suite" from the dropdown. All compilation stdout and stderr is streamed there. You can also run `cargo build` directly in the terminal for the raw Rust compiler output.',
+          'Open the Output panel in VS Code (View → Output) and select "Stellar Kit" from the dropdown. All compilation stdout and stderr is streamed there. You can also run `cargo build` directly in the terminal for the raw Rust compiler output.',
       },
       {
         id: "ts-4",
         question: "How do I report a bug or request a feature?",
         answer:
-          "Open an issue on the GitHub repository at github.com/0xVida/stellar-suite. Include your VS Code version, Stellar CLI version, OS, and steps to reproduce. For feature requests, check existing issues first to avoid duplicates.",
+          "Open an issue on the GitHub repository at github.com/0xVida/stellar-suite (Stellar Kit repo). Include your VS Code version, Stellar CLI version, OS, and steps to reproduce. For feature requests, check existing issues first to avoid duplicates.",
       },
     ],
   },

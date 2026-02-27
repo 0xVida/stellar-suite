@@ -1,6 +1,6 @@
 # UI Integration Testing Documentation
 
-This document describes the UI integration testing suite for the Stellar Suite VS Code extension.
+This document describes the UI integration testing suite for the Stellar Kit VS Code extension.
 
 ## Overview
 

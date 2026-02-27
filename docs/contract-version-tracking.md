@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Contract Version Tracking system in Stellar Suite provides comprehensive version management for Soroban smart contracts, helping you maintain version history, detect mismatches, and avoid deployment conflicts.
+The Contract Version Tracking system in Stellar Kit provides comprehensive version management for Soroban smart contracts, helping you maintain version history, detect mismatches, and avoid deployment conflicts.
 
 ## Table of Contents
 

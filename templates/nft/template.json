@@ -4,7 +4,7 @@
     "description": "Standard NFT contract with minting, transfers, metadata storage, and royalty support.",
     "version": "0.1.0",
     "category": "nft",
-    "author": "Stellar Suite",
+    "author": "Stellar Kit",
     "tags": [
         "nft",
         "token",

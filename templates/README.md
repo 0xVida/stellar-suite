@@ -1,8 +1,8 @@
-# Stellar Suite Contract Templates
+# Stellar Kit Contract Templates
 
 ## Overview
 
-This folder contains Soroban smart contract templates for the Stellar Suite VS Code extension. Each template is a standalone Rust project scaffold that developers can use as a starting point when building new Stellar smart contracts.
+This folder contains Soroban smart contract templates for the Stellar Kit VS Code extension (prev. Stellar Suite). Each template is a standalone Rust project scaffold that developers can use as a starting point when building new Stellar smart contracts.
 
 ### How Templates Work
 
@@ -99,7 +99,7 @@ Every template folder must contain a `template.json` file. Below is the complete
   "description": "Fungible token contract following the Soroban token interface.",
   "version": "0.1.0",
   "category": "token",
-  "author": "Stellar Suite Contributors",
+  "author": "Stellar Kit Contributors",
   "tags": ["fungible", "transfer", "mint", "burn"],
   "dependencies": {
     "soroban-sdk": "20.0.0",
@@ -303,7 +303,7 @@ Each template must be **fully self-contained**:
 
 ### How the Extension Detects Templates
 
-The Stellar Suite sidebar automatically classifies contracts using `contractTemplateService.ts`. It works by:
+The Stellar Kit sidebar automatically classifies contracts using `contractTemplateService.ts`. It works by:
 
 1. Scanning your contract's `src/lib.rs` for public function names
 2. Scanning your `Cargo.toml` for dependency names
@@ -358,7 +358,7 @@ cargo build --target wasm32-unknown-unknown --release
 # 4. Run tests
 cargo test
 
-# 5. Deploy using Stellar Suite (from VS Code sidebar or Cmd+Alt+D)
+# 5. Deploy using Stellar Kit (from VS Code sidebar or Cmd+Alt+D)
 ```
 
 ---
@@ -380,5 +380,5 @@ cargo test
 ### Getting Help
 
 - Review [contractTemplateService.ts](../src/services/contractTemplateService.ts) to understand the detection algorithm
-- Check the extension output panel (View → Output → Stellar Suite) for detection logs
+- Check the extension output panel (View → Output → Stellar Kit) for detection logs
 - Open an issue at the project repository if the problem persists

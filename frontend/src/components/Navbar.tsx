@@ -18,7 +18,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="text-xl font-display font-extrabold text-foreground tracking-tight">
-              Stellar Suite
+              Stellar Kit
             </span>
           </Link>
           <div className="hidden md:block">
@@ -77,9 +77,8 @@ const Navbar = () => {
           <Link href="/use-cases" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Examples</Link>
           <Link href="/community" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Community</Link>
           <a href="#get-started" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Get Started</a>
-          <a href={EXTENSION_ITEM_URL} target="_blank" rel="noopener noreferrer" className="btn-primary !text-sm text-center">
           <Link href="/changelog" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Changelog</Link>
-          <a href="https://marketplace.visualstudio.com" target="_blank" rel="noopener noreferrer" className="btn-primary !text-sm text-center">
+          <a href={EXTENSION_ITEM_URL} target="_blank" rel="noopener noreferrer" className="btn-primary !text-sm text-center">
             Install Free
           </a>
         </div>

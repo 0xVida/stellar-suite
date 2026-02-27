@@ -107,7 +107,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        vscode.window.showErrorMessage(`Stellar Suite activation failed: ${errorMsg}`);
+        vscode.window.showErrorMessage(`Stellar Kit activation failed: ${errorMsg}`);
     }
 }
 

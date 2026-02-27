@@ -27,7 +27,7 @@ const HeroSection = () => {
           className="text-lg md:text-xl font-body max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-up opacity-80"
           style={{ color: "hsl(var(--hero-foreground))", animationDelay: "0.1s" }}
         >
-          Whether you&apos;re building smart contracts or deploying to Stellar, Stellar Kit
+          Whether you&apos;re building smart contracts or deploying to Stellar, Stellar Kit (prev. Stellar Suite)
           makes it easier to build, deploy, and simulate — all from VS Code.
         </p>
 
@@ -88,11 +88,14 @@ const HeroSection = () => {
         >
           <Image
             src={activeShot === "simulate" ? screenshotSimulate : screenshotDeploy}
-            alt={activeShot === "simulate" ? "Stellar Kit VS Code extension — transaction simulation" : "Stellar Kit VS Code extension — contract deployment"}
+            alt={activeShot === "simulate" ? "Stellar Kit (prev. Stellar Suite) VS Code extension — transaction simulation. MVP screenshot may show Stellar Suite in the UI." : "Stellar Kit (prev. Stellar Suite) VS Code extension — contract deployment. MVP screenshot may show Stellar Suite in the UI."}
             className="w-full"
             sizes="(max-width: 768px) 100vw, 900px"
           />
         </div>
+        <p className="mt-3 text-center text-sm opacity-80" style={{ color: "hsl(var(--hero-foreground))" }}>
+          MVP screenshot — extension was then named Stellar Suite (now Stellar Kit).
+        </p>
       </div>
     </section>
   );

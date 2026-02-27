@@ -9,6 +9,8 @@ stellar-suite/
 .DS_Store
 *.log
 ISSUES.md
+BUILD.md
+pr.md
 .env
 .env.local
 stellar-suite-*.vsix

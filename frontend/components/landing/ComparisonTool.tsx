@@ -7,7 +7,7 @@ export function ComparisonTool() {
     <Section id="compare" dark>
       <SectionHeader
         title="CLI vs Extension"
-        subtitle="See how Stellar Suite simplifies every step of the development workflow."
+        subtitle="See how Stellar Kit simplifies every step of the development workflow."
       />
 
       {/* Desktop table */}
@@ -22,7 +22,7 @@ export function ComparisonTool() {
                 Stellar CLI
               </th>
               <th className="px-4 py-3 text-left font-medium text-electric-cyan">
-                Stellar Suite
+                Stellar Kit
               </th>
             </tr>
           </thead>

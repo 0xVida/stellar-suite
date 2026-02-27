@@ -73,7 +73,7 @@ const UseCasesSection = () => {
             Endless ways to build on Stellar.
           </h2>
           <p className="mt-4 text-lg font-body text-muted-foreground max-w-2xl mx-auto">
-            From deploying contracts to simulating transactions, Stellar Suite delivers the tools you need.
+            From deploying contracts to simulating transactions, Stellar Kit delivers the tools you need.
             Every workflow is faster, easier, and more intuitive.
           </p>
         </div>

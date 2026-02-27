@@ -1,3 +1,5 @@
+import { EXTENSION_ITEM_URL } from "@/lib/constants";
+
 export function Hero() {
   return (
     <section className="relative flex min-h-[90vh] flex-col items-center justify-center bg-cosmic-navy px-6 pt-14 text-center">
@@ -24,7 +26,7 @@ export function Hero() {
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
-            href="https://marketplace.visualstudio.com/"
+            href={EXTENSION_ITEM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 items-center rounded-[var(--radius)] bg-electric-cyan px-5 text-sm font-medium text-cosmic-navy transition-opacity hover:opacity-90"

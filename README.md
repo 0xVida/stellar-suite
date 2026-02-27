@@ -1,10 +1,12 @@
-# Stellar Suite
+# Stellar Kit (prev. Stellar Suite)
 
-[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/stellar-suite.stellar-suite?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=stellar-suite.stellar-suite)
+[![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/0xVida.stellar-kit?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=0xVida.stellar-kit)
 [![License](https://img.shields.io/github/license/0xVida/stellar-suite?style=flat-square)](LICENSE.md)
 [![Stellar](https://img.shields.io/badge/Stellar-Soroban-black?style=flat-square&logo=stellar)](https://stellar.org)
 
-**Stellar Suite** is a developer toolkit for building, deploying, and managing smart contracts on the Stellar network—directly from your editor. Build, deploy, and simulate Soroban contracts from VS Code without jumping between the terminal and the editor: the Stellar CLI is wired into a sidebar and commands so you can stay in the flow.
+- **Extension:** [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=0xVida.stellar-kit) · **Manage:** [Publisher Hub](https://marketplace.visualstudio.com/manage/publishers/0xVida/extensions/stellar-kit/hub)
+
+**Stellar Kit** is a developer toolkit for building, deploying, and managing smart contracts on the Stellar network—directly from your editor. Build, deploy, and simulate Soroban contracts from VS Code without jumping between the terminal and the editor: the Stellar CLI is wired into a sidebar and commands so you can stay in the flow.
 
 ---
 
@@ -16,18 +18,18 @@
 - **Signing** is built in: interactive prompt, keypair file, VS Code secure storage, or paste a signature from a hardware wallet.
 - **Errors and progress** from the CLI are streamed and parsed so you get clear feedback when something fails.
 
-![Stellar Suite MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
+![Stellar Kit MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
 
-*Screenshot of the current Stellar Suite MVP.*
+*Screenshot of the current Stellar Kit MVP.*
 
 ---
 
 ## Install and run
 
-Install **Stellar Suite** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=stellar-suite.stellar-suite) (Extensions view, `Ctrl+Shift+X` / `Cmd+Shift+X`).
+Install **Stellar Kit** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=0xVida.stellar-kit) (Extensions view, `Ctrl+Shift+X` / `Cmd+Shift+X`).
 
 1. Open a workspace that has a Soroban contract (e.g. a `Cargo.toml` with `soroban-sdk`).
-2. Open the **Stellar Suite** sidebar from the Activity Bar.
+2. Open the **Stellar Kit** sidebar from the Activity Bar.
 3. Use **Build** on a contract, then **Deploy** or **Simulate** as needed.
 
 **Build from source:** clone the repo, run `npm install` and `npm run compile`, then press `F5` in VS Code to launch the Extension Development Host.
@@ -36,13 +38,13 @@ Install **Stellar Suite** from the [VS Code Marketplace](https://marketplace.vis
 
 ## Main workflows
 
-**Deploy:** Command Palette → **Stellar Suite: Deploy Contract**. Pick WASM, network, source account, and signing method. The extension runs the CLI, handles signing, and shows the result and contract ID.
+**Deploy:** Command Palette → **Stellar Kit: Deploy Contract**. Pick WASM, network, source account, and signing method. The extension runs the CLI, handles signing, and shows the result and contract ID.
 
-**Build:** Command Palette → **Stellar Suite: Build Contract**, or use the sidebar. Chooses the contract folder if you have more than one.
+**Build:** Command Palette → **Stellar Kit: Build Contract**, or use the sidebar. Chooses the contract folder if you have more than one.
 
-**Simulate:** Command Palette → **Stellar Suite: Simulate Soroban Transaction**. Enter contract ID, function, and arguments; results show in a panel with return values and resource usage.
+**Simulate:** Command Palette → **Stellar Kit: Simulate Soroban Transaction**. Enter contract ID, function, and arguments; results show in a panel with return values and resource usage.
 
-**Configure CLI:** **Stellar Suite: Configure CLI** lets you manage profiles, validate network/source/RPC settings, and export/import config as JSON.
+**Configure CLI:** **Stellar Kit: Configure CLI** lets you manage profiles, validate network/source/RPC settings, and export/import config as JSON.
 
 ---
 
@@ -64,7 +66,7 @@ Relevant VS Code settings:
 
 ### Using the Sidebar
 
-The Stellar Suite sidebar provides a visual interface for 
+The Stellar Kit sidebar provides a visual interface for
 managing contracts:
 
 - View all detected contracts in your workspace

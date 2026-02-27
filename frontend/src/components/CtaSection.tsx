@@ -1,3 +1,5 @@
+import { EXTENSION_ITEM_URL, EXTENSION_INSTALL_ID } from "@/lib/constants";
+
 const CtaSection = () => {
   return (
     <section id="get-started" className="section-padding">
@@ -11,12 +13,12 @@ const CtaSection = () => {
 
         <div className="rounded-xl bg-muted border border-border px-6 py-4 font-mono text-sm text-foreground inline-block mb-10">
           <span className="text-muted-foreground select-none">$ </span>
-          <span>ext install stellar-suite</span>
+          <span>ext install {EXTENSION_INSTALL_ID}</span>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <a
-            href="https://marketplace.visualstudio.com"
+            href={EXTENSION_ITEM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary"

@@ -4,6 +4,7 @@ import Image from "next/image";
 import screenshotSimulate from "@/assets/screenshot-simulate.png";
 import screenshotDeploy from "@/assets/screenshot-deploy.png";
 import { useState } from "react";
+import { EXTENSION_ITEM_URL } from "@/lib/constants";
 
 const HeroSection = () => {
   const [activeShot, setActiveShot] = useState<"simulate" | "deploy">("simulate");
@@ -26,14 +27,14 @@ const HeroSection = () => {
           className="text-lg md:text-xl font-body max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-up opacity-80"
           style={{ color: "hsl(var(--hero-foreground))", animationDelay: "0.1s" }}
         >
-          Whether you&apos;re building smart contracts or deploying to Stellar, Stellar Suite
+          Whether you&apos;re building smart contracts or deploying to Stellar, Stellar Kit
           makes it easier to build, deploy, and simulate — all from VS Code.
         </p>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: "0.2s" }}>
           <a
-            href="https://marketplace.visualstudio.com"
+            href={EXTENSION_ITEM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary text-base"
@@ -87,7 +88,7 @@ const HeroSection = () => {
         >
           <Image
             src={activeShot === "simulate" ? screenshotSimulate : screenshotDeploy}
-            alt={activeShot === "simulate" ? "Stellar Suite VS Code extension — transaction simulation" : "Stellar Suite VS Code extension — contract deployment"}
+            alt={activeShot === "simulate" ? "Stellar Kit VS Code extension — transaction simulation" : "Stellar Kit VS Code extension — contract deployment"}
             className="w-full"
             sizes="(max-width: 768px) 100vw, 900px"
           />

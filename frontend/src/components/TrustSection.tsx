@@ -23,7 +23,7 @@ const TrustSection = () => {
 
         <div className="max-w-3xl mx-auto">
           <blockquote className="text-2xl md:text-3xl font-display font-bold text-foreground leading-snug">
-            &quot;Stellar Suite turned my Soroban workflow from a 10-step CLI dance into a single click. I can deploy, simulate, and test without ever leaving VS Code.&quot;
+            &quot;Stellar Kit turned my Soroban workflow from a 10-step CLI dance into a single click. I can deploy, simulate, and test without ever leaving VS Code.&quot;
           </blockquote>
           <div className="mt-6">
             <p className="font-display font-semibold text-foreground">Alex Chen</p>

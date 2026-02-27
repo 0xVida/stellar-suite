@@ -12,7 +12,7 @@ const AnnouncementBanner = () => {
     <div className="fixed top-[65px] left-0 right-0 z-40 bg-banner text-banner-foreground" role="region" aria-label="Announcement">
       <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 px-6 py-2.5 relative">
         <span className="text-sm text-center sm:text-left">
-          It&apos;s here: Stellar Suite 1.0 — build, deploy & simulate from VS Code.
+          It&apos;s here: Stellar Kit 1.0 — build, deploy & simulate from VS Code.
         </span>
         <a
           href="#features"

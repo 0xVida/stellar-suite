@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { EXTENSION_ITEM_URL } from "@/lib/constants";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between py-3 sm:py-4 px-6">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="text-xl font-display font-extrabold text-foreground tracking-tight">
-            Stellar Suite
+            Stellar Kit
           </span>
         </Link>
 
@@ -32,7 +33,7 @@ const Navbar = () => {
             GitHub
           </a>
           <a
-            href="https://marketplace.visualstudio.com"
+            href={EXTENSION_ITEM_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-primary !py-2.5 !px-6 !text-sm !rounded-lg"
@@ -57,7 +58,7 @@ const Navbar = () => {
           <a href="#features" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Features</a>
           <a href="#use-cases" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Use Cases</a>
           <a href="#get-started" onClick={() => setOpen(false)} className="text-sm font-medium text-muted-foreground py-2">Get Started</a>
-          <a href="https://marketplace.visualstudio.com" target="_blank" rel="noopener noreferrer" className="btn-primary !text-sm text-center">
+          <a href={EXTENSION_ITEM_URL} target="_blank" rel="noopener noreferrer" className="btn-primary !text-sm text-center">
             Install Free
           </a>
         </div>

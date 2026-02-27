@@ -16,13 +16,13 @@ export function Navbar() {
         <Link href="/" className="flex items-center gap-2.5">
           <Image
             src="/icon.png"
-            alt="Stellar Suite"
+            alt="Stellar Kit"
             width={24}
             height={24}
             priority
           />
           <span className="text-sm font-semibold text-stardust-white">
-            Stellar Suite
+            Stellar Kit
           </span>
         </Link>
 

@@ -40,7 +40,7 @@ export function DemoSection() {
             <span className="h-2.5 w-2.5 rounded-full bg-success/60" />
           </div>
           <span className="text-xs text-muted-silver/60 font-mono">
-            Stellar Suite — VS Code
+            Stellar Kit — VS Code
           </span>
           <div className="w-12" />
         </div>

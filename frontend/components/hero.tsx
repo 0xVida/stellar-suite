@@ -48,7 +48,7 @@ export function Hero() {
                     className="mt-8 text-lg md:text-xl leading-relaxed text-zinc-400 max-w-3xl mx-auto opacity-0 animate-fade-in-up"
                     style={{ animationDelay: "300ms" }}
                 >
-                    Stop context switching between your IDE and the terminal. Stellar Suite brings the power of the Stellar CLI directly into a highly interactive VS Code experience. Focus on what truly matters: writing flawless code.
+                    Stop context switching between your IDE and the terminal. Stellar Kit brings the power of the Stellar CLI directly into a highly interactive VS Code experience. Focus on what truly matters: writing flawless code.
                 </p>
 
                 {/* High-Impact Calls To Action */}
@@ -57,7 +57,7 @@ export function Hero() {
                     style={{ animationDelay: "450ms" }}
                 >
                     <a
-                        href="https://marketplace.visualstudio.com/items?itemName=stellar-suite.stellar-suite"
+                        href="https://marketplace.visualstudio.com/items?itemName=0xVida.stellar-kit"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full sm:w-auto rounded-xl bg-white px-8 py-4 text-base font-semibold text-zinc-950 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center gap-2"

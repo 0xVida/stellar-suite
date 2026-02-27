@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 const SCREENSHOTS = [
   {
     src: "/images/screenshot.png",
-    alt: "Stellar Suite sidebar showing contract management",
+    alt: "Stellar Kit sidebar showing contract management",
     caption: "Interactive sidebar with contract discovery and quick actions",
   },
 ];

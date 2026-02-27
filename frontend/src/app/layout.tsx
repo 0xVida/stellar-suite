@@ -3,12 +3,12 @@ import { Providers } from "@/components/Providers";
 import "@/app/globals.css";
 
 export const metadata: Metadata = {
-  title: "Stellar Suite — Build & Deploy Soroban Contracts in VS Code",
+  title: "Stellar Kit — Build & Deploy Soroban Contracts in VS Code",
   description:
     "Build, deploy, and simulate Stellar Soroban smart contracts directly from VS Code. The easiest alternative to the Stellar CLI.",
-  authors: [{ name: "Stellar Suite" }],
+  authors: [{ name: "Stellar Kit" }],
   openGraph: {
-    title: "Stellar Suite — Soroban Development in VS Code",
+    title: "Stellar Kit — Soroban Development in VS Code",
     description:
       "Build, deploy, and simulate Stellar Soroban smart contracts directly from VS Code.",
     type: "website",

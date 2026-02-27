@@ -50,7 +50,7 @@ export function NewsletterForm() {
     <div className="w-full max-w-md rounded-lg border border-border-subtle bg-slate-gray p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-stardust-white">Subscribe to our Newsletter</h3>
       <p className="mt-2 text-sm text-muted-silver">
-        Get the latest updates on Stellar Suite features and ecosystem news.
+        Get the latest updates on Stellar Kit features and ecosystem news.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-3">

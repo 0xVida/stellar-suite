@@ -2,23 +2,23 @@ import { ArrowUpRight } from "lucide-react";
 
 const news = [
   {
-    title: "Stellar Suite 1.0: Build, deploy & simulate in VS Code",
+    title: "Stellar Kit 1.0: Build, deploy & simulate in VS Code",
     description: "The first stable release brings one-click deployment, transaction simulation, and full contract management to your editor.",
     span: "col-span-1 row-span-2",
   },
   {
-    title: "Why developers are switching to Stellar Suite",
-    description: "From memorizing terminal commands to clicking a button — see how Stellar Suite transforms the Soroban workflow.",
+    title: "Why developers are switching to Stellar Kit",
+    description: "From memorizing terminal commands to clicking a button — see how Stellar Kit transforms the Soroban workflow.",
     span: "col-span-1 row-span-1",
   },
   {
     title: "Deploy NFTs on Soroban in under 60 seconds",
-    description: "A step-by-step guide using Stellar Suite to scaffold, build, and deploy an NFT contract to testnet.",
+    description: "A step-by-step guide using Stellar Kit to scaffold, build, and deploy an NFT contract to testnet.",
     span: "col-span-1 row-span-1",
   },
   {
-    title: "Simulate easily with Stellar Suite",
-    description: "Simulate transactions easily with Stellar Suite's intuitive interface.",
+    title: "Simulate easily with Stellar Kit",
+    description: "Simulate transactions easily with Stellar Kit's intuitive interface.",
     span: "col-span-1 row-span-1",
   },
 ];

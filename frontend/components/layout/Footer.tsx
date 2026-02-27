@@ -16,7 +16,11 @@ const FOOTER_LINKS = [
       },
       {
         label: "VS Code Marketplace",
-        href: "https://marketplace.visualstudio.com/",
+        href: "https://marketplace.visualstudio.com/items?itemName=0xVida.stellar-kit",
+      },
+      {
+        label: "Extension Hub",
+        href: "https://marketplace.visualstudio.com/manage/publishers/0xVida/extensions/stellar-kit/hub",
       },
       { label: "Stellar Docs", href: "https://developers.stellar.org/" },
     ],
@@ -66,7 +70,7 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-10 border-t border-border-subtle pt-6 text-center text-xs text-muted-silver/50">
-          &copy; {new Date().getFullYear()} Stellar Suite. Built for the Stellar
+          &copy; {new Date().getFullYear()} Stellar Kit. Built for the Stellar
           ecosystem.
         </div>
       </div>

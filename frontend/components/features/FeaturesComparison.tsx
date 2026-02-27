@@ -2,6 +2,7 @@
 
 import { FEATURE_COMPARISON_DATA } from "@/lib/data/features";
 import { Section } from "@/components/ui/Section";
+import { EXTENSION_ITEM_URL } from "@/lib/constants";
 import { Terminal, Code2, CheckCircle2, XCircle } from "lucide-react";
 
 export function FeaturesComparison() {
@@ -14,10 +15,10 @@ export function FeaturesComparison() {
             <span>VS Code Extension vs CLI</span>
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-stardust-white md:text-5xl lg:text-6xl">
-            Why Upgrade to Stellar Suite?
+            Why Upgrade to Stellar Kit?
           </h1>
           <p className="text-lg text-muted-silver max-w-2xl mx-auto leading-relaxed">
-            Discover how the Stellar Suite VS Code Extension transforms your development workflow, eliminating context switching and simplifying complex tasks compared to the standard CLI.
+            Discover how the Stellar Kit VS Code Extension transforms your development workflow, eliminating context switching and simplifying complex tasks compared to the standard CLI.
           </p>
         </div>
 
@@ -36,7 +37,7 @@ export function FeaturesComparison() {
                 <th className="p-6 text-sm font-semibold text-electric-cyan uppercase tracking-wider w-[35%] bg-electric-cyan/5 border-l border-border-subtle/50">
                   <div className="flex items-center gap-2">
                     <Code2 className="w-4 h-4" />
-                    Stellar Suite Extension
+                    Stellar Kit Extension
                   </div>
                 </th>
               </tr>
@@ -96,7 +97,7 @@ export function FeaturesComparison() {
                 <div className="bg-electric-cyan/5 -mx-2 p-3 rounded-lg border border-electric-cyan/10">
                   <div className="flex items-center gap-2 text-xs font-semibold text-electric-cyan uppercase tracking-wider mb-2">
                     <Code2 className="w-3 h-3" />
-                    Stellar Suite
+                    Stellar Kit
                   </div>
                   <div className="flex items-start gap-2 pl-2">
                     <CheckCircle2 className="w-4 h-4 text-electric-cyan mt-0.5 flex-shrink-0" />
@@ -113,7 +114,7 @@ export function FeaturesComparison() {
         <div className="mt-16 text-center">
           <p className="text-muted-silver mb-6">Ready to improve your developer experience?</p>
           <a 
-            href="https://marketplace.visualstudio.com/" 
+            href={EXTENSION_ITEM_URL} 
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-md bg-electric-cyan px-8 py-3 text-sm font-semibold text-cosmic-navy shadow-lg shadow-electric-cyan/20 transition-all hover:bg-electric-cyan/90 hover:shadow-electric-cyan/40 hover:-translate-y-0.5"

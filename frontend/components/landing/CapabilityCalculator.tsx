@@ -40,7 +40,7 @@ export function CapabilityCalculator() {
     <Section dark>
       <SectionHeader
         title="Calculate your time savings"
-        subtitle="Estimate how much time Stellar Suite saves you each week."
+        subtitle="Estimate how much time Stellar Kit saves you each week."
       />
 
       <div className="grid gap-8 md:grid-cols-2">

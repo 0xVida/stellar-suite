@@ -18,7 +18,7 @@
 - **Signing** is built in: interactive prompt, keypair file, VS Code secure storage, or paste a signature from a hardware wallet.
 - **Errors and progress** from the CLI are streamed and parsed so you get clear feedback when something fails.
 
-![Stellar Kit MVP Screenshot](https://raw.githubusercontent.com/0xVida/stellar-suite/refs/heads/main/assets/screenshot.png)
+![Stellar Kit MVP Screenshot](https://github.com/user-attachments/assets/da4063c8-ff36-4e5b-87c2-f17194099098)
 
 *Screenshot of the current Stellar Kit MVP. The project and repo were originally released as Stellar Suite; the product is now named Stellar Kit.*
 
@@ -47,22 +47,6 @@ Install **Stellar Kit** from the [VS Code Marketplace](https://marketplace.visua
 **Configure CLI:** **Stellar Kit: Configure CLI** lets you manage profiles, validate network/source/RPC settings, and export/import config as JSON.
 
 ---
-
-## Configuration
-
-Relevant VS Code settings:
-
-- `stellarSuite.network` – default network (e.g. testnet)
-- `stellarSuite.cliPath` – path to the Stellar CLI binary
-- `stellarSuite.source` – source identity for invocations
-- `stellarSuite.rpcUrl` – RPC endpoint for simulation (when not using local CLI)
-- `stellarSuite.signing.defaultMethod` – default signing method (interactive, file, secure storage, etc.)
-- `stellarSuite.signing.enableSecureKeyStorage` – allow storing keypairs in VS Code SecretStorage
-
----
-
-## Custom contract templates
-
 
 ### Using the Sidebar
 

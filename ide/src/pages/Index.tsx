@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect } from "react";
 import { FileExplorer } from "@/components/ide/FileExplorer";
-import { EditorTabs } from "@/components/ide/EditorTabs";
-import CodeEditor from "@/components/editor/CodeEditor";
-import { Terminal } from "@/components/ide/Terminal";
+import { EditorTabs, TabInfo } from "@/components/ide/EditorTabs";
+import CodeEditor from "@/components/ide/CodeEditor";
+import { Terminal, LogEntry } from "@/components/ide/Terminal";
 import { Toolbar } from "@/components/ide/Toolbar";
 import { ContractPanel } from "@/components/ide/ContractPanel";
 import { IdentitiesView } from "@/components/ide/IdentitiesView";
 import { StatusBar } from "@/components/ide/StatusBar";
 import { useIdentityStore } from "@/store/useIdentityStore";
 import { sampleContracts, FileNode } from "@/lib/sample-contracts";
+import { DEFAULT_CUSTOM_RPC, NETWORK_CONFIG, type NetworkKey } from "@/lib/networkConfig";
+import { showCompilationFailedToast, showCompilationSuccessToast } from "@/lib/compilationToasts";
 import { DROP_LIMIT_BYTES, mapDroppedEntriesToTree, mergeFileNodes, readDropPayload } from "@/lib/file-drop";
 import { FileNode } from "@/lib/sample-contracts";
 import { useFileStore } from "@/store/useFileStore";
@@ -44,6 +46,19 @@ const toCompilePath = (pathParts: string[]) => {
   return pathParts.join("/");
 };
 
+type BuildState = "idle" | "building" | "success" | "error";
+
+const containsCompileError = (nodes: FileNode[]): boolean => {
+  for (const node of nodes) {
+    if (node.type === "folder" && node.children && containsCompileError(node.children)) return true;
+    if (node.type === "file") {
+      const isRust = node.language === "rust" || node.name.endsWith(".rs");
+      const content = node.content ?? "";
+      if (isRust && content.includes("compile_error!")) return true;
+    }
+  }
+  return false;
+};
 const flattenProjectFiles = (nodes: FileNode[], parentPath: string[] = []) =>
   nodes.flatMap((node) => {
     const nextPath = [...parentPath, node.name];
@@ -96,8 +111,12 @@ const Index = () => {
   ]);
   const [activeTabPath, setActiveTabPath] = useState<string[]>(["hello_world", "lib.rs"]);
   const [terminalExpanded, setTerminalExpanded] = useState(true);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [network, setNetwork] = useState<NetworkKey>("testnet");
+  const [customRpcUrl, setCustomRpcUrl] = useState<string>(DEFAULT_CUSTOM_RPC);
   const [terminalOutput, setTerminalOutput] = useState("");
   const [isCompiling, setIsCompiling] = useState(false);
+  const [buildState, setBuildState] = useState<BuildState>("idle");
   const [contractId, setContractId] = useState<string | null>(null);
   const [showExplorer, setShowExplorer] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -266,6 +285,7 @@ const Index = () => {
     });
   }, [activeTabPath]);
 
+
   const handleRenameNode = useCallback((path: string[], newName: string) => {
     const oldKey = path.join("/");
     const newPath = [...path.slice(0, -1), newName];
@@ -291,41 +311,30 @@ const Index = () => {
     );
 
     // Update active tab
-    if (activeTabPath.join("/") === oldKey || activeTabPath.join("/").startsWith(oldKey + "/")) {
+    if (
+      activeTabPath.join("/") === oldKey ||
+      activeTabPath.join("/").startsWith(oldKey + "/")
+    ) {
       setActiveTabPath([...newPath, ...activeTabPath.slice(path.length)]);
     }
 
-      const parsed = parseMixedOutput(output, contractName);
-      setDiagnostics(parsed);
-
-      const errors = parsed.filter((diagnostic) => diagnostic.severity === "error");
-      const warnings = parsed.filter(
-        (diagnostic) => diagnostic.severity === "warning"
-      );
-
-      appendTerminalOutput(
-        `\r\n${
-          errors.length > 0
-            ? `Build failed with ${errors.length} error(s) and ${warnings.length} warning(s).`
-            : `Build completed successfully${warnings.length > 0 ? ` with ${warnings.length} warning(s).` : "."}`
-        }\r\n`
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Build failed unexpectedly.";
-      appendTerminalOutput(`\r\nBuild failed: ${message}\r\n`);
-      setDiagnostics([]);
-    } finally {
-      setIsCompiling(false);
+    const entries = Object.entries(savedContentRef.current);
+    for (const [k, v] of entries) {
+      if (k === oldKey || k.startsWith(oldKey + "/")) {
+        const newK = newKey + k.slice(oldKey.length);
+        savedContentRef.current[newK] = v;
+        delete savedContentRef.current[k];
+      }
     }
-  }, [
-    activeTabPath,
-    appendTerminalOutput,
-    clearDiagnostics,
-    files,
-    network,
-    setDiagnostics,
-  ]);
+  }, [activeTabPath]);
+    
+  const getActiveContent = (): { content: string; language: string } => {
+    const file = findNode(files, activeTabPath);
+    return {
+      content: file?.content || "// Select a file to begin editing",
+      language: file?.language || "rust",
+    };
+  };
 
   const handleDeploy = useCallback(() => {
     setTerminalExpanded(true);
@@ -410,6 +419,23 @@ const Index = () => {
       const dropped = await readDropPayload(event.dataTransfer);
       const { nodes, uploadedFiles, skippedFiles, totalBytes } = await mapDroppedEntriesToTree(dropped);
 
+      if (uploadedFiles === 0) {
+        addLog("error", `Upload skipped. No eligible files found (limit ${(DROP_LIMIT_BYTES / (1024 * 1024)).toFixed(0)} MB).`);
+        return;
+      }
+
+      setFiles((prev) => mergeFileNodes(prev, nodes));
+      addLog("success", `Uploaded ${uploadedFiles} file${uploadedFiles === 1 ? "" : "s"} (${(totalBytes / 1024).toFixed(1)} KB).`);
+      if (skippedFiles > 0) {
+        addLog("warning", `Skipped ${skippedFiles} file${skippedFiles === 1 ? "" : "s"} (ignored folders or upload limit).`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      addLog("error", `Upload failed: ${message}`);
+    }
+  }, [addLog]);
+  const { content, language } = getActiveContent();
+  const horizonUrl = NETWORK_CONFIG[network].horizon;
   const { language } = getActiveContent();
 
   const tabsWithStatus = openTabs.map((tab) => ({
@@ -426,6 +452,7 @@ const Index = () => {
         onDeploy={handleDeploy}
         onTest={handleTest}
         isCompiling={isCompiling}
+        buildState={buildState}
         network={network}
         onNetworkChange={setNetwork}
         saveStatus={saveStatus}
@@ -637,6 +664,10 @@ const Index = () => {
           line={cursorPos.line}
           col={cursorPos.col}
           network={network}
+          horizonUrl={horizonUrl}
+          customRpcUrl={customRpcUrl}
+          onNetworkChange={setNetwork}
+          onCustomRpcUrlChange={setCustomRpcUrl}
           unsavedCount={unsavedFiles.size}
         />
       </div>

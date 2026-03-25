@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { BuildButton } from "@/components/ide/BuildButton";
 import { Button } from "@/components/ui/button";
+import { type NetworkKey } from "@/lib/networkConfig";
 
 type BuildState = "idle" | "building" | "success" | "error";
 
@@ -12,8 +13,8 @@ interface ToolbarProps {
   onTest: () => void;
   isCompiling: boolean;
   buildState: BuildState;
-  network: string;
-  onNetworkChange: (network: string) => void;
+  network: NetworkKey;
+  onNetworkChange: (network: NetworkKey) => void;
   saveStatus?: string;
 }
 
@@ -72,13 +73,13 @@ export function Toolbar({
             <Network className="h-3.5 w-3.5" />
             <select
               value={network}
-              onChange={(e) => onNetworkChange(e.target.value)}
+              onChange={(e) => onNetworkChange(e.target.value as NetworkKey)}
               className="rounded border border-border bg-secondary px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="testnet">Testnet</option>
               <option value="futurenet">Futurenet</option>
               <option value="mainnet">Mainnet</option>
-              <option value="standalone">Standalone</option>
+              <option value="local">Local</option>
             </select>
           </div>
           <button className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
@@ -107,13 +108,13 @@ export function Toolbar({
           )}
           <select
             value={network}
-            onChange={(e) => onNetworkChange(e.target.value)}
+            onChange={(e) => onNetworkChange(e.target.value as NetworkKey)}
             className="rounded border border-border bg-secondary px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none"
           >
             <option value="testnet">Testnet</option>
             <option value="futurenet">Futurenet</option>
             <option value="mainnet">Mainnet</option>
-            <option value="standalone">Standalone</option>
+            <option value="local">Local</option>
           </select>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

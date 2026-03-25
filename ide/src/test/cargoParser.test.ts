@@ -17,13 +17,13 @@ import {
 describe("mapPathToVirtualId", () => {
   it("maps absolute backend path to virtual ID", () => {
     expect(mapPathToVirtualId("/workspace/hello_world/src/lib.rs", "hello_world")).toBe(
-      "hello_world/src/lib.rs"
+      "hello_world/lib.rs"
     );
   });
 
   it("handles relative src/ paths", () => {
     expect(mapPathToVirtualId("src/lib.rs", "hello_world")).toBe(
-      "hello_world/src/lib.rs"
+      "hello_world/lib.rs"
     );
   });
 
@@ -86,7 +86,7 @@ describe("parseCargoLine", () => {
     const result = parseCargoLine(line, "hello_world");
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
-      fileId: "hello_world/src/lib.rs",
+      fileId: "hello_world/lib.rs",
       line: 12,
       column: 9,
       endLine: 12,
@@ -204,7 +204,7 @@ describe("parseCargoOutput", () => {
   it("maps src/lib.rs errors to virtual file IDs", () => {
     const line = makeCompilerMessage({});
     const result = parseCargoOutput(line, "hello_world");
-    expect(result[0].fileId).toBe("hello_world/src/lib.rs");
+    expect(result[0].fileId).toBe("hello_world/lib.rs");
   });
 });
 

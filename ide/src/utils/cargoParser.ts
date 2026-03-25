@@ -92,7 +92,8 @@ export function mapPathToVirtualId(
   if (!normalised.startsWith("/") && !normalised.includes("/src/")) {
     // Handle relative paths like "src/lib.rs" → "hello_world/src/lib.rs"
     if (normalised.startsWith("src/")) {
-      return `${contractName}/${normalised}`;
+      // IDE virtual layout strips the `src/` folder (e.g. `hello_world/lib.rs`).
+      return `${contractName}/${normalised.replace(/^src\//, "")}`;
     }
     return normalised;
   }
@@ -100,7 +101,10 @@ export function mapPathToVirtualId(
   // Extract the filename after the last src/ segment
   const srcMatch = normalised.match(/\/src\/(.+)$/);
   if (srcMatch) {
-    return `${contractName}/src/${srcMatch[1]}`;
+    // In the IDE virtual file tree, contract files live directly under
+    // `<contractName>/...` (no `src/` folder). Strip the `src/` segment so
+    // diagnostics match the active Monaco model's `fileId`.
+    return `${contractName}/${srcMatch[1]}`;
   }
 
   // Fallback: just use the basename

@@ -85,23 +85,36 @@
   }
 }
 
-/* Scrollbar styling */
+/* Custom IDE Scrollbars */
+
+/* Firefox fallback */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Webkit (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .search-match-decoration {

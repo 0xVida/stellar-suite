@@ -19,6 +19,7 @@ import { type NetworkKey } from "@/lib/networkConfig";
 import { FileNode } from "@/lib/sample-contracts";
 import { createStreamProcessor, readCompileResponse } from "@/utils/compileStream";
 import { parseMixedOutput } from "@/utils/cargoParser";
+import { RpcService } from "@/lib/rpcService";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { DeploymentsView } from "@/components/ide/DeploymentsView";
 import { useDeployedContractsStore } from "@/store/useDeployedContractsStore";
@@ -259,18 +260,35 @@ const Index = () => {
   }, [appendTerminalOutput]);
 
   const handleInvoke = useCallback(
-    (fn: string, args: string) => {
+    async (fn: string, args: string, isSimulation: boolean) => {
       setTerminalExpanded(true);
       const signer =
         activeContext?.type === "web-wallet"
           ? "browser-wallet"
           : activeIdentity?.nickname ?? "anonymous";
-      appendTerminalOutput(`Invoking ${fn}(${args}) as ${signer}...\r\n`);
-      setTimeout(() => {
-        appendTerminalOutput('Result: ["Hello", "Dev"]\r\n');
-      }, 800);
+      appendTerminalOutput(`${isSimulation ? 'Simulating' : 'Invoking'} ${fn}(${args}) as ${signer}...\r\n`);
+
+      try {
+        const parsedArgs = JSON.parse(args);
+        const rpcUrl = network === "local" ? customRpcUrl : horizonUrl;
+        const rpcService = new RpcService(rpcUrl);
+
+        if (isSimulation) {
+          const result = await rpcService.simulateTransaction(contractId!, fn, Array.isArray(parsedArgs) ? parsedArgs : [parsedArgs]);
+          if (result.success) {
+            appendTerminalOutput(`Result: ${JSON.stringify(result.result)}\r\n`);
+          } else {
+            appendTerminalOutput(`Error: ${result.error}\r\n`);
+          }
+        } else {
+          // TODO: Implement actual transaction invocation
+          appendTerminalOutput('Transaction invocation not yet implemented\r\n');
+        }
+      } catch (error) {
+        appendTerminalOutput(`Error: ${error instanceof Error ? error.message : 'Invalid arguments'}\r\n`);
+      }
     },
-    [activeContext, activeIdentity, appendTerminalOutput]
+    [activeContext, activeIdentity, appendTerminalOutput, network, customRpcUrl, horizonUrl, contractId]
   );
 
   const handleCreateFile = useCallback(

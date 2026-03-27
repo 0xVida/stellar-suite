@@ -51,6 +51,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const handleEditorChange: OnChange = (value) => {
     if (value !== undefined) {
       updateFileContent(activeTabPath, value);
+
+      // Re-index files when content changes (with debouncing)
+      setTimeout(() => {
+        symbolIndexer.indexFiles(files);
+      }, 500);
     }
   };
 
@@ -159,6 +164,40 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     monacoRef.current = monaco;
     editorRef.current = editor;
 
+    // Initialize symbol indexer and definition provider
+    symbolIndexer.indexFiles(files);
+    definitionProvider.initialize(editor, monaco);
+    definitionProvider.registerDefinitionProvider(monaco);
+    definitionProvider.registerOnDefinitionHandler(monaco);
+
+    // Listen for file open requests from definition provider
+    const handleFileOpen = (event: CustomEvent) => {
+      const { filePath } = event.detail;
+      // Find the file in the workspace and open it
+      const findNode = (
+        nodes: FileNode[],
+        pathParts: string[],
+      ): FileNode | null => {
+        for (const node of nodes) {
+          if (node.name === pathParts[0]) {
+            if (pathParts.length === 1) return node;
+            if (node.children)
+              return findNode(node.children, pathParts.slice(1));
+          }
+        }
+        return null;
+      };
+
+      const node = findNode(files, filePath);
+      if (node && node.type === "file") {
+        // This would trigger opening the file in the workspace
+        // For now, we'll need to integrate with the workspace store
+        const { addTab } = useWorkspaceStore.getState();
+        addTab(filePath, node.name);
+      }
+    };
+
+    window.addEventListener("openFile", handleFileOpen as EventListener);
     // Register jump-to-line function for outline view
     setJumpToLine((line: number) => {
       editor.revealLineInCenter(line);
@@ -421,6 +460,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
         },
       });
     }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener("openFile", handleFileOpen as EventListener);
+    };
   };
 
   if (!activeFile) {

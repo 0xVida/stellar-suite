@@ -1,5 +1,18 @@
 "use client";
 
+import {
+  Circle,
+  FileCode,
+  FileJson,
+  FileText,
+  Settings,
+  X,
+} from "lucide-react";
+import { KeyboardEvent, useRef } from "react";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
   Circle,

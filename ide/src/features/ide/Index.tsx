@@ -17,6 +17,7 @@ import { SecurityView } from "@/components/ide/SecurityView";
 import { StatusBar } from "@/components/ide/StatusBar";
 import { Terminal } from "@/components/ide/Terminal";
 import { Toolbar } from "@/components/ide/Toolbar";
+import { OutlineView } from "@/components/sidebar/OutlineView";
 import { ActivityBar } from "@/components/layout/ActivityBar";
 import { type NetworkKey } from "@/lib/networkConfig";
 import { type FileNode } from "@/lib/sample-contracts";
@@ -469,6 +470,7 @@ export default function Index() {
                 }}
               />
             ) : null}
+            {leftSidebarTab === "outline" ? <OutlineView /> : null}
             {leftSidebarTab === "security" ? (
               <SecurityView
                 clippyLints={clippyLints}

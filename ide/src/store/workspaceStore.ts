@@ -2,6 +2,7 @@ import {
   DEFAULT_CUSTOM_RPC,
   NETWORK_CONFIG,
   NetworkKey,
+  CustomHeaders,
 } from "@/lib/networkConfig";
 import { FileNode, sampleContracts } from "@/lib/sample-contracts";
 import { create } from "zustand";
@@ -24,7 +25,8 @@ export type SidebarTab =
   | "deployments"
   | "identities"
   | "search"
-  | "security";
+  | "security"
+  | "outline";
 export type BuildState = "idle" | "building" | "success" | "error";
 
 interface WorkspaceState {

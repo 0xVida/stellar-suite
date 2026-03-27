@@ -12,11 +12,14 @@ import {
 } from "@/lib/rustFolding";
 import Editor, { OnChange, OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import React, { Suspense, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { analyzeMathSafety } from "../../lib/mathSafetyAnalyzer";
 import { useMathSafetyStore } from "../../store/useMathSafetyStore";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { getAllMonacoCompletions } from "@/utils/proptestSnippets";
+import { GitGutterMarkers } from "./GitGutterMarkers";
+import { git } from "@/lib/git";
+import "@/styles/editor-gutter.css";
 
 interface CodeEditorProps {
   onCursorChange?: (line: number, col: number) => void;
@@ -34,6 +37,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const semanticProviderRegistered = useRef(false);
   const coverageDecorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
+
+  // Git gutter: track mounted editor/monaco and HEAD content for active file
+  const [mountedEditor, setMountedEditor] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [mountedMonaco, setMountedMonaco] = useState<typeof Monaco | null>(null);
+  const [headContent, setHeadContent] = useState<string>("");
   const activeFileId = activeTabPath.join("/");
   const activeFileIdRef = useRef(activeFileId);
   // Keep a live ref to files so the rename provider always sees the latest state
@@ -69,6 +77,16 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       }, 500);
     }
   };
+
+  // Fetch HEAD content for the active file whenever the path changes
+  useEffect(() => {
+    if (activeTabPath.length === 0) return;
+    let cancelled = false;
+    git.readTree(activeTabPath)
+      .then((content) => { if (!cancelled) setHeadContent(content); })
+      .catch(() => { if (!cancelled) setHeadContent(""); });
+    return () => { cancelled = true; };
+  }, [activeTabPath]);
 
   // Apply Monaco markers whenever diagnostics or active file changes
   useEffect(() => {
@@ -200,6 +218,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     monacoRef.current = monaco;
     editorRef.current = editor;
+    setMountedEditor(editor);
+    setMountedMonaco(monaco);
 
     // Initialize symbol indexer and definition provider
     symbolIndexer.indexFiles(files);
@@ -609,6 +629,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
                 "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
             }}
           />
+          {mountedEditor && mountedMonaco && (
+            <GitGutterMarkers
+              editor={mountedEditor}
+              monaco={mountedMonaco}
+              headContent={headContent}
+            />
+          )}
         </Suspense>
       </div>
     </div>

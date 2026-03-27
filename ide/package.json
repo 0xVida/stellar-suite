@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.0",
@@ -87,6 +88,7 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.21",
+    "cssom": "^0.5.0",
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.5.14",
     "eslint-plugin-react-hooks": "^5.2.0",

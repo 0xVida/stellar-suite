@@ -10,6 +10,7 @@ import {
   Sparkles,
   ShieldAlert,
   Loader2,
+  FileCode2,
   Database,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,6 +19,7 @@ import { BuildButton } from "@/components/ide/BuildButton";
 import { Button } from "@/components/ui/button";
 import { type NetworkKey } from "@/lib/networkConfig";
 import ImportGithubModal from "@/components/ide/ImportGithubModal";
+import CiConfigGenerator from "@/components/modals/CiConfigGenerator";
 import StateMockEditor from "@/components/modals/StateMockEditor";
 import { WalletManager } from "@/components/WalletManager";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -75,6 +77,7 @@ export function Toolbar({
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [ciOpen, setCiOpen] = useState(false);
   const [stateEditorOpen, setStateEditorOpen] = useState(false);
   const hasMockState = mockLedgerState.entries.length > 0;
 
@@ -115,6 +118,9 @@ export function Toolbar({
             Import
           </Button>
 
+          <Button onClick={() => setCiOpen(true)} variant="ghost" size="sm" className="h-8 gap-1.5 text-xs">
+            <FileCode2 className="h-3.5 w-3.5" />
+            Export CI
           <Button
             onClick={() => setStateEditorOpen(true)}
             variant="ghost"
@@ -265,6 +271,14 @@ export function Toolbar({
 
           <Button
             variant="outline"
+            className="h-9 flex-1 gap-1 text-[11px]"
+            onClick={() => {
+              setCiOpen(true);
+              setMobileMenuOpen(false);
+            }}
+          >
+            <FileCode2 className="h-3 w-3" />
+            Export CI
             className={`h-9 flex-1 gap-1 text-[11px] ${hasMockState ? "text-primary" : ""}`}
             onClick={() => {
               setStateEditorOpen(true);
@@ -278,6 +292,7 @@ export function Toolbar({
       ) : null}
 
       <ImportGithubModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <CiConfigGenerator open={ciOpen} onOpenChange={setCiOpen} />
 
       <StateMockEditor
         open={stateEditorOpen}

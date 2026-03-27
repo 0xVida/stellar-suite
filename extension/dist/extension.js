@@ -1567,6 +1567,8 @@ var require_contractDeployer = __commonJS({
           const output = stdout + stderr;
           const wasmMatch = output.match(/target\/wasm32[^\/]*\/release\/[^\s]+\.wasm/);
           let wasmPath;
+          let wasmSize;
+          let wasmSizeFormatted;
           if (wasmMatch) {
             wasmPath = path.join(contractPath, wasmMatch[0]);
           } else {
@@ -1585,10 +1587,17 @@ var require_contractDeployer = __commonJS({
               }
             }
           }
+          if (wasmPath && fs.existsSync(wasmPath)) {
+            const stats = fs.statSync(wasmPath);
+            wasmSize = stats.size;
+            wasmSizeFormatted = this.formatFileSize(wasmSize);
+          }
           return {
             success: true,
             output,
-            wasmPath
+            wasmPath,
+            wasmSize,
+            wasmSizeFormatted
           };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -1687,6 +1696,30 @@ var require_contractDeployer = __commonJS({
       }
       async deployFromWasm(wasmPath) {
         return this.deployContract(wasmPath);
+      }
+      formatFileSize(bytes) {
+        if (bytes === 0)
+          return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+      checkWasmSize(wasmSize) {
+        const SIZE_WARNING_THRESHOLD = 500 * 1024;
+        const SIZE_LARGE_THRESHOLD = 1024 * 1024;
+        if (wasmSize > SIZE_LARGE_THRESHOLD) {
+          return {
+            warning: `WASM binary is very large (${this.formatFileSize(wasmSize)}). Consider optimizing to reduce deployment costs.`,
+            isLarge: true
+          };
+        } else if (wasmSize > SIZE_WARNING_THRESHOLD) {
+          return {
+            warning: `WASM binary is large (${this.formatFileSize(wasmSize)}). Consider using optimized builds.`,
+            isLarge: false
+          };
+        }
+        return { isLarge: false };
       }
     };
     exports2.ContractDeployer = ContractDeployer;
@@ -2338,6 +2371,13 @@ Building contract in: ${contractDir}`);
             outputChannel.appendLine("Build successful!");
             if (buildResult.wasmPath) {
               outputChannel.appendLine(`WASM file: ${buildResult.wasmPath}`);
+              if (buildResult.wasmSizeFormatted) {
+                outputChannel.appendLine(`WASM size: ${buildResult.wasmSizeFormatted}`);
+                const sizeCheck = deployer.checkWasmSize(buildResult.wasmSize);
+                if (sizeCheck.warning) {
+                  outputChannel.appendLine(`\u26A0\uFE0F  ${sizeCheck.warning}`);
+                }
+              }
             }
             if (buildResult.output) {
               outputChannel.appendLine("\n=== Full Build Output ===");
@@ -3357,11 +3397,16 @@ var require_sidebarWebView = __commonJS({
         .filter-select {
             padding: 6px 8px;
             border: 1px solid var(--vscode-input-border);
-            background: var(--vscode-input-background);
-            color: var(--vscode-input-foreground);
+            background: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
             border-radius: 6px;
             font-size: 11px;
-            cursor: pointer;
+        }
+        .wasm-size {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            margin: 2px 0;
+            font-family: var(--vscode-editor-font-family);
         }
         .contract-item, .deployment-item {
             background: var(--vscode-sideBar-background);
@@ -3697,6 +3742,7 @@ var require_sidebarWebView = __commonJS({
         return contracts.map((contract) => {
           const buildStatusBadge = contract.hasWasm ? '<span class="status-badge-success">Built</span>' : "";
           const functionsHtml = "";
+          const sizeInfo = contract.wasmSizeFormatted ? `<div class="wasm-size">Size: ${this.escapeHtml(contract.wasmSizeFormatted)}</div>` : "";
           return `
                 <div class="contract-item">
                     <div class="contract-name">
@@ -3704,6 +3750,7 @@ var require_sidebarWebView = __commonJS({
                         ${buildStatusBadge}
                     </div>
                     <div class="contract-path">${this.escapeHtml(contract.path)}</div>
+                    ${sizeInfo}
                     ${contract.contractId ? `<div class="contract-id clipboard-copy" onclick="copyToClipboard('${this.escapeHtml(contract.contractId)}')" title="Click to copy Contract ID">ID: ${this.escapeHtml(contract.contractId)} <span style="font-size: 10px; opacity: 0.7;">[COPY]</span></div>` : ""}
                     ${contract.lastDeployed ? `<div class="timestamp">Deployed: ${new Date(contract.lastDeployed).toLocaleString()}</div>` : ""}
                     ${functionsHtml}
@@ -3899,6 +3946,15 @@ var require_sidebarView = __commonJS({
           const hasWasm = wasmPath && fs.existsSync(wasmPath);
           let contractId;
           let functions;
+          let wasmSize;
+          let wasmSizeFormatted;
+          if (hasWasm && wasmPath) {
+            const stats = fs.statSync(wasmPath);
+            wasmSize = stats.size;
+            if (wasmSize) {
+              wasmSizeFormatted = this.formatFileSize(wasmSize);
+            }
+          }
           const deploymentHistory = this._context.workspaceState.get("stellarSuite.deploymentHistory", []);
           const lastDeployment = deploymentHistory.find((d) => {
             const deployedContracts = this._context.workspaceState.get("stellarSuite.deployedContracts", {});
@@ -3912,7 +3968,9 @@ var require_sidebarView = __commonJS({
             path: dir,
             contractId,
             hasWasm,
-            lastDeployed: lastDeployment?.deployedAt
+            lastDeployed: lastDeployment?.deployedAt,
+            wasmSize,
+            wasmSizeFormatted
           });
         }
         return contracts;
@@ -3923,6 +3981,14 @@ var require_sidebarView = __commonJS({
       getCliHistory() {
         const history = this._context.workspaceState.get("stellarSuite.cliHistory", []);
         return history.slice(-10);
+      }
+      formatFileSize(bytes) {
+        if (bytes === 0)
+          return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
       }
       showDeploymentResult(deployment) {
         const deploymentHistory = this._context.workspaceState.get("stellarSuite.deploymentHistory", []);

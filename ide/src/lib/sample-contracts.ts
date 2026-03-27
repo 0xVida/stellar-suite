@@ -27,6 +27,20 @@ impl HelloContract {
     pub fn hello(env: Env, to: Symbol) -> Vec<Symbol> {
         vec![&env, symbol_short!("Hello"), to]
     }
+
+    /// Example with potentially unsafe math operations
+    pub fn unsafe_math(env: Env, a: u64, b: u64) -> u64 {
+        // These operations could overflow on ledger
+        let sum = a + b;  // MATH001: Potentially unsafe addition
+        let product = a * b;  // MATH001: Potentially unsafe multiplication
+        let difference = a - b;  // MATH001: Potentially unsafe subtraction
+
+        // Large number operations
+        let big_amount: u128 = 1000000;
+        let result = big_amount * a;  // MATH001: Potentially unsafe multiplication
+
+        sum + product
+    }
 }
 
 mod test;`,

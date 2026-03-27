@@ -26,6 +26,14 @@ function getEnvironmentWithPath(): NodeJS.ProcessEnv {
     return env;
 }
 
+export interface BuildResult {
+    success: boolean;
+    output: string;
+    wasmPath?: string;
+    wasmSize?: number;
+    wasmSizeFormatted?: string;
+}
+
 export interface DeploymentResult {
     success: boolean;
     contractId?: string;
@@ -46,7 +54,7 @@ export class ContractDeployer {
         this.network = network;
     }
 
-    async buildContract(contractPath: string, optimize: boolean = false): Promise<{ success: boolean; output: string; wasmPath?: string }> {
+    async buildContract(contractPath: string, optimize: boolean = false): Promise<BuildResult> {
         try {
             const env = getEnvironmentWithPath();
             
@@ -69,6 +77,8 @@ export class ContractDeployer {
             const output = stdout + stderr;
             const wasmMatch = output.match(/target\/wasm32[^\/]*\/release\/[^\s]+\.wasm/);
             let wasmPath: string | undefined;
+            let wasmSize: number | undefined;
+            let wasmSizeFormatted: string | undefined;
             
             if (wasmMatch) {
                 wasmPath = path.join(contractPath, wasmMatch[0]);
@@ -90,10 +100,19 @@ export class ContractDeployer {
                 }
             }
 
+            // Get WASM file size
+            if (wasmPath && fs.existsSync(wasmPath)) {
+                const stats = fs.statSync(wasmPath);
+                wasmSize = stats.size;
+                wasmSizeFormatted = this.formatFileSize(wasmSize);
+            }
+
             return {
                 success: true,
                 output,
-                wasmPath
+                wasmPath,
+                wasmSize,
+                wasmSizeFormatted
             };
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -210,5 +229,32 @@ export class ContractDeployer {
 
     async deployFromWasm(wasmPath: string): Promise<DeploymentResult> {
         return this.deployContract(wasmPath);
+    }
+
+    private formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    checkWasmSize(wasmSize: number): { warning?: string; isLarge: boolean } {
+        const SIZE_WARNING_THRESHOLD = 500 * 1024; // 500KB
+        const SIZE_LARGE_THRESHOLD = 1024 * 1024;   // 1MB
+        
+        if (wasmSize > SIZE_LARGE_THRESHOLD) {
+            return {
+                warning: `WASM binary is very large (${this.formatFileSize(wasmSize)}). Consider optimizing to reduce deployment costs.`,
+                isLarge: true
+            };
+        } else if (wasmSize > SIZE_WARNING_THRESHOLD) {
+            return {
+                warning: `WASM binary is large (${this.formatFileSize(wasmSize)}). Consider using optimized builds.`,
+                isLarge: false
+            };
+        }
+        
+        return { isLarge: false };
     }
 }

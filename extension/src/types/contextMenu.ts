@@ -14,6 +14,8 @@ export interface ContractInfo {
     source?: string;
     templateId?: string;
     templateCategory?: string;
+    wasmSize?: number;
+    wasmSizeFormatted?: string;
 }
 
 export interface DeploymentRecord {

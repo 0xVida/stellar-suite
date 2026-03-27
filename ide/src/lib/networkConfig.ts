@@ -6,6 +6,10 @@ export interface NetworkConfig {
   passphrase: string;
 }
 
+export interface CustomHeaders {
+  [key: string]: string;
+}
+
 export const NETWORK_CONFIG: Record<NetworkKey, NetworkConfig> = {
   testnet: {
     label: "Testnet",

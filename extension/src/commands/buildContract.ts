@@ -110,6 +110,15 @@ export async function buildContract(context: vscode.ExtensionContext, sidebarPro
                     outputChannel.appendLine('Build successful!');
                     if (buildResult.wasmPath) {
                         outputChannel.appendLine(`WASM file: ${buildResult.wasmPath}`);
+                        if (buildResult.wasmSizeFormatted) {
+                            outputChannel.appendLine(`WASM size: ${buildResult.wasmSizeFormatted}`);
+                            
+                            // Check for size warnings
+                            const sizeCheck = deployer.checkWasmSize(buildResult.wasmSize!);
+                            if (sizeCheck.warning) {
+                                outputChannel.appendLine(`⚠️  ${sizeCheck.warning}`);
+                            }
+                        }
                     }
                     if (buildResult.output) {
                         outputChannel.appendLine('\n=== Full Build Output ===');

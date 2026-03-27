@@ -1,17 +1,37 @@
-import { NETWORK_CONFIG, NetworkKey, DEFAULT_CUSTOM_RPC } from '@/lib/networkConfig';
+import {
+  CustomHeaders,
+  DEFAULT_CUSTOM_RPC,
+  NETWORK_CONFIG,
+  NetworkKey,
+} from "@/lib/networkConfig";
 
 interface NetworkSelectorProps {
   network: NetworkKey;
   horizonUrl: string;
   customRpcUrl: string;
+  customHeaders: CustomHeaders;
   onNetworkChange: (network: NetworkKey) => void;
   onCustomRpcUrlChange: (url: string) => void;
+  onCustomHeadersChange: (headers: CustomHeaders) => void;
 }
 
-export function NetworkSelector({ network, horizonUrl, customRpcUrl, onNetworkChange, onCustomRpcUrlChange }: NetworkSelectorProps) {
+export function NetworkSelector({
+  network,
+  horizonUrl,
+  customRpcUrl,
+  customHeaders,
+  onNetworkChange,
+  onCustomRpcUrlChange,
+  onCustomHeadersChange,
+}: NetworkSelectorProps) {
+  const [showHeaders, setShowHeaders] = useState(false);
+
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="network-select" className="text-[10px] text-muted-foreground font-mono">
+    <div className="flex items-center gap-2 relative">
+      <label
+        htmlFor="network-select"
+        className="text-[10px] text-muted-foreground font-mono"
+      >
         Network
       </label>
 
@@ -29,7 +49,7 @@ export function NetworkSelector({ network, horizonUrl, customRpcUrl, onNetworkCh
         <option value="local">Local</option>
       </select>
 
-      {network === 'local' && (
+      {network === "local" && (
         <input
           type="text"
           aria-label="Local RPC endpoint"
@@ -41,7 +61,29 @@ export function NetworkSelector({ network, horizonUrl, customRpcUrl, onNetworkCh
         />
       )}
 
-      <span className="text-[10px] text-muted-foreground font-mono">Horizon: {horizonUrl}</span>
+      <span className="text-[10px] text-muted-foreground font-mono">
+        Horizon: {horizonUrl}
+      </span>
+
+      <button
+        onClick={() => setShowHeaders(!showHeaders)}
+        className="text-xs px-2 py-1 rounded border border-border bg-secondary text-foreground hover:bg-secondary/80"
+        title="Configure custom headers"
+      >
+        {showHeaders ? "Hide Headers" : "Show Headers"}
+      </button>
+
+      {showHeaders && (
+        <div className="absolute top-full mt-2 left-0 right-0 bg-background border border-border rounded-md shadow-lg p-3 z-50">
+          <div className="text-xs font-semibold text-foreground mb-2">
+            Custom RPC Headers
+          </div>
+          <NetworkHeaderEditor
+            headers={customHeaders}
+            onHeadersChange={onCustomHeadersChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

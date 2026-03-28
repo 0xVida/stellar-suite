@@ -23,6 +23,7 @@ import { useMathSafetyStore } from "../../store/useMathSafetyStore";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { GitBlameLines } from "./GitBlameLines";
 import { getAllMonacoCompletions } from "@/utils/proptestSnippets";
+import { useTestGutter } from "@/hooks/useTestGutter";
 import { GitGutterMarkers } from "./GitGutterMarkers";
 import { git } from "@/lib/git";
 import "@/styles/editor-gutter.css";
@@ -40,6 +41,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const { setJumpToLine, saveViewState, getViewState } = useEditorStore();
   const { openErrorHelp } = useErrorHelpStore();
   const rustProviderRegistered = useRef(false);
+
+  useTestGutter({ editor: editorRef.current, monaco: monacoRef.current, filePath: activeFileId });
   const monacoRef = useRef<typeof Monaco | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);  const semanticProviderRegistered = useRef(false);
   const coverageDecorations = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);

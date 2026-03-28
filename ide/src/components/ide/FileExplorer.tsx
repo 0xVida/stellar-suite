@@ -8,11 +8,21 @@ import {
   FolderOpen,
   FolderPlus,
   GitBranch,
+  History,
   Loader2,
   Plus,
+  RotateCcw,
   Trash2,
   Pencil,
 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { RevertModal } from "@/components/vcs/RevertModal";
 
 import { FileNode } from "@/lib/sample-contracts";
 import {
@@ -165,6 +175,12 @@ interface TreeRowProps {
   onCreateFolder: (parentPath: string[]) => void;
   onRename: (path: string[]) => void;
   onDelete: (path: string[]) => void;
+  /** Called when user picks "Revert to HEAD" from the context menu */
+  onRevertToHead?: (path: string[], content: string | null) => void;
+  /** Called when user picks "Revert to Version…" from the context menu */
+  onRevertToVersion?: (path: string[], content: string | null) => void;
+  /** Whether a local git repo is initialized */
+  gitInitialized?: boolean;
   /** Coverage percentage for this file (undefined = no data) */
   coveragePct?: number;
 }
@@ -181,6 +197,9 @@ function TreeRow({
   onCreateFolder,
   onRename,
   onDelete,
+  onRevertToHead,
+  onRevertToVersion,
+  gitInitialized,
   coveragePct,
 }: TreeRowProps) {
   const currentPath = [...path, node.name];
@@ -191,14 +210,21 @@ function TreeRow({
   const isDeletedGhost = node.deletedGhost === true;
   const status = node.gitStatus;
 
-  return (
-    <div>
-      <div
-        className={`group flex items-center gap-1 py-1 pr-1 text-xs ${
-          isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/40"
-        }`}
-        style={{ paddingLeft: `${depth * 12 + 8}px` }}
-      >
+  const canRevertToHead =
+    gitInitialized &&
+    !isFolder &&
+    (status === "modified" || status === "deleted");
+
+  const canRevertToVersion =
+    gitInitialized && !isFolder;
+
+  const rowContent = (
+    <div
+      className={`group flex items-center gap-1 py-1 pr-1 text-xs ${
+        isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/40"
+      }`}
+      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+    >
         {isFolder ? (
           <button
             type="button"
@@ -287,7 +313,45 @@ function TreeRow({
             </button>
           </div>
         )}
-      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{rowContent}</ContextMenuTrigger>
+        <ContextMenuContent className="w-52">
+          {canRevertToHead && (
+            <ContextMenuItem
+              onClick={() =>
+                onRevertToHead?.(
+                  currentPath,
+                  node.type === "file" ? (node.content ?? null) : null,
+                )
+              }
+              className="gap-2 text-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Revert to HEAD
+            </ContextMenuItem>
+          )}
+          {canRevertToHead && canRevertToVersion && <ContextMenuSeparator />}
+          {canRevertToVersion && (
+            <ContextMenuItem
+              onClick={() =>
+                onRevertToVersion?.(
+                  currentPath,
+                  node.type === "file" ? (node.content ?? null) : null,
+                )
+              }
+              className="gap-2 text-xs"
+            >
+              <History className="h-3.5 w-3.5" />
+              Revert to Version…
+            </ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
 
       {isFolder && isOpen
         ? node.children?.map((child) => (
@@ -304,6 +368,9 @@ function TreeRow({
               onCreateFolder={onCreateFolder}
               onRename={onRename}
               onDelete={onDelete}
+              onRevertToHead={onRevertToHead}
+              onRevertToVersion={onRevertToVersion}
+              gitInitialized={gitInitialized}
               coveragePct={coveragePct}
             />
           ))
@@ -321,6 +388,7 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
     createFolder,
     deleteNode,
     renameNode,
+    updateFileContent,
     setMobilePanel,
   } = useWorkspaceStore();
 
@@ -332,6 +400,7 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
     localRepoError,
     localStatusMap,
     initializeLocalRepo,
+    refreshLocalStatuses,
     clearLocalRepoError,
   } = useVCSStore();
 
@@ -442,6 +511,54 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
     void initializeLocalRepo(workspaceFiles);
   };
 
+  // ── Revert modal state ────────────────────────────────────────────────────
+
+  const [revertModal, setRevertModal] = useState<{
+    open: boolean;
+    mode: "head" | "version";
+    pathArray: string[];
+    filePath: string;
+    currentContent: string | null;
+  }>({
+    open: false,
+    mode: "head",
+    pathArray: [],
+    filePath: "",
+    currentContent: null,
+  });
+
+  const openRevert = (
+    mode: "head" | "version",
+    pathArray: string[],
+    currentContent: string | null,
+  ) => {
+    setRevertModal({
+      open: true,
+      mode,
+      pathArray,
+      filePath: pathArray.join("/"),
+      currentContent,
+    });
+  };
+
+  const handleRevertConfirm = (restoredContent: string) => {
+    const { pathArray, filePath } = revertModal;
+    const isDeleted = localStatusMap[filePath] === "deleted";
+
+    if (isDeleted) {
+      const parentPath = pathArray.slice(0, -1);
+      const filename = pathArray[pathArray.length - 1] ?? "";
+      createFile(parentPath, filename, restoredContent);
+    } else {
+      updateFileContent(pathArray, restoredContent);
+    }
+
+    // Sync the updated workspace with git to refresh status badges
+    void refreshLocalStatuses(
+      flattenWorkspaceFiles(useWorkspaceStore.getState().files),
+    );
+  };
+
   return (
     <div id="tour-explorer" className="flex h-full flex-col bg-sidebar">
       <div className="flex items-center justify-between gap-2 border-b border-sidebar-border px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -522,6 +639,9 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
             onCreateFolder={handleCreateFolder}
             onRename={handleRename}
             onDelete={handleDelete}
+            onRevertToHead={(path, content) => openRevert("head", path, content)}
+            onRevertToVersion={(path, content) => openRevert("version", path, content)}
+            gitInitialized={localRepoInitialized}
             coveragePct={
               node.type === "file"
                 ? (getFileCoverage(node.name)?.pct)
@@ -570,6 +690,16 @@ export function FileExplorer({ onFileSelect }: FileExplorerProps) {
           </div>
         </div>
       )}
+
+      <RevertModal
+        open={revertModal.open}
+        onClose={() => setRevertModal((prev) => ({ ...prev, open: false }))}
+        pathArray={revertModal.pathArray}
+        filePath={revertModal.filePath}
+        currentContent={revertModal.currentContent}
+        mode={revertModal.mode}
+        onConfirm={handleRevertConfirm}
+      />
     </div>
   );
 }

@@ -73,6 +73,8 @@ export function TestResultsLog({
   }
 
   const failedCases = result.cases.filter((testCase) => testCase.status === "failed");
+  const unitCases = result.cases.filter((testCase) => testCase.testType !== "integration");
+  const integrationCases = result.cases.filter((testCase) => testCase.testType === "integration");
 
   const toggleCase = (testCaseId: string) => {
     setExpandedCases((current) =>
@@ -129,8 +131,24 @@ export function TestResultsLog({
             </Button>
           </div>
 
-          <div className="max-h-72 space-y-2 overflow-auto pr-1">
-            {result.cases.map((testCase, index) => {
+          <div className="max-h-72 space-y-3 overflow-auto pr-1">
+            {[
+              { id: "unit", title: "Unit Tests", cases: unitCases },
+              { id: "integration", title: "Integration Tests", cases: integrationCases },
+            ]
+              .filter((group) => group.cases.length > 0)
+              .map((group) => (
+                <section key={group.id} className="space-y-2" aria-label={group.title}>
+                  <div className="flex items-center justify-between rounded-md border border-border/50 bg-muted/20 px-2 py-1">
+                    <h3 className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {group.title}
+                    </h3>
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      {group.cases.length}
+                    </span>
+                  </div>
+
+                  {group.cases.map((testCase, index) => {
               const isFailed = testCase.status === "failed";
               const isExpanded = expandedCases.includes(testCase.id);
               const detectedTrace = extractTraceLocationsFromText(testCase.stdout);
@@ -170,8 +188,18 @@ export function TestResultsLog({
                         <div className="truncate font-mono text-[12px] font-semibold text-foreground">
                           {testCase.suite}::{testCase.name}
                         </div>
-                        <div className="font-mono text-[10px] text-muted-foreground">
-                          {testCase.durationMs} ms
+                        <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                          <span>{testCase.durationMs} ms</span>
+                          <span
+                            className={cn(
+                              "rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em]",
+                              testCase.testType === "integration"
+                                ? "border-sky-500/30 bg-sky-500/10 text-sky-300"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            )}
+                          >
+                            {testCase.testType}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -227,6 +255,8 @@ export function TestResultsLog({
                 </div>
               );
             })}
+                </section>
+              ))}
           </div>
         </div>
       </CollapsibleContent>

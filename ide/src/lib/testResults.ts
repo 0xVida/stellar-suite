@@ -18,6 +18,7 @@ export interface TestCaseResult {
   id: string;
   name: string;
   suite: string;
+  testType: "unit" | "integration";
   status: "passed" | "failed";
   durationMs: number;
   stdout: string;
@@ -67,6 +68,7 @@ interface TestEvent {
   id: string;
   suite: string;
   name: string;
+  testType?: "unit" | "integration";
   event: "ok" | "failed";
   durationMs: number;
   stdout: string;
@@ -190,6 +192,7 @@ const createPassingCase = (contractName: string, rerunCommand: string): TestCase
   id: `${contractName}::test_hello`,
   suite: contractName,
   name: "test_hello",
+  testType: "unit",
   status: "passed",
   durationMs: 12,
   rerunCommand,
@@ -209,6 +212,7 @@ const createFailingCase = (
   id: `${contractName}::test_greets_contract_owner`,
   suite: contractName,
   name: "test_greets_contract_owner",
+  testType: "unit",
   status: "failed",
   durationMs: 19,
   rerunCommand,
@@ -307,6 +311,7 @@ export function createSimulatedCargoTestOutput({
       id: testCase.id,
       suite: testCase.suite,
       name: testCase.name,
+      testType: testCase.testType,
       event: testCase.status === "passed" ? "ok" : "failed",
       durationMs: testCase.durationMs,
       stdout: testCase.stdout,
@@ -361,6 +366,7 @@ export function parseStructuredTestOutput(rawOutput: string): TestRunResult {
         id: event.id,
         name: event.name,
         suite: event.suite,
+        testType: event.testType ?? "unit",
         status: event.event === "ok" ? "passed" : "failed",
         durationMs: event.durationMs,
         stdout: event.stdout,
@@ -490,4 +496,93 @@ export function toRevealRange(
     endLineNumber: Math.max(DEFAULT_TRACE_LINE, line),
     endColumn: Math.max(DEFAULT_TRACE_COLUMN + 1, column + 1),
   };
+}
+
+export interface CargoRunTestResponse {
+  success: boolean;
+  mode?: "full" | "failed-only";
+  command?: string;
+  stdout?: string;
+  stderr?: string;
+  outcomes?: Record<string, "passed" | "failed">;
+}
+
+export interface DiscoveredTestForRun {
+  id: string;
+  suite: string;
+  name: string;
+  testType: "unit" | "integration";
+  rerunCommand: string;
+}
+
+function findOutcome(
+  outcomes: Record<string, "passed" | "failed">,
+  test: DiscoveredTestForRun
+): "passed" | "failed" {
+  if (outcomes[test.name]) {
+    return outcomes[test.name];
+  }
+
+  const suffixMatch = Object.entries(outcomes).find(([name]) => name.endsWith(test.name));
+  if (suffixMatch) {
+    return suffixMatch[1];
+  }
+
+  return "passed";
+}
+
+export function createStructuredTestOutputFromCargoRun(
+  run: CargoRunTestResponse,
+  discoveredTests: DiscoveredTestForRun[]
+): string {
+  const startedAt = new Date().toISOString();
+  const outcomes = run.outcomes ?? {};
+  const stderr = run.stderr?.trim() ?? "";
+
+  const testEvents: SimulatedEvent[] = discoveredTests.map((test) => {
+    const status = findOutcome(outcomes, test);
+    const isFailed = status === "failed" || (!run.success && stderr.length > 0);
+
+    return {
+      type: "test",
+      id: test.id,
+      suite: test.suite,
+      name: test.name,
+      testType: test.testType,
+      event: isFailed ? "failed" : "ok",
+      durationMs: 0,
+      stdout: [run.stdout ?? "", run.stderr ?? ""].filter(Boolean).join("\n"),
+      rerunCommand: test.rerunCommand,
+      failureMessage: isFailed ? stderr || "cargo test execution failed" : undefined,
+      trace: [],
+    };
+  });
+
+  const failed = testEvents.filter(
+    (event) => event.type === "test" && event.event === "failed"
+  ).length;
+  const passed = testEvents.length - failed;
+
+  const events: SimulatedEvent[] = [
+    {
+      type: "suite",
+      event: "started",
+      startedAt,
+      command: run.command ?? "cargo test",
+      mode: run.mode === "failed-only" ? "failed-only" : "full",
+      total: testEvents.length,
+      filtered: run.mode === "failed-only" ? testEvents.length : 0,
+    },
+    ...testEvents,
+    {
+      type: "suite",
+      event: failed > 0 ? "failed" : "ok",
+      passed,
+      failed,
+      total: testEvents.length,
+      filtered: run.mode === "failed-only" ? testEvents.length : 0,
+    },
+  ];
+
+  return events.map((event) => JSON.stringify(event)).join("\n");
 }

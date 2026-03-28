@@ -29,6 +29,10 @@ export interface PreparedWorkspace {
   cleanup: () => Promise<void>;
 }
 
+export interface PrepareWorkspaceOptions {
+  mode?: "single-contract" | "shared";
+}
+
 const sanitizePath = (rawPath: string) => {
   const normalized = rawPath.replace(/\\/g, "/").replace(/^\/+/, "");
   const safe = path.posix.normalize(normalized);
@@ -49,11 +53,17 @@ const hasCargoToml = async (directory: string) => {
 
 export async function prepareRustWorkspace(
   payload: RustWorkspacePayload,
+  options: PrepareWorkspaceOptions = {},
 ): Promise<PreparedWorkspace> {
   const contractName = payload.contractName?.trim() || "hello_world";
-  const filtered = payload.files.filter((file) =>
-    sanitizePath(file.path).startsWith(`${contractName}/`),
-  );
+  const mode = options.mode ?? "single-contract";
+
+  const filtered =
+    mode === "shared"
+      ? payload.files
+      : payload.files.filter((file) =>
+          sanitizePath(file.path).startsWith(`${contractName}/`),
+        );
 
   if (filtered.length === 0) {
     throw new Error(`No files found for contract '${contractName}'.`);
@@ -66,12 +76,14 @@ export async function prepareRustWorkspace(
 
   for (const file of filtered) {
     const safePath = sanitizePath(file.path);
-    const relative = safePath.replace(`${contractName}/`, "");
+    const relative =
+      mode === "shared" ? safePath : safePath.replace(`${contractName}/`, "");
     if (!relative || relative === ".") {
       continue;
     }
 
-    const absolute = path.join(contractDir, relative);
+    const absolute =
+      mode === "shared" ? path.join(rootDir, relative) : path.join(contractDir, relative);
     const parent = path.dirname(absolute);
     await mkdir(parent, { recursive: true });
     await writeFile(absolute, file.content, "utf-8");

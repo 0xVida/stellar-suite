@@ -1,4 +1,13 @@
 import { create } from "zustand";
+import { flattenWorkspaceFiles, useWorkspaceStore } from "@/store/workspaceStore";
+
+const toCompilePath = (path: string) => {
+  const parts = path.split("/");
+  if (parts.length === 2 && parts[1].endsWith(".rs")) {
+    return [parts[0], "src", parts[1]].join("/");
+  }
+  return path;
+};
 
 export type TestStatus = "idle" | "running" | "passed" | "failed";
 
@@ -21,7 +30,7 @@ export const useTestGutterStore = create<TestGutterState>((set, get) => ({
   results: {},
   running: new Set(),
 
-  runTest: async (testName: string, filePath: string) => {
+  runTest: async (testName: string, _filePath: string) => {
     if (get().running.has(testName)) return;
 
     set((s) => {
@@ -39,10 +48,21 @@ export const useTestGutterStore = create<TestGutterState>((set, get) => ({
     const start = Date.now();
 
     try {
+      const workspace = useWorkspaceStore.getState();
+      const payloadFiles = flattenWorkspaceFiles(workspace.files).map((file) => ({
+        path: toCompilePath(file.path),
+        content: file.content,
+      }));
+
       const res = await fetch("/api/run-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testName, filePath }),
+        body: JSON.stringify({
+          contractName: workspace.activeTabPath[0] ?? workspace.files[0]?.name ?? "hello_world",
+          files: payloadFiles,
+          mode: "failed-only",
+          failedTestNames: [testName],
+        }),
       });
       const data = await res.json();
       set((s) => ({
@@ -50,8 +70,8 @@ export const useTestGutterStore = create<TestGutterState>((set, get) => ({
           ...s.results,
           [testName]: {
             testName,
-            status: data.passed ? "passed" : "failed",
-            output: data.output ?? "",
+            status: data.success ? "passed" : "failed",
+            output: `${data.stdout ?? ""}${data.stderr ?? ""}`,
             durationMs: Date.now() - start,
             ranAt: Date.now(),
           },

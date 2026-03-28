@@ -38,10 +38,14 @@ import XdrInspector from "@/components/tools/XdrInspector";
 import { OutlineView } from "@/components/sidebar/OutlineView";
 // import { ActivityBar } from "@/components/layout/ActivityBar";
 import { StarterProjectWizard } from "@/components/modals/StarterProjectWizard";
-import { type NetworkKey } from "@/lib/networkConfig";
 import { ActivityBar } from "@/components/layout/ActivityBar";
 import { NETWORK_CONFIG, type NetworkKey } from "@/lib/networkConfig";
 import { type FileNode } from "@/lib/sample-contracts";
+import {
+  discoverWorkspaceTests,
+  hasRootTestsDirectory,
+  listIntegrationTargets,
+} from "@/lib/integrationTestDiscovery";
 import { instantiateContract } from "@/lib/contractInstantiator";
 import { useDeployedContractsStore } from "@/store/useDeployedContractsStore";
 import { useDeploymentStore } from "@/store/useDeploymentStore";
@@ -59,6 +63,7 @@ import {
   readCompileResponse,
 } from "@/utils/compileStream";
 import {
+  createStructuredTestOutputFromCargoRun,
   createSimulatedCargoTestOutput,
   formatTestRunForTerminal,
   parseStructuredTestOutput,
@@ -645,6 +650,7 @@ export default function Index() {
   ]);
 
   const handleTest = useCallback(() => {
+    void (async () => {
     setTerminalExpanded(true);
 
     if (mockLedgerState.entries.length > 0) {
@@ -656,24 +662,154 @@ export default function Index() {
       );
     }
 
-    const rawOutput = createSimulatedCargoTestOutput({ files, activeTabPath });
-    const nextRun = parseStructuredTestOutput(rawOutput);
-    setTestRun(nextRun);
-    setTerminalOutput(formatTestRunForTerminal(nextRun));
-  }, [activeTabPath, appendTerminalOutput, files, mockLedgerState, setTerminalExpanded, setTerminalOutput]);
+      const discoveredTests = discoverWorkspaceTests(files, contractName);
+      const integrationTargets = listIntegrationTargets(discoveredTests);
+      const hasRootTests = hasRootTestsDirectory(files, contractName);
+
+      if (discoveredTests.length === 0) {
+        appendTerminalOutput("No Rust tests discovered for the active contract.\r\n");
+        return;
+      }
+
+      appendTerminalOutput(
+        `Detected ${discoveredTests.length} test(s): ${discoveredTests.filter((test) => test.testType === "integration").length} integration, ${discoveredTests.filter((test) => test.testType === "unit").length} unit.\r\n`,
+      );
+      if (hasRootTests) {
+        appendTerminalOutput("Integration tests folder detected at contract root: tests/.\r\n");
+      }
+
+      try {
+        const response = await fetch("/api/run-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contractName,
+            files: compilePayload.files,
+            mode: "full",
+            integrationTargets,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success: boolean;
+          mode?: "full" | "failed-only";
+          command?: string;
+          stdout?: string;
+          stderr?: string;
+          outcomes?: Record<string, "passed" | "failed">;
+          error?: string;
+        };
+
+        if (!response.ok || payload.error) {
+          throw new Error(payload.error || `Run test request failed (status ${response.status})`);
+        }
+
+        const rawOutput = createStructuredTestOutputFromCargoRun(
+          payload,
+          discoveredTests.map((test) => ({
+            id: test.id,
+            suite: test.contractName,
+            name: test.testName,
+            testType: test.testType,
+            rerunCommand: `cargo test ${test.testName} -- --exact`,
+          })),
+        );
+
+        const nextRun = parseStructuredTestOutput(rawOutput);
+        setTestRun(nextRun);
+        setTerminalOutput(formatTestRunForTerminal(nextRun));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Run test request failed";
+        appendTerminalOutput(`Falling back to simulated tests: ${message}\r\n`);
+        const rawOutput = createSimulatedCargoTestOutput({ files, activeTabPath });
+        const nextRun = parseStructuredTestOutput(rawOutput);
+        setTestRun(nextRun);
+        setTerminalOutput(formatTestRunForTerminal(nextRun));
+      }
+    })();
+  }, [
+    activeTabPath,
+    appendTerminalOutput,
+    compilePayload.files,
+    contractName,
+    files,
+    mockLedgerState,
+    setTerminalExpanded,
+    setTerminalOutput,
+  ]);
 
   const handleRerunFailedTests = useCallback(() => {
-    const rawOutput = createSimulatedCargoTestOutput({
-      files,
-      activeTabPath,
-      previousRun: testRun,
-      rerunFailedOnly: true,
-    });
-    const nextRun = parseStructuredTestOutput(rawOutput);
-    setTestRun(nextRun);
-    setTerminalExpanded(true);
-    setTerminalOutput(formatTestRunForTerminal(nextRun));
-  }, [activeTabPath, files, setTerminalExpanded, setTerminalOutput, testRun]);
+    void (async () => {
+      const failedTestNames =
+        testRun?.cases.filter((testCase) => testCase.status === "failed").map((testCase) => testCase.name) ?? [];
+
+      if (failedTestNames.length === 0) {
+        return;
+      }
+
+      const discoveredTests = discoverWorkspaceTests(files, contractName);
+      const integrationTargets = listIntegrationTargets(discoveredTests);
+
+      try {
+        const response = await fetch("/api/run-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contractName,
+            files: compilePayload.files,
+            mode: "failed-only",
+            failedTestNames,
+            integrationTargets,
+          }),
+        });
+
+        const payload = (await response.json()) as {
+          success: boolean;
+          mode?: "full" | "failed-only";
+          command?: string;
+          stdout?: string;
+          stderr?: string;
+          outcomes?: Record<string, "passed" | "failed">;
+          error?: string;
+        };
+
+        if (!response.ok || payload.error) {
+          throw new Error(payload.error || `Run test request failed (status ${response.status})`);
+        }
+
+        const selectedTests = discoveredTests.filter((test) =>
+          failedTestNames.includes(test.testName),
+        );
+
+        const rawOutput = createStructuredTestOutputFromCargoRun(
+          payload,
+          selectedTests.map((test) => ({
+            id: test.id,
+            suite: test.contractName,
+            name: test.testName,
+            testType: test.testType,
+            rerunCommand: `cargo test ${test.testName} -- --exact`,
+          })),
+        );
+
+        const nextRun = parseStructuredTestOutput(rawOutput);
+        setTestRun(nextRun);
+        setTerminalExpanded(true);
+        setTerminalOutput(formatTestRunForTerminal(nextRun));
+      } catch {
+        const rawOutput = createSimulatedCargoTestOutput({
+          files,
+          activeTabPath,
+          previousRun: testRun,
+          rerunFailedOnly: true,
+        });
+        const nextRun = parseStructuredTestOutput(rawOutput);
+        setTestRun(nextRun);
+        setTerminalExpanded(true);
+        setTerminalOutput(formatTestRunForTerminal(nextRun));
+      }
+    })();
+  }, [activeTabPath, compilePayload.files, contractName, files, setTerminalExpanded, setTerminalOutput, testRun]);
 
   const handleOpenTestTrace = useCallback(
     (traceFile: string, line: number, column = 1) => {

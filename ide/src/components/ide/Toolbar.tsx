@@ -24,6 +24,9 @@ import StateMockEditor from "@/components/modals/StateMockEditor";
 import { WalletManager } from "@/components/WalletManager";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { GitBlameToggle } from "@/components/editor/GitBlameLines";
+import { SignInButton } from "@/components/auth/SignInButton";
+import { UserMenu } from "@/components/auth/UserMenu";
+import { useAuth } from "@/hooks/useAuth";
 
 type BuildState = "idle" | "building" | "success" | "error";
 
@@ -75,6 +78,8 @@ export function Toolbar({
     () => onNetworkChange ?? setNetwork,
     [onNetworkChange, setNetwork],
   );
+
+  const { isAuthenticated } = useAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -153,6 +158,7 @@ export function Toolbar({
             </select>
           </label>
           <WalletManager />
+          {isAuthenticated ? <UserMenu /> : <SignInButton />}
           <button className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Settings" aria-label="Settings">
             <Settings className="h-4 w-4" />
           </button>
@@ -179,6 +185,9 @@ export function Toolbar({
           </select>
           <div className="origin-right scale-90">
             <WalletManager />
+          </div>
+          <div className="origin-right scale-90">
+            {isAuthenticated ? <UserMenu /> : <SignInButton />}
           </div>
           <button
             onClick={() => setMobileMenuOpen((prev) => !prev)}

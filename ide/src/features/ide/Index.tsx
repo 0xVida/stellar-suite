@@ -33,6 +33,7 @@ import { InspectorPane } from "@/components/ide/InspectorPane";
 import { ProptestView } from "@/components/Panels/ProptestView";
 import { StatusBar } from "@/components/ide/StatusBar";
 import { Terminal } from "@/components/ide/Terminal";
+import { useTerminalBridge } from "@/hooks/useTerminalBridge";
 import { TestResultsLog } from "@/components/terminal/TestResultsLog";
 // import TestExplorer from "@/components/ide/TestExplorer";
 import XdrInspector from "@/components/tools/XdrInspector";
@@ -213,6 +214,7 @@ export default function Index() {
     setDiffViewPath,
     setTerminalOutput,
   } = useWorkspaceStore();
+  useTerminalBridge();
 
   const { activeContext, activeIdentity, loadIdentities } = useIdentityStore();
   const { localRepoInitialized, hydrateLocalRepo, refreshLocalStatuses } =

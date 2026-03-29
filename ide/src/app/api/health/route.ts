@@ -1,1 +1,5 @@
-export { GET } from "../../../../app/api/health/route";
+import { NextResponse } from "next/server";
+
+export function GET() {
+  return NextResponse.json({ status: "ok" });
+}

@@ -6,8 +6,8 @@ const configDir = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: configDir,
-  eslint: {
-    ignoreDuringBuilds: true,
+  turbopack: {
+    root: configDir,
   },
   typescript: {
     ignoreBuildErrors: true,

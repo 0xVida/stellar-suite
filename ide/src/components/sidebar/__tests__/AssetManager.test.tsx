@@ -39,7 +39,7 @@ describe("AssetManager", () => {
 
     render(<AssetManager />);
 
-    expect(screen.getByText("ASSETS")).toBeDefined();
+    expect(screen.getByRole("heading", { name: /assets/i })).toBeDefined();
     expect(screen.getByTitle("logo.svg")).toBeDefined();
     expect(screen.getByTitle("banner.png")).toBeDefined();
     
@@ -55,9 +55,10 @@ describe("AssetManager", () => {
     const svgAsset = screen.getByTitle("logo.svg");
     fireEvent.click(svgAsset);
 
-    expect(screen.getByText("ASSET DETAILS")).toBeDefined();
-    expect(screen.getByText("logo.svg")).toBeDefined();
-    expect(screen.getByText("SVG")).toBeDefined();
+    expect(screen.getByText(/asset details/i)).toBeDefined();
+    expect(screen.getAllByText("logo.svg").length).toBeGreaterThan(0);
+    // Text content is lowercase ("svg"); CSS uppercases it visually.
+    expect(screen.getByText("svg")).toBeDefined();
     expect(screen.getByText("Vector")).toBeDefined();
   });
 

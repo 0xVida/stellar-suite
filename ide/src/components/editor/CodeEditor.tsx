@@ -21,12 +21,10 @@ import { definitionProvider } from "@/lib/definitionProvider";
 import { symbolIndexer } from "@/lib/symbolIndexer";
 import Editor, { OnChange, OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { useTheme } from "next-themes";
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { analyzeMathSafety } from "../../lib/mathSafetyAnalyzer";
 import { useMathSafetyStore } from "../../store/useMathSafetyStore";
 import { useUserSettingsStore } from "@/store/useUserSettingsStore";
-import { useTheme } from "next-themes";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { GitBlameLines } from "./GitBlameLines";
 import { getAllMonacoCompletions } from "@/utils/proptestSnippets";
@@ -36,7 +34,6 @@ import { git } from "@/lib/git";
 import "@/styles/editor-gutter.css";
 import { referenceProvider } from "@/lib/referenceProvider";
 import { useLiveShare } from "@/hooks/useLiveShare";
-import { useUserSettingsStore } from "@/store/useUserSettingsStore";
 
 interface CodeEditorProps {
   onCursorChange?: (line: number, col: number) => void;
@@ -46,16 +43,14 @@ interface CodeEditorProps {
 const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const { activeTabPath, files, updateFileContent } = useWorkspaceStore();
   const { diagnostics } = useDiagnosticsStore();
-  const { config, setMathDiagnostics, getAllDiagnostics } = useMathSafetyStore();
+  const { config, setMathDiagnostics, getAllDiagnostics } =
+    useMathSafetyStore();
   const { getFileCoverage } = useCoverageStore();
   const { setJumpToLine, saveViewState, getViewState } = useEditorStore();
   const { openErrorHelp } = useErrorHelpStore();
   const { mode, isSharing, broadcastContentChange } = useLiveShare();
-  const { theme: currentTheme } = useTheme();
-  const { fontSize } = useUserSettingsStore();
   const rustProviderRegistered = useRef(false);
 
-  const rustProviderRegistered = useRef(false);
   const monacoRef = useRef<typeof Monaco | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const semanticProviderRegistered = useRef(false);
@@ -63,23 +58,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
   const codeActionProviderRegistered = useRef(false);
 
+  // Git gutter: track mounted editor/monaco and HEAD content for active file
   const [mountedEditor, setMountedEditor] =
     useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const [mountedMonaco, setMountedMonaco] = useState<typeof Monaco | null>(null);
+  const [mountedMonaco, setMountedMonaco] = useState<typeof Monaco | null>(
+    null,
+  );
   const [headContent, setHeadContent] = useState<string>("");
   const activeFileId = activeTabPath.join("/");
   const activeFileIdRef = useRef(activeFileId);
-  const filesRef = useRef(files);
-
-  const editorFontSize = 14;
-
-  useEffect(() => {
-    filesRef.current = files;
-  }, [files]);
-
-  useEffect(() => {
-    activeFileIdRef.current = activeFileId;
-  }, [activeFileId]);
 
   useTestGutter({
     editor: editorRef.current,
@@ -87,8 +74,20 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     filePath: activeFileId,
   });
 
+  // Keep a live ref to files so the rename provider always sees the latest state
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+  useEffect(() => {
+    activeFileIdRef.current = activeFileId;
+  }, [activeFileId]);
+
   const activeFile = React.useMemo(() => {
-    const findNode = (nodes: FileNode[], pathParts: string[]): FileNode | null => {
+    const findNode = (
+      nodes: FileNode[],
+      pathParts: string[],
+    ): FileNode | null => {
       for (const node of nodes) {
         if (node.name === pathParts[0]) {
           if (pathParts.length === 1) return node;
@@ -97,9 +96,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       }
       return null;
     };
-
     return findNode(files, activeTabPath);
   }, [files, activeTabPath]);
+
+  // User settings (font size and theme)
+  const { fontSize, theme: currentTheme } = useUserSettingsStore();
 
   const handleEditorChange: OnChange = (value) => {
     if (value !== undefined) {
@@ -110,41 +111,48 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
         broadcastContentChange(activeTabPath, value);
       }
 
+      // Re-index files when content changes (with debouncing)
       setTimeout(() => {
-        symbolIndexer.indexFiles(filesRef.current);
+        symbolIndexer.indexFiles(files);
       }, 500);
     }
   };
 
+  // Fetch HEAD content for the active file whenever the path changes
   useEffect(() => {
     if (activeTabPath.length === 0) return;
-
     let cancelled = false;
-
-    git.readTree(activeTabPath)
+    git
+      .readTree(activeTabPath)
       .then((content) => {
         if (!cancelled) setHeadContent(content);
       })
       .catch(() => {
         if (!cancelled) setHeadContent("");
       });
-
     return () => {
       cancelled = true;
     };
   }, [activeTabPath]);
 
+  // Apply Monaco markers whenever diagnostics or active file changes
   useEffect(() => {
     const monaco = monacoRef.current;
     if (!monaco) return;
 
     const virtualId = activeFileId;
 
+    // Run math safety analysis if enabled
     if (config.enabled && activeFile?.content) {
-      const mathDiags = analyzeMathSafety(activeFile.content, virtualId, config);
+      const mathDiags = analyzeMathSafety(
+        activeFile.content,
+        virtualId,
+        config,
+      );
       setMathDiagnostics(mathDiags);
     }
 
+    // Combine cargo diagnostics with math safety diagnostics
     const allDiagnostics = getAllDiagnostics(
       virtualId,
       diagnostics.filter((d) => d.fileId === virtualId),
@@ -181,6 +189,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     getAllDiagnostics,
   ]);
 
+  // Apply coverage gutter decorations whenever the active file or coverage data changes.
   useEffect(() => {
     const editor = editorRef.current;
     const monaco = monacoRef.current;
@@ -189,6 +198,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     const fileId = activeTabPath.join("/");
     const fileCov = getFileCoverage(fileId);
 
+    // Lazily create the decoration collection once
     if (!coverageDecorations.current) {
       coverageDecorations.current = editor.createDecorationsCollection([]);
     }
@@ -203,11 +213,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     ).map(([lineStr, hits]) => {
       const lineNumber = Number(lineStr);
       const covered = hits > 0;
-
       return {
         range: new monaco.Range(lineNumber, 1, lineNumber, 1),
         options: {
           isWholeLine: true,
+          // Gutter icon — green dot for covered, red dot for uncovered
           glyphMarginClassName: covered
             ? "coverage-gutter-covered"
             : "coverage-gutter-uncovered",
@@ -216,6 +226,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
               ? `✅ Covered (${hits} hit${hits === 1 ? "" : "s"})`
               : "❌ Not covered",
           },
+          // Subtle background tint — does not obscure text
           className: covered
             ? "coverage-line-covered"
             : "coverage-line-uncovered",
@@ -244,7 +255,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       const storedViewState = getViewState(
         activeFileId,
       ) as Monaco.editor.ICodeEditorViewState | null;
-
       if (storedViewState) {
         editor.restoreViewState(storedViewState);
         editor.render();
@@ -254,74 +264,61 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     return () => window.cancelAnimationFrame(frameId);
   }, [activeFileId, getViewState]);
 
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    const isDark =
-      currentTheme === "dark" ||
-      (currentTheme === "system" &&
-        typeof window !== "undefined" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-    const monaco = monacoRef.current;
-    if (monaco) {
-      monaco.editor.setTheme(isDark ? "stellar-dark" : "vs");
-    }
-
-    editor.updateOptions({ fontSize: editorFontSize });
-  }, [currentTheme, editorFontSize]);
-
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     monacoRef.current = monaco;
     editorRef.current = editor;
     setMountedEditor(editor);
     setMountedMonaco(monaco);
 
-    symbolIndexer.indexFiles(filesRef.current);
+    // Initialize symbol indexer and definition provider
+    symbolIndexer.indexFiles(files);
     definitionProvider.initialize(editor, monaco);
     definitionProvider.registerDefinitionProvider(monaco);
     definitionProvider.registerOnDefinitionHandler(monaco);
     referenceProvider.initialize(monaco);
     referenceProvider.register(monaco);
 
-    const handleFileOpen = (event: Event) => {
-      const customEvent = event as CustomEvent<{ filePath: string[] }>;
-      const { filePath } = customEvent.detail;
-
-      const findNode = (nodes: FileNode[], pathParts: string[]): FileNode | null => {
+    // Listen for file open requests from definition provider
+    const handleFileOpen = (event: CustomEvent) => {
+      const { filePath } = event.detail;
+      // Find the file in the workspace and open it
+      const findNode = (
+        nodes: FileNode[],
+        pathParts: string[],
+      ): FileNode | null => {
         for (const node of nodes) {
           if (node.name === pathParts[0]) {
             if (pathParts.length === 1) return node;
-            if (node.children) return findNode(node.children, pathParts.slice(1));
+            if (node.children)
+              return findNode(node.children, pathParts.slice(1));
           }
         }
         return null;
       };
 
-      const node = findNode(filesRef.current, filePath);
+      const node = findNode(files, filePath);
       if (node && node.type === "file") {
+        // This would trigger opening the file in the workspace
+        // For now, we'll need to integrate with the workspace store
         const { addTab } = useWorkspaceStore.getState();
         addTab(filePath, node.name);
       }
     };
 
     window.addEventListener("openFile", handleFileOpen as EventListener);
-
+    // Register jump-to-line function for outline view
     setJumpToLine((line: number) => {
       editor.revealLineInCenter(line);
       editor.setPosition({ lineNumber: line, column: 1 });
       editor.focus();
     });
 
-    const handleJumpToPosition = (event: Event) => {
-      const customEvent = event as CustomEvent<{ line: number; column: number }>;
-      const { line, column } = customEvent.detail;
+    const handleJumpToPosition = (event: CustomEvent) => {
+      const { line, column } = event.detail;
       editor.revealPositionInCenter({ lineNumber: line, column });
       editor.setPosition({ lineNumber: line, column });
       editor.focus();
     };
-
     window.addEventListener(
       "jumpToPosition",
       handleJumpToPosition as EventListener,
@@ -333,26 +330,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
 
     editor.onDidChangeCursorPosition((e) => {
       onCursorChange?.(e.position.lineNumber, e.position.column);
-    });
-
-    editor.onMouseMove((event) => {
-      const targetType = event.target.type;
-      const isGutterHover =
-        targetType === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
-        targetType === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS;
-
-      if (!isGutterHover || !event.target.position) {
-        setCommentAnchor(null);
-        return;
-      }
-
-      const line = event.target.position.lineNumber;
-      const top = editor.getTopForLineNumber(line) - editor.getScrollTop();
-      setCommentAnchor({ line, top: Math.max(0, top) });
-    });
-
-    editor.onMouseLeave(() => {
-      setCommentAnchor(null);
     });
 
     editor.onDidChangeHiddenAreas(() => {
@@ -369,9 +346,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       base: "vs-dark",
       inherit: true,
       rules: [
+        // Semantic token styling rules
         { token: "variable", foreground: "89b4fa" },
         { token: "constant", foreground: "f9e2af", fontStyle: "bold" },
-        { token: "mutableVariable", foreground: "eba0ac", fontStyle: "underline" },
+        {
+          token: "mutableVariable",
+          foreground: "eba0ac",
+          fontStyle: "underline",
+        },
         { token: "customType", foreground: "94e2d5", fontStyle: "italic" },
         { token: "struct", foreground: "a6e3a1", fontStyle: "bold" },
         { token: "enum", foreground: "f38ba8", fontStyle: "bold" },
@@ -392,20 +374,21 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       },
     });
 
+    // Initial theme setup
     const initialIsDark =
       currentTheme === "dark" ||
       (currentTheme === "system" &&
-        typeof window !== "undefined" &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
-
     monaco.editor.setTheme(initialIsDark ? "stellar-dark" : "vs");
 
+    // Register semantic tokens provider for Rust
     if (!semanticProviderRegistered.current) {
       semanticProviderRegistered.current = true;
 
       const semanticProvider = new RustSemanticTokensProvider();
       const legend = semanticProvider.getLegend();
 
+      // Register semantic tokens provider
       monaco.languages.registerDocumentSemanticTokensProvider(
         "rust",
         semanticProvider,
@@ -413,14 +396,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       );
     }
 
+    // Register code action provider for error help
     if (!codeActionProviderRegistered.current) {
       codeActionProviderRegistered.current = true;
 
       monaco.languages.registerCodeActionProvider("rust", {
-        provideCodeActions: (_model, _range, context) => {
+        provideCodeActions: (model, range, context) => {
           const actions: Monaco.languages.CodeAction[] = [];
 
+          // Check if there are any diagnostics at this position
           for (const marker of context.markers) {
+            // Extract error code from marker message
             const errorCode = extractErrorCode(marker.message);
 
             if (errorCode && hasErrorHelp(errorCode)) {
@@ -445,6 +431,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
         },
       });
 
+      // Register the command to open error help
       editor.addAction({
         id: "stellar.openErrorHelp",
         label: "Open Error Help",
@@ -471,13 +458,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
           { open: "{", close: "}" },
           { open: "[", close: "]" },
           { open: "(", close: ")" },
-          { open: "\"", close: "\"" },
+          { open: '"', close: '"' },
         ],
         surroundingPairs: [
           { open: "{", close: "}" },
           { open: "[", close: "]" },
           { open: "(", close: ")" },
-          { open: "\"", close: "\"" },
+          { open: '"', close: '"' },
         ],
         folding: {
           markers: {
@@ -494,7 +481,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       );
 
       monaco.languages.registerCompletionItemProvider("rust", {
-        triggerCharacters: [".", ":", " "],
+        triggerCharacters: [".", ":", " "], // 👈 IMPORTANT
+
         provideCompletionItems: () => {
           const suggestions = [
             {
@@ -542,6 +530,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
               insertTextRules:
                 monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
             },
+            // Proptest snippets — all categories
             ...getAllMonacoCompletions(monaco),
           ];
 
@@ -549,13 +538,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
         },
       });
 
+      // Workspace-wide rename provider (F2)
       monaco.languages.registerRenameProvider("rust", {
         provideRenameEdits(model, position, newName) {
           const oldName = model.getWordAtPosition(position)?.word;
           if (!oldName) return { edits: [] };
 
           const validationError = validateRustIdentifier(newName);
-          if (validationError) return Promise.reject(new Error(validationError));
+          if (validationError)
+            return Promise.reject(new Error(validationError));
 
           const { edits, matchCount, error } = computeRenameEdits(
             filesRef.current,
@@ -566,17 +557,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
           if (error) return Promise.reject(new Error(error));
           if (matchCount === 0) return { edits: [] };
 
+          // Atomic update: compute the full new tree then write it in one setFiles call.
+          // Zustand's persist middleware flushes this to IndexedDB as a single transaction.
           const { setFiles } = useWorkspaceStore.getState();
           const nextTree = applyEditsToTree(filesRef.current, edits);
           setFiles(nextTree);
 
+          // Invalidate the symbol index so the next build re-indexes from scratch.
           _useDiagnosticsStore.getState().clearDiagnostics();
 
+          // Return workspace edits so Monaco can show the preview diff (F2 UI)
           const workspaceEdits: Monaco.languages.WorkspaceEdit = {
             edits: edits.flatMap((edit) => {
-              const uri = monaco.Uri.parse(`inmemory://workspace/${edit.fileId}`);
+              const uri = monaco.Uri.parse(
+                `inmemory://workspace/${edit.fileId}`,
+              );
               const lines = edit.newContent.split("\n");
-
               return [
                 {
                   resource: uri,
@@ -600,10 +596,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
 
         resolveRenameLocation(model, position) {
           const word = model.getWordAtPosition(position);
-          if (!word) {
-            return { range: new monaco.Range(0, 0, 0, 0), text: "" };
-          }
-
+          if (!word) return { range: new monaco.Range(0, 0, 0, 0), text: "" };
           return {
             range: new monaco.Range(
               position.lineNumber,
@@ -616,24 +609,27 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
         },
       });
     }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener("openFile", handleFileOpen as EventListener);
+      window.removeEventListener(
+        "jumpToPosition",
+        handleJumpToPosition as EventListener,
+      );
+    };
   };
 
   if (!activeFile) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#1e1e2e] font-mono text-sm text-muted-foreground">
+      <div className="h-full flex items-center justify-center bg-[#1e1e2e] text-muted-foreground font-mono text-sm">
         Select a file to begin editing
       </div>
     );
   }
 
-  const isDarkTheme =
-    currentTheme === "dark" ||
-    (currentTheme === "system" &&
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <div className="h-full w-full flex flex-col overflow-hidden">
       <Breadcrumbs />
       <GitBlameLines
         editor={editorRef.current}
@@ -642,11 +638,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       />
       <div
         id="tour-monaco"
-        className="relative flex-1 w-full overflow-hidden border-t border-border"
+        className="flex-1 w-full overflow-hidden relative border-t border-border"
       >
         <Suspense
           fallback={
-            <div className="flex h-full items-center justify-center bg-[#1e1e2e] font-mono text-xs text-muted-foreground">
+            <div className="h-full flex items-center justify-center bg-[#1e1e2e] text-muted-foreground font-mono text-xs">
               Loading Editor...
             </div>
           }
@@ -663,7 +659,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
               (activeFile.name?.endsWith(".toml") ? "toml" : "rust")
             }
             value={activeFile.content}
-            theme={isDarkTheme ? "stellar-dark" : "vs"}
+            theme={
+              currentTheme === "dark" ||
+              (currentTheme === "system" &&
+                typeof window !== "undefined" &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches)
+                ? "stellar-dark"
+                : "vs"
+            }
             saveViewState={false}
             onChange={handleEditorChange}
             onMount={handleEditorDidMount}
@@ -694,28 +697,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
               headContent={headContent}
             />
           )}
-          {commentAnchor ? (
-            <button
-              type="button"
-              className="absolute left-1 z-20 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
-              style={{ top: `${commentAnchor.top}px` }}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                window.dispatchEvent(new Event("comments:open-pane"));
-                window.dispatchEvent(
-                  new CustomEvent("comments:start-thread", {
-                    detail: {
-                      filePath: activeFileId,
-                      line: commentAnchor.line,
-                    },
-                  }),
-                );
-                setCommentAnchor(null);
-              }}
-            >
-              Add Comment
-            </button>
-          ) : null}
         </Suspense>
       </div>
     </div>

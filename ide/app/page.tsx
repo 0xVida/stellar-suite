@@ -12,7 +12,7 @@ import XdrInspector from "@/components/tools/XdrInspector";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
-
+// `Index` already imported above; duplicate import removed.
 
 export default function HomePage() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);

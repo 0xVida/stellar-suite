@@ -81,16 +81,32 @@ function formatDate(epochSeconds: number): string {
 async function diffTrees(
   fs: LightningFS,
   oidA: string | null,
-  oidB: string
+  oidB: string,
 ): Promise<ChangedFile[]> {
   try {
+    // If there's no parent (initial commit), walk the new tree and mark all files as added
+    if (!oidA) {
+      const results = await git.walk({
+        fs,
+        dir: DIR,
+        trees: [git.TREE({ ref: oidB })],
+        map: async (filepath, [b]) => {
+          if (filepath === ".") return null;
+          const bType = await b?.type();
+          if (bType === "tree") return null;
+          return { path: filepath, status: "added" as const };
+        },
+      });
+
+      return (results as (ChangedFile | null)[]).filter(
+        (r): r is ChangedFile => r !== null,
+      );
+    }
+
     const results = await git.walk({
       fs,
       dir: DIR,
-      trees: [
-        oidA ? git.TREE({ ref: oidA }) : git.EMPTY,
-        git.TREE({ ref: oidB }),
-      ],
+      trees: [git.TREE({ ref: oidA }), git.TREE({ ref: oidB })],
       map: async (filepath, [a, b]) => {
         // Skip directories
         if (filepath === ".") return null;
@@ -102,14 +118,16 @@ async function diffTrees(
         const bOid = await b?.oid();
 
         if (!aOid && bOid) return { path: filepath, status: "added" as const };
-        if (aOid && !bOid) return { path: filepath, status: "deleted" as const };
-        if (aOid !== bOid) return { path: filepath, status: "modified" as const };
+        if (aOid && !bOid)
+          return { path: filepath, status: "deleted" as const };
+        if (aOid !== bOid)
+          return { path: filepath, status: "modified" as const };
         return null;
       },
     });
 
     return (results as (ChangedFile | null)[]).filter(
-      (r): r is ChangedFile => r !== null
+      (r): r is ChangedFile => r !== null,
     );
   } catch {
     return [];

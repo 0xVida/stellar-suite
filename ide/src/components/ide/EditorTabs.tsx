@@ -81,7 +81,8 @@ function FileIcon({ name }: { name: string }) {
 // ---------------------------------------------------------------------------
 
 export function EditorTabs({ onTabSelect, onTabClose }: EditorTabsProps) {
-  const { openTabs, activeTabPath, setActiveTabPath, closeTab, unsavedFiles } = useWorkspaceStore();
+  const { openTabs, activeTabPath, setActiveTabPath, closeTab, unsavedFiles } =
+    useWorkspaceStore();
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   const tabsWithStatus = openTabs.map((t) => ({
@@ -91,35 +92,43 @@ export function EditorTabs({ onTabSelect, onTabClose }: EditorTabsProps) {
 
   const activeTabKey = activeTabPath.join("/");
 
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLButtonElement>, path: string[]) => {
-    const keys = tabsWithStatus.map((t) => t.path.join("/"));
-    const currentIdx = keys.indexOf(path.join("/"));
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLButtonElement>, path: string[]) => {
+      const keys = tabsWithStatus.map((t) => t.path.join("/"));
+      const currentIdx = keys.indexOf(path.join("/"));
 
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      const next = tabsWithStatus[currentIdx + 1];
-      if (next) {
-        tabRefs.current.get(next.path.join("/"))?.focus();
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const next = tabsWithStatus[currentIdx + 1];
+        if (next) {
+          tabRefs.current.get(next.path.join("/"))?.focus();
+        }
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const prev = tabsWithStatus[currentIdx - 1];
+        if (prev) {
+          tabRefs.current.get(prev.path.join("/"))?.focus();
+        }
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (onTabSelect) onTabSelect(path);
+        else setActiveTabPath(path);
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        if (onTabClose) onTabClose(path);
+        else closeTab(path);
       }
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      const prev = tabsWithStatus[currentIdx - 1];
-      if (prev) {
-        tabRefs.current.get(prev.path.join("/"))?.focus();
-      }
-    } else if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      if (onTabSelect) onTabSelect(path);
-      else setActiveTabPath(path);
-    } else if (e.key === "Delete" || e.key === "Backspace") {
-      e.preventDefault();
-      if (onTabClose) onTabClose(path);
-      else closeTab(path);
-    }
-  }, [tabsWithStatus, onTabSelect, onTabClose, setActiveTabPath, closeTab]);
+    },
+    [tabsWithStatus, onTabSelect, onTabClose, setActiveTabPath, closeTab],
+  );
 
   if (tabsWithStatus.length === 0) {
-    return <div className="h-9 bg-secondary border-b border-border" aria-label="No open tabs" />;
+    return (
+      <div
+        className="h-9 bg-secondary border-b border-border"
+        aria-label="No open tabs"
+      />
+    );
   }
 
   return (

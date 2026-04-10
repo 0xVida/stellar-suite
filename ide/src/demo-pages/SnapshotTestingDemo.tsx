@@ -13,10 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { snapshotManager } from "@/lib/testing/snapshotManager";
 import { useState } from "react";
 
-/**
- * Demo page showcasing the Snapshot Testing feature
- * This demonstrates all three main components working together
- */
+
 export function SnapshotTestingDemo() {
   const [showDiffViewer, setShowDiffViewer] = useState(false);
   const [demoData, setDemoData] = useState({

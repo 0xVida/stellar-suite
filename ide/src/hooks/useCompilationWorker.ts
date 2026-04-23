@@ -59,6 +59,11 @@ export function useCompilationWorker(): UseCompilationWorkerResult {
         return await getWorker().compile(id, options.url, options.payload, (raw) => {
           options.onChunk(formatTerminalChunk(raw));
         });
+      } catch (err: any) {
+        if (err.name === 'SRIIntegrityError') {
+          options.onChunk(formatTerminalChunk(err.message + '\n'));
+        }
+        throw err;
       } finally {
         if (activeIdRef.current === id) {
           activeIdRef.current = null;

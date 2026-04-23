@@ -239,6 +239,42 @@ const cancelTokens = new Map();
 let compilerState = 'idle';
 let realCompilerModule = null;
 
+// --- SRI Verifier inside worker ---
+let _workerManifest = null;
+async function fetchWithWorkerSRI(url) {
+  const resp = await fetch(url, { cache: 'no-store' });
+  if (!resp.ok) throw new Error('Fetch failed');
+  const buf = await resp.arrayBuffer();
+  
+  if (!_workerManifest) {
+    try {
+      const mResp = await fetch('/wasm-hashes.json', { cache: 'no-store' });
+      if (mResp.ok) _workerManifest = await mResp.json();
+    } catch {
+      // Ignore
+    }
+  }
+  if (!_workerManifest) return buf;
+
+  let urlKey;
+  try { urlKey = new URL(url, "https://localhost").pathname; } catch { urlKey = url; }
+  
+  const expectedSRI = _workerManifest.assets[urlKey];
+  if (!expectedSRI) return buf;
+
+  const hashBuffer = await crypto.subtle.digest('SHA-384', buf);
+  const bytes = new Uint8Array(hashBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const actualSRI = 'sha384-' + btoa(binary);
+
+  if (actualSRI !== expectedSRI) {
+    self.postMessage({ type: 'sri-error', url, expected: expectedSRI, actual: actualSRI });
+    throw new Error('SRI check failed');
+  }
+  return buf;
+}
+
 async function initCompiler() {
   if (compilerState === 'ready') return true;
   if (compilerState === 'loading') return false;
@@ -250,13 +286,15 @@ async function initCompiler() {
   const realUrl = (typeof globalThis !== 'undefined' && globalThis.STELLAR_RUSTC_WASM_URL) || null;
   if (realUrl) {
     try {
-      const resp = await fetch(realUrl);
-      const buf = await resp.arrayBuffer();
+      const buf = await fetchWithWorkerSRI(realUrl);
       realCompilerModule = await WebAssembly.compile(buf);
       compilerState = 'ready';
       postStatus('ready', estimateMemoryMb() ?? 480);
       return true;
     } catch (e) {
+      if (e && e.message === 'SRI check failed') {
+        throw e; // Do not fall through on security error
+      }
       // Fall through to demo mode
     }
   }
@@ -352,6 +390,9 @@ self.addEventListener('message', async (e) => {
         self.postMessage({ type: 'done', id, ok: false, output: fullOutput, wasmBase64: null });
       }
     } catch (err) {
+      if (err && err.message === 'SRI check failed') {
+        return; // Main thread will terminate the worker
+      }
       const message = (err && err.message) || 'Local compiler error';
       fullOutput += `\nfatal error: ${message}\n`;
       self.postMessage({ type: 'chunk', id, data: `\nfatal error: ${message}\n` });

@@ -20,6 +20,7 @@ export type WorkerOutbound =
   | { type: 'done'; id: string; ok: boolean; status?: number; output: string; wasmBase64?: string }
   | { type: 'error'; id: string; message: string }
   | { type: 'cancelled'; id: string }
+  | { type: 'sri-error'; url: string; expected: string; actual: string }
   | { type: 'status'; phase: string; memoryMb?: number };
 
 export interface CompileResult {
@@ -88,6 +89,18 @@ export class CompilationWorker {
       case 'status':
         // Status updates are informational; could be logged or forwarded if needed
         break;
+
+      case 'sri-error': {
+        const sriErr = new Error(`[security] WASM integrity check failed for: ${msg.url}\n[security] Expected: ${msg.expected} | Got: ${msg.actual}\n[security] Build aborted to prevent execution of potentially tampered code.`);
+        sriErr.name = "SRIIntegrityError";
+        for (const job of this.jobs.values()) {
+          job.reject(sriErr);
+        }
+        this.jobs.clear();
+        this.worker?.terminate();
+        this.worker = null;
+        break;
+      }
     }
   }
 

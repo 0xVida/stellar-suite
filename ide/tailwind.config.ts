@@ -157,5 +157,9 @@ export default {
   		}
   	}
   },
+  // Safelist high-contrast theme classes so Tailwind doesn't purge them
+  safelist: [
+    'dark', 'light', 'dark-hc', 'light-hc',
+  ],
   plugins: [tailwindcssAnimate],
 } satisfies Config;

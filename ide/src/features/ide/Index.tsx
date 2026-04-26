@@ -78,8 +78,12 @@ import { useCompilationWorker } from "@/hooks/useCompilationWorker";
 import {
   buildSimulationComparison,
   fetchCurrentLedgerEntriesForSimulation,
+  type SimulationComparisonData,
 } from "@/lib/simulationDiff";
 import { useTransactionResultsStore } from "@/store/useTransactionResultsStore";
+import { executeWriteTransaction } from "@/lib/transactionExecution";
+import { useWalletStore } from "@/store/walletStore";
+import { SimulationDiff } from "@/components/ide/SimulationDiff";
 
 const COMPILE_API_URL =
   process.env.NEXT_PUBLIC_COMPILE_API_URL ?? "/api/compile";
@@ -241,6 +245,7 @@ export default function Index() {
   const { compile: workerCompile, cancel: cancelCompile } = useCompilationWorker();
 
   const { activeContext, activeIdentity, loadIdentities, webWalletPublicKey } = useIdentityStore();
+  const walletType = useWalletStore((s) => s.walletType);
   const appendTransactionLog = useTransactionResultsStore((state) => state.appendLog);
   const { localRepoInitialized, hydrateLocalRepo, refreshLocalStatuses } =
     useVCSStore();
@@ -304,6 +309,13 @@ export default function Index() {
     phase: "idle" | "preparing" | "signing" | "submitting" | "confirming" | "success" | "failed";
     message: string;
   }>({ phase: "idle", message: "Invoke" });
+
+  const [simulationDiffData, setSimulationDiffData] = useState<{
+    comparison: SimulationComparisonData;
+    fn: string;
+    args: string;
+  } | null>(null);
+  const [isSubmittingTx, setIsSubmittingTx] = useState(false);
 
   const [clippyLints, setClippyLints] = useState<ClippyLint[]>([]);
   const [isRunningClippy, setIsRunningClippy] = useState(false);
@@ -1257,6 +1269,11 @@ export default function Index() {
         }
 
         setInvokeState({ phase: "success", message: "Pre-flight Ready" });
+
+        // Open pre-signing modal for write calls so user can review before submitting
+        if (simulationComparison && !assembled.isReadCall) {
+          setSimulationDiffData({ comparison: simulationComparison, fn, args });
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invocation failed";
         appendTerminalOutput(`Pre-flight simulation failed: ${message}\r\n`);
@@ -1300,6 +1317,110 @@ export default function Index() {
       webWalletPublicKey,
     ],
   );
+
+  const handleConfirmSign = useCallback(async () => {
+    if (!simulationDiffData || !contractId || !activeContext) return;
+    const { fn, args, comparison } = simulationDiffData;
+
+    setIsSubmittingTx(true);
+    setInvokeState({ phase: "signing", message: "Waiting for signature…" });
+
+    const rpcUrl =
+      network === "local"
+        ? customRpcUrl
+        : (NETWORK_CONFIG[network as NetworkKey]?.horizon ?? horizonUrl);
+
+    const startedAt = Date.now();
+    try {
+      const result = await executeWriteTransaction({
+        contractId,
+        fnName: fn,
+        args,
+        rpcUrl,
+        network,
+        networkPassphrase,
+        activeContext,
+        activeIdentity,
+        webWalletPublicKey,
+        walletType,
+        onStatus: (s) => {
+          setInvokeState({ phase: s.phase as typeof invokeState.phase, message: s.message });
+          appendTerminalOutput(`  [${s.phase}] ${s.message}\r\n`);
+        },
+      });
+
+      appendTerminalOutput(`✓ Transaction confirmed: ${result.hash}\r\n`);
+
+      appendTransactionLog({
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${fn}-send`,
+        timestamp: new Date().toISOString(),
+        network,
+        contractId,
+        fnName: fn,
+        argsJson: args,
+        status: "success",
+        txHash: result.hash,
+        resultScValBase64: null,
+        decodedResult: null,
+        errorMessage: null,
+        durationMs: Date.now() - startedAt,
+        source: "send",
+        simulationComparison: comparison,
+      });
+
+      setInvokeState({ phase: "success", message: "Transaction Confirmed" });
+      toast.success(`Transaction confirmed: ${result.hash.slice(0, 8)}…`);
+      setSimulationDiffData(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Sign & submit failed";
+      appendTerminalOutput(`Sign & submit failed: ${message}\r\n`);
+
+      appendTransactionLog({
+        id:
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${fn}-send-error`,
+        timestamp: new Date().toISOString(),
+        network,
+        contractId,
+        fnName: fn,
+        argsJson: args,
+        status: "error",
+        txHash: null,
+        resultScValBase64: null,
+        decodedResult: null,
+        errorMessage: message,
+        durationMs: Date.now() - startedAt,
+        source: "send",
+        simulationComparison: comparison,
+      });
+
+      setInvokeState({ phase: "failed", message: "Transaction Failed" });
+      toast.error(message);
+    } finally {
+      setIsSubmittingTx(false);
+      setTimeout(() => {
+        setInvokeState({ phase: "idle", message: "Invoke" });
+      }, 2000);
+    }
+  }, [
+    simulationDiffData,
+    contractId,
+    activeContext,
+    activeIdentity,
+    appendTransactionLog,
+    appendTerminalOutput,
+    customRpcUrl,
+    horizonUrl,
+    network,
+    networkPassphrase,
+    walletType,
+    webWalletPublicKey,
+  ]);
 
   const activeFileContext = useMemo(() => {
     if (!activeTabPath.length) return null;
@@ -1516,6 +1637,19 @@ export default function Index() {
       />
 
       <HotkeysModal open={isHotkeysOpen} onOpenChange={setIsHotkeysOpen} />
+
+      {/* ── Pre-signing simulation diff modal ─────────────────────────── */}
+      {simulationDiffData && (
+        <SimulationDiff
+          open
+          comparison={simulationDiffData.comparison}
+          fnName={simulationDiffData.fn}
+          contractId={contractId ?? ""}
+          isSubmitting={isSubmittingTx}
+          onConfirm={() => { void handleConfirmSign(); }}
+          onCancel={() => setSimulationDiffData(null)}
+        />
+      )}
     </div>
   );
 }

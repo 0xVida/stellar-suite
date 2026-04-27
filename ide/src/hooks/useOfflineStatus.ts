@@ -22,6 +22,8 @@ export interface OfflineStatus {
   pendingSyncCount: number;
   /** Current sync lifecycle state */
   syncState: SyncState;
+  /** Number of dependencies loaded from SW cache */
+  cacheHitCount: number;
 }
 
 export function useOfflineStatus(): OfflineStatus {
@@ -30,6 +32,7 @@ export function useOfflineStatus(): OfflineStatus {
   );
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [syncState, setSyncState] = useState<SyncState>("idle");
+  const [cacheHitCount, setCacheHitCount] = useState<number>(0);
 
   // Refresh queue count from IDB
   const refreshQueueCount = useCallback(async () => {
@@ -72,6 +75,9 @@ export function useOfflineStatus(): OfflineStatus {
         // Reset to idle after 3 s so the "synced" indicator fades
         setTimeout(() => setSyncState("idle"), 3000);
       }
+      if (event.data?.type === "CACHE_HIT") {
+        setCacheHitCount((prev) => prev + 1);
+      }
     };
 
     if ("serviceWorker" in navigator) {
@@ -91,5 +97,5 @@ export function useOfflineStatus(): OfflineStatus {
     };
   }, [refreshQueueCount]);
 
-  return { isOffline, pendingSyncCount, syncState };
+  return { isOffline, pendingSyncCount, syncState, cacheHitCount };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { Settings, WifiOff, Loader2, CheckCircle2 } from "lucide-react";
+import { Settings, WifiOff, Loader2, CheckCircle2, Database } from "lucide-react";
 import { NetworkSelector } from "./NetworkSelector";
 import { useOfflineStatus } from "@/hooks/useOfflineStatus";
 
@@ -24,7 +24,7 @@ export function StatusBar({ language: propLanguage }: StatusBarProps) {
     activeTabPath,
   } = useWorkspaceStore();
 
-  const { isOffline, pendingSyncCount, syncState } = useOfflineStatus();
+  const { isOffline, pendingSyncCount, syncState, cacheHitCount } = useOfflineStatus();
 
   const activeFile = files.find(
     (f) => f.name === activeTabPath[activeTabPath.length - 1],
@@ -91,6 +91,17 @@ export function StatusBar({ language: propLanguage }: StatusBarProps) {
           >
             <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden="true" />
             <span className="hidden sm:inline">Synced</span>
+          </span>
+        )}
+        {cacheHitCount > 0 && (
+          <span
+            id="statusbar-cache-indicator"
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 bg-blue-600/90 text-white"
+            title={`${cacheHitCount} core libraries loaded from local CDN cache`}
+            aria-live="polite"
+          >
+            <Database className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">Cached: {cacheHitCount}</span>
           </span>
         )}
       </div>

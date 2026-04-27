@@ -12,6 +12,7 @@
 const SW_VERSION = "v1.0.0";
 const STATIC_CACHE = `stellar-ide-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `stellar-ide-runtime-${SW_VERSION}`;
+const DEPENDENCY_CACHE = `stellar-ide-dependencies-${SW_VERSION}`;
 const OFFLINE_QUEUE_STORE = "stellar-offline-queue";
 const OFFLINE_QUEUE_DB = "stellar-sw-db";
 
@@ -123,7 +124,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
+          .filter((k) => k !== STATIC_CACHE && k !== RUNTIME_CACHE && k !== DEPENDENCY_CACHE)
           .map((k) => {
             console.log(`[SW] Deleting old cache: ${k}`);
             return caches.delete(k);
@@ -140,6 +141,15 @@ function isStaticAsset(url) {
     pathname.startsWith("/_next/static/") ||
     pathname.startsWith("/icons/") ||
     pathname.match(/\.(png|svg|ico|woff2?|ttf|otf|css)$/)
+  );
+}
+
+function isDependencyRequest(url) {
+  const { hostname } = new URL(url);
+  return (
+    hostname.endsWith("crates.io") ||
+    hostname.endsWith("rust-lang.org") ||
+    hostname === "raw.githubusercontent.com"
   );
 }
 
@@ -180,6 +190,30 @@ self.addEventListener("fetch", (event) => {
             headers: { "Content-Type": "application/json" },
           }
         );
+      })
+    );
+    return;
+  }
+
+  // ── Dependency assets: Cache-First (Heavy Caching) ────────────────────────
+  if (isDependencyRequest(request.url)) {
+    event.respondWith(
+      caches.open(DEPENDENCY_CACHE).then((cache) => {
+        return cache.match(request).then((cached) => {
+          if (cached) {
+            // Notify clients of cache hit for monitoring
+            self.clients.matchAll().then((clients) => {
+              clients.forEach((c) => c.postMessage({ type: "CACHE_HIT", url: request.url }));
+            });
+            return cached;
+          }
+          return fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          });
+        });
       })
     );
     return;

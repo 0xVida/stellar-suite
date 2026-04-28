@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Network, Calendar, Edit2 } from "lucide-react";
+import { FileText, Network, Calendar, Edit2, Plus } from "lucide-react";
 import { TagBadge } from "./TagManager";
 import type { ProjectMeta, ProjectTag } from "@/lib/cloud/cloudSyncService";
 import { formatDistanceToNow } from "date-fns";
@@ -61,6 +61,22 @@ export function ProjectCard({
               title="Edit tags"
             >
               <Edit2 className="w-4 h-4" />
+            </Button>
+          )}
+          {/* Visible Add Tag button for quick access */}
+          {onEditTags && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditTags(project);
+              }}
+              className="ml-2 flex items-center gap-1"
+              title="Add or edit tags"
+            >
+              <Plus className="w-3 h-3" />
+              <span className="text-xs">Add Tag</span>
             </Button>
           )}
         </div>

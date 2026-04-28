@@ -102,12 +102,35 @@ export function GlobalSearch() {
   // Filter projects based on search query
   const projectSearchResults = useMemo(() => {
     if (!debouncedProjectQuery) return filteredProjects;
-    
-    return filteredProjects.filter(
-      (project) =>
-        project.name.toLowerCase().includes(debouncedProjectQuery.toLowerCase()) ||
-        project.id.toLowerCase().includes(debouncedProjectQuery.toLowerCase())
+
+    // Support tag searches using syntax: "tag:DeFi" or "#DeFi".
+    // Multiple tokens separated by spaces are supported; tag tokens filter by tag name,
+    // other tokens match project name or id.
+    const tokens = debouncedProjectQuery.trim().split(/\s+/).filter(Boolean);
+    const tagTokens = tokens
+      .filter((t) => t.toLowerCase().startsWith("tag:") || t.startsWith("#"))
+      .map((t) => t.replace(/^tag:/i, "").replace(/^#/, ""));
+    const nameTokens = tokens.filter(
+      (t) => !t.toLowerCase().startsWith("tag:") && !t.startsWith("#"),
     );
+
+    return filteredProjects.filter((project) => {
+      const matchesName =
+        nameTokens.length === 0 ||
+        nameTokens.every((nt) =>
+          project.name.toLowerCase().includes(nt.toLowerCase()) ||
+          project.id.toLowerCase().includes(nt.toLowerCase()) ||
+          project.tags?.some((tag) => tag.name.toLowerCase().includes(nt.toLowerCase())),
+        );
+
+      const matchesTags =
+        tagTokens.length === 0 ||
+        tagTokens.every((tt) =>
+          project.tags?.some((tag) => tag.name.toLowerCase() === tt.toLowerCase()),
+        );
+
+      return matchesName && matchesTags;
+    });
   }, [debouncedProjectQuery, filteredProjects]);
 
   const clearSearch = () => {

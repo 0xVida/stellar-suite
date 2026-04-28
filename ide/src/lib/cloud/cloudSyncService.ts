@@ -13,12 +13,19 @@ export interface WorkspaceTextFile {
   content: string;
 }
 
+export interface ProjectTag {
+  id: string;
+  name: string;
+  color: "blue" | "green" | "red" | "purple" | "yellow" | "pink" | "indigo" | "cyan";
+}
+
 export interface ProjectMeta {
   id: string;
   name: string;
   network: string;
   updatedAt: string;
   fileCount: number;
+  tags?: ProjectTag[];
 }
 
 export interface ProjectData extends ProjectMeta {
@@ -82,6 +89,7 @@ export async function saveProject(params: {
   files: WorkspaceTextFile[];
   fileHashes: Record<string, string>;
   lastKnownUpdatedAt: string | null;
+  tags?: ProjectTag[];
 }): Promise<SaveResult> {
   const url = params.projectId
     ? `/api/projects/${params.projectId}`
@@ -97,6 +105,7 @@ export async function saveProject(params: {
       files: params.files,
       fileHashes: params.fileHashes,
       lastKnownUpdatedAt: params.lastKnownUpdatedAt,
+      tags: params.tags || [],
     }),
   });
 

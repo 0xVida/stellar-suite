@@ -38,12 +38,12 @@ export class AccountBalanceViewProvider implements vscode.WebviewViewProvider {
                                 throw new Error('Account not found or network error');
                             }
                             
-                            const accountData = await response.json();
-                            
+                            const accountData = await response.json() as { balances: unknown };
+
                             // Fetch recent transactions
                             const txResponse = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}/transactions?limit=5&order=desc`);
-                            const txData = await txResponse.json();
-                            
+                            const txData = await txResponse.json() as { _embedded: { records: unknown } };
+
                             this._view?.webview.postMessage({
                                 type: 'balanceResult',
                                 balances: accountData.balances,

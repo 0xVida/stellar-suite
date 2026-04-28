@@ -2,9 +2,18 @@ import { useEffect, useState } from "react";
 import { useWalletStore } from "../store/walletStore";
 import { LogOut, Wallet } from "lucide-react";
 import { WalletModal } from "./WalletModal";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export function WalletManager() {
-  const { isConnected, publicKey, isLoading, error, disconnectWallet, checkConnection } = useWalletStore();
+  const {
+    isConnected,
+    publicKey,
+    isLoading,
+    error,
+    disconnectWallet,
+    checkConnection,
+  } = useWalletStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -31,40 +40,47 @@ export function WalletManager() {
     <>
       <div className="flex items-center gap-2">
         {error && !isModalOpen && (
-          <span className="text-xs text-red-500 max-w-[150px] truncate" title={error}>
+          <span
+            className="text-xs text-red-500 max-w-[150px] truncate"
+            title={error}
+          >
             {error}
           </span>
         )}
         {isConnected && publicKey ? (
-          <div className="flex items-center gap-1 rounded border border-border bg-secondary px-2 py-1">
-            <span className="text-xs font-mono text-foreground px-1">
+          <div className="flex items-center gap-1">
+            <Badge
+              variant="secondary"
+              className="font-mono text-[10px] h-7 px-2"
+            >
               {truncateKey(publicKey)}
-            </span>
-            <button
+            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={disconnectWallet}
-              className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
               title="Disconnect Wallet"
             >
               <LogOut className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
+          <Button
+            size="sm"
             onClick={handleConnect}
             disabled={isLoading}
-            className={`flex items-center gap-1.5 rounded bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors ${
-              isLoading ? "opacity-70 cursor-not-allowed" : ""
-            }`}
+            className="h-8 gap-1.5"
           >
             <Wallet className="w-3.5 h-3.5" />
             {isLoading ? "Connecting..." : "Connect Wallet"}
-          </button>
+          </Button>
         )}
       </div>
 
-      <WalletModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <WalletModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </>
   );

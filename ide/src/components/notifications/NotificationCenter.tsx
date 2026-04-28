@@ -1,5 +1,3 @@
-"use client";
-
 import { Bell } from "lucide-react";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import {
@@ -8,6 +6,8 @@ import {
   DrawerHeader,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default function NotificationCenter() {
   const { notifications, markAsRead, clearAll } = useNotificationStore();
@@ -17,15 +17,23 @@ export default function NotificationCenter() {
   return (
     <Drawer>
       <DrawerTrigger asChild>
-        <button className="relative p-2 rounded-md hover:bg-muted transition">
-          <Bell size={22} className="text-foreground" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-9 w-9"
+          aria-label="Open notifications"
+        >
+          <Bell size={20} />
 
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white px-1.5 py-[1px] rounded-full font-medium shadow">
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 flex items-center justify-center text-[10px]"
+            >
               {unreadCount}
-            </span>
+            </Badge>
           )}
-        </button>
+        </Button>
       </DrawerTrigger>
 
       <DrawerContent className="p-4 max-h-[80vh] overflow-y-auto">
@@ -34,12 +42,14 @@ export default function NotificationCenter() {
             <h2 className="text-lg font-semibold">Notifications</h2>
 
             {notifications.length > 0 && (
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={clearAll}
-                className="text-sm text-red-400 hover:underline"
+                className="text-destructive h-auto p-0"
               >
                 Clear All
-              </button>
+              </Button>
             )}
           </div>
         </DrawerHeader>
@@ -68,9 +78,9 @@ export default function NotificationCenter() {
                   </span>
 
                   {!n.read && (
-                    <span className="text-[10px] text-primary font-medium">
+                    <Badge variant="secondary" className="text-[10px] py-0 px-1">
                       NEW
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -80,4 +90,4 @@ export default function NotificationCenter() {
       </DrawerContent>
     </Drawer>
   );
-}
+}

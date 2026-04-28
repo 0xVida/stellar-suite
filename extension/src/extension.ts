@@ -13,6 +13,9 @@ import { showNetworkHealth } from './commands/showNetworkHealth';
 import { initNetworkStatusBar, disposeNetworkStatusBar } from './ui/networkStatusBar';
 import { initIdentityStatusBar } from './ui/identityStatusBar';
 import { SidebarViewProvider } from './ui/sidebarView';
+import { ContractInvokeViewProvider } from './views/ContractInvokeView';
+import { AccountBalanceViewProvider } from './views/AccountBalanceView';
+import { registerOpenInWebIDECommand } from './commands/OpenInWebIDE';
 import { getSharedOutputChannel } from './utils/outputChannel';
 import { SorobanCliService } from './services/sorobanCliService';
 
@@ -23,9 +26,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
+        const contractInvokeProvider = new ContractInvokeViewProvider(context.extensionUri);
+        const accountBalanceProvider = new AccountBalanceViewProvider(context.extensionUri);
+        
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider)
+            vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider),
+            vscode.window.registerWebviewViewProvider(ContractInvokeViewProvider.viewType, contractInvokeProvider),
+            vscode.window.registerWebviewViewProvider(AccountBalanceViewProvider.viewType, accountBalanceProvider)
         );
+        
+        registerOpenInWebIDECommand(context);
 
         outputChannel.appendLine('[Extension] Checking for Stellar CLI in PATH...');
         const cliPath = await SorobanCliService.findCliPath();

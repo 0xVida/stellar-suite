@@ -1,35 +1,34 @@
 import * as vscode from 'vscode';
-import { LatencyMonitor, LatencyResult } from '../services/latencyMonitor';
+import { LatencyMonitor } from '../monitors/LatencyMonitor';
 
 let networkStatusBarItem: vscode.StatusBarItem;
-let latencyStatusBarItem: vscode.StatusBarItem;
 let latencyMonitor: LatencyMonitor | undefined;
 
 export async function initNetworkStatusBar(context: vscode.ExtensionContext) {
-    // Network selector status bar item
     networkStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     networkStatusBarItem.command = 'stellarSuite.switchNetwork';
     context.subscriptions.push(networkStatusBarItem);
 
-    // Latency monitor status bar item
-    latencyStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
-    latencyStatusBarItem.command = 'stellarSuite.showNetworkHealth';
-    context.subscriptions.push(latencyStatusBarItem);
-
     await updateNetworkStatusBar();
     networkStatusBarItem.show();
-    latencyStatusBarItem.show();
 
-    // Initialize latency monitoring
-    await startLatencyMonitoring();
+    startLatencyMonitor(context);
 
-    // Listen for configuration changes
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(async (e) => {
-            if (e.affectsConfiguration('stellarSuite.rpcUrl') || 
-                e.affectsConfiguration('stellarSuite.network')) {
+            if (
+                e.affectsConfiguration('stellarSuite.rpcUrl') ||
+                e.affectsConfiguration('stellarSuite.network')
+            ) {
                 await updateNetworkStatusBar();
-                await startLatencyMonitoring();
+                if (latencyMonitor) {
+                    const cfg = vscode.workspace.getConfiguration('stellarSuite');
+                    const rpcUrl = cfg.get<string>('rpcUrl') || 'https://soroban-testnet.stellar.org:443';
+                    latencyMonitor.updateRpcUrl(rpcUrl);
+                }
+            }
+            if (e.affectsConfiguration('stellarSuite.latencyMonitor')) {
+                applyMonitorThresholds();
             }
         })
     );
@@ -47,49 +46,31 @@ export async function updateNetworkStatusBar() {
     }
 }
 
-async function startLatencyMonitoring() {
-    // Stop existing monitor
-    if (latencyMonitor) {
-        latencyMonitor.stopMonitoring();
-    }
+function startLatencyMonitor(context: vscode.ExtensionContext): void {
+    const cfg = vscode.workspace.getConfiguration('stellarSuite');
+    const rpcUrl = cfg.get<string>('rpcUrl') || 'https://soroban-testnet.stellar.org:443';
+    const monitorCfg = vscode.workspace.getConfiguration('stellarSuite.latencyMonitor');
 
-    const config = vscode.workspace.getConfiguration('stellarSuite');
-    const rpcUrl = config.get<string>('rpcUrl') || 'https://soroban-testnet.stellar.org:443';
-
-    // Create new monitor
-    latencyMonitor = new LatencyMonitor(rpcUrl);
-
-    // Update status bar on each measurement
-    latencyMonitor.startMonitoring(30, (result: LatencyResult) => {
-        updateLatencyStatusBar(result);
+    latencyMonitor = new LatencyMonitor({
+        rpcUrl,
+        pollIntervalMs: monitorCfg.get<number>('pollIntervalSeconds', 30) * 1000,
+        healthyThresholdMs: monitorCfg.get<number>('healthyThresholdMs', 250),
+        degradedThresholdMs: monitorCfg.get<number>('degradedThresholdMs', 800),
     });
 
-    // Initial update
-    latencyStatusBarItem.text = '$(sync~spin) ---ms';
-    latencyStatusBarItem.tooltip = 'Measuring RPC latency...';
+    context.subscriptions.push(latencyMonitor);
+    latencyMonitor.start();
 }
 
-function updateLatencyStatusBar(result: LatencyResult) {
-    if (result.success) {
-        const icon = LatencyMonitor.getLatencyIcon(result.latency);
-        const color = LatencyMonitor.getLatencyColor(result.latency);
-        
-        latencyStatusBarItem.text = `${icon} ${result.latency}ms`;
-        latencyStatusBarItem.tooltip = `RPC Latency: ${result.latency}ms (${color})\nClick for detailed network health`;
-        
-        // Apply color using VS Code's status bar color API
-        if (color === 'red') {
-            latencyStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-        } else if (color === 'orange') {
-            latencyStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-        } else {
-            latencyStatusBarItem.backgroundColor = undefined;
-        }
-    } else {
-        latencyStatusBarItem.text = '$(error) ---ms';
-        latencyStatusBarItem.tooltip = `RPC Error: ${result.error || 'Unknown error'}\nClick for details`;
-        latencyStatusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+function applyMonitorThresholds(): void {
+    if (!latencyMonitor) {
+        return;
     }
+    const monitorCfg = vscode.workspace.getConfiguration('stellarSuite.latencyMonitor');
+    latencyMonitor.updateThresholds(
+        monitorCfg.get<number>('healthyThresholdMs', 250),
+        monitorCfg.get<number>('degradedThresholdMs', 800),
+    );
 }
 
 export function getLatencyMonitor(): LatencyMonitor | undefined {
@@ -98,6 +79,7 @@ export function getLatencyMonitor(): LatencyMonitor | undefined {
 
 export function disposeNetworkStatusBar() {
     if (latencyMonitor) {
-        latencyMonitor.stopMonitoring();
+        latencyMonitor.dispose();
+        latencyMonitor = undefined;
     }
 }

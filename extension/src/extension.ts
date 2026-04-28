@@ -18,6 +18,9 @@ import { AccountBalanceViewProvider } from './views/AccountBalanceView';
 import { registerOpenInWebIDECommand } from './commands/OpenInWebIDE';
 import { getSharedOutputChannel } from './utils/outputChannel';
 import { SorobanCliService } from './services/sorobanCliService';
+import { SorobanLinterService } from './services/LinterService';
+import { HealthAlertsService } from './services/HealthAlerts';
+import { getLatencyMonitor } from './ui/networkStatusBar';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 
@@ -53,7 +56,17 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`[Extension] SUCCESS: Found Stellar CLI at: ${cliPath}`);
             await initNetworkStatusBar(context);
             await initIdentityStatusBar(context);
+
+            const monitor = getLatencyMonitor();
+            if (monitor) {
+                const healthAlerts = new HealthAlertsService(monitor);
+                context.subscriptions.push(healthAlerts);
+            }
         }
+
+        const linter = new SorobanLinterService();
+        linter.register(context);
+        context.subscriptions.push(linter);
 
         const simulateCommand = vscode.commands.registerCommand(
             'stellarSuite.simulateTransaction',

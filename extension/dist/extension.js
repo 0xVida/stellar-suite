@@ -1540,9 +1540,6 @@ var require_contractDeployer = __commonJS({
         "/opt/homebrew/bin",
         "/opt/homebrew/sbin"
       ];
-      const currentPath = env.PATH || env.Path || "";
-      env.PATH = [...additionalPaths, currentPath].filter(Boolean).join(path.delimiter);
-      env.Path = env.PATH;
       return env;
     }
     var ContractDeployer = class {
@@ -2462,192 +2459,246 @@ var require_installCli = __commonJS({
   }
 });
 
-// out/services/latencyMonitor.js
-var require_latencyMonitor = __commonJS({
-  "out/services/latencyMonitor.js"(exports2) {
+// out/monitors/LatencyMonitor.js
+var require_LatencyMonitor = __commonJS({
+  "out/monitors/LatencyMonitor.js"(exports2) {
     "use strict";
+    var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    } : function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      o[k2] = m[k];
+    });
+    var __setModuleDefault2 = exports2 && exports2.__setModuleDefault || (Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar2 = exports2 && exports2.__importStar || function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod)
+          if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k))
+            __createBinding2(result, mod, k);
+      }
+      __setModuleDefault2(result, mod);
+      return result;
+    };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LatencyMonitor = void 0;
+    var vscode2 = __importStar2(require("vscode"));
+    var DEFAULTS = {
+      pollIntervalMs: 3e4,
+      requestTimeoutMs: 8e3,
+      healthyThresholdMs: 250,
+      degradedThresholdMs: 800,
+      historySize: 30
+    };
     var LatencyMonitor = class {
-      constructor(rpcUrl) {
-        this.measurements = [];
-        this.maxMeasurements = 20;
-        this.rpcUrl = rpcUrl.endsWith("/") ? rpcUrl.slice(0, -1) : rpcUrl;
+      constructor(options) {
+        this.samples = [];
+        this.listeners = [];
+        this.inFlight = false;
+        this.disposed = false;
+        this.opts = {
+          rpcUrl: stripTrailingSlash(options.rpcUrl),
+          pollIntervalMs: options.pollIntervalMs ?? DEFAULTS.pollIntervalMs,
+          requestTimeoutMs: options.requestTimeoutMs ?? DEFAULTS.requestTimeoutMs,
+          healthyThresholdMs: options.healthyThresholdMs ?? DEFAULTS.healthyThresholdMs,
+          degradedThresholdMs: options.degradedThresholdMs ?? DEFAULTS.degradedThresholdMs,
+          historySize: options.historySize ?? DEFAULTS.historySize
+        };
+        this.statusBarItem = vscode2.window.createStatusBarItem(vscode2.StatusBarAlignment.Left, 99);
+        this.statusBarItem.command = "stellarSuite.showNetworkHealth";
+        this.renderUnknown();
+        this.statusBarItem.show();
       }
-      /**
-       * Measure latency by making a lightweight RPC call
-       */
-      async measureLatency() {
-        const startTime = Date.now();
-        try {
-          const response = await fetch(`${this.rpcUrl}/health`, {
-            method: "GET",
-            signal: AbortSignal.timeout(1e4)
-          });
-          const latency = Date.now() - startTime;
-          if (response.ok) {
-            const result = {
-              latency,
-              success: true,
-              timestamp: Date.now()
-            };
-            this.addMeasurement(result);
-            return result;
-          }
-          return await this.measureLatencyViaRpc();
-        } catch (error) {
-          try {
-            return await this.measureLatencyViaRpc();
-          } catch (rpcError) {
-            const latency = Date.now() - startTime;
-            const result = {
-              latency,
-              success: false,
-              timestamp: Date.now(),
-              error: rpcError instanceof Error ? rpcError.message : "Unknown error"
-            };
-            this.addMeasurement(result);
-            return result;
-          }
+      onSample(listener) {
+        this.listeners.push(listener);
+        return new vscode2.Disposable(() => {
+          this.listeners = this.listeners.filter((l) => l !== listener);
+        });
+      }
+      start() {
+        if (this.disposed || this.timer) {
+          return;
+        }
+        void this.tick();
+        this.timer = setInterval(() => void this.tick(), this.opts.pollIntervalMs);
+      }
+      stop() {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = void 0;
         }
       }
-      /**
-       * Measure latency using RPC getHealth method
-       */
-      async measureLatencyViaRpc() {
-        const startTime = Date.now();
+      updateRpcUrl(rpcUrl) {
+        this.opts.rpcUrl = stripTrailingSlash(rpcUrl);
+        this.samples = [];
+        this.renderUnknown();
+      }
+      updateThresholds(healthyThresholdMs, degradedThresholdMs) {
+        this.opts.healthyThresholdMs = healthyThresholdMs;
+        this.opts.degradedThresholdMs = degradedThresholdMs;
+        const last = this.samples[this.samples.length - 1];
+        if (last) {
+          this.render(last);
+        }
+      }
+      getSamples() {
+        return this.samples;
+      }
+      getLastSample() {
+        return this.samples[this.samples.length - 1];
+      }
+      classify(sample) {
+        if (!sample.success) {
+          return "unhealthy";
+        }
+        if (sample.latencyMs <= this.opts.healthyThresholdMs) {
+          return "healthy";
+        }
+        if (sample.latencyMs <= this.opts.degradedThresholdMs) {
+          return "degraded";
+        }
+        return "unhealthy";
+      }
+      dispose() {
+        this.disposed = true;
+        this.stop();
+        this.statusBarItem.dispose();
+        this.listeners = [];
+      }
+      async tick() {
+        if (this.inFlight) {
+          return;
+        }
+        this.inFlight = true;
         try {
-          const response = await fetch(`${this.rpcUrl}`, {
+          const sample = await this.measure();
+          this.samples.push(sample);
+          if (this.samples.length > this.opts.historySize) {
+            this.samples.shift();
+          }
+          this.render(sample);
+          const level = this.classify(sample);
+          for (const listener of this.listeners) {
+            try {
+              listener(sample, level);
+            } catch {
+            }
+          }
+        } finally {
+          this.inFlight = false;
+        }
+      }
+      async measure() {
+        const start = Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.opts.requestTimeoutMs);
+        try {
+          const res = await fetch(this.opts.rpcUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              jsonrpc: "2.0",
-              id: 1,
-              method: "getHealth"
-            }),
-            signal: AbortSignal.timeout(1e4)
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }),
+            signal: controller.signal
           });
-          const latency = Date.now() - startTime;
-          if (response.ok) {
-            const result = {
-              latency,
-              success: true,
-              timestamp: Date.now()
+          const latency = Date.now() - start;
+          if (!res.ok) {
+            return {
+              latencyMs: latency,
+              success: false,
+              timestamp: Date.now(),
+              error: `HTTP ${res.status} ${res.statusText}`
             };
-            this.addMeasurement(result);
-            return result;
           }
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        } catch (error) {
-          const latency = Date.now() - startTime;
-          const result = {
-            latency,
+          return { latencyMs: latency, success: true, timestamp: Date.now() };
+        } catch (err) {
+          return {
+            latencyMs: Date.now() - start,
             success: false,
             timestamp: Date.now(),
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: err instanceof Error ? err.message : String(err)
           };
-          this.addMeasurement(result);
-          return result;
+        } finally {
+          clearTimeout(timeout);
         }
       }
-      /**
-       * Add measurement to history
-       */
-      addMeasurement(result) {
-        this.measurements.push(result);
-        if (this.measurements.length > this.maxMeasurements) {
-          this.measurements.shift();
-        }
-        if (this.onLatencyUpdate) {
-          this.onLatencyUpdate(result);
-        }
+      render(sample) {
+        const level = this.classify(sample);
+        const icon = iconFor(level);
+        const label = sample.success ? `${sample.latencyMs}ms` : "offline";
+        this.statusBarItem.text = `${icon} RPC ${label}`;
+        this.statusBarItem.tooltip = buildTooltip(sample, level, this.opts);
+        this.statusBarItem.backgroundColor = backgroundFor(level);
       }
-      /**
-       * Get network health statistics
-       */
-      getNetworkHealth() {
-        if (this.measurements.length === 0) {
-          return {
-            currentLatency: -1,
-            averageLatency: -1,
-            minLatency: -1,
-            maxLatency: -1,
-            successRate: 0,
-            measurements: 0
-          };
-        }
-        const successfulMeasurements = this.measurements.filter((m) => m.success);
-        const latencies = successfulMeasurements.map((m) => m.latency);
-        const lastMeasurement = this.measurements[this.measurements.length - 1];
-        return {
-          currentLatency: lastMeasurement.success ? lastMeasurement.latency : -1,
-          averageLatency: latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : -1,
-          minLatency: latencies.length > 0 ? Math.min(...latencies) : -1,
-          maxLatency: latencies.length > 0 ? Math.max(...latencies) : -1,
-          successRate: successfulMeasurements.length / this.measurements.length * 100,
-          measurements: this.measurements.length,
-          lastError: lastMeasurement.success ? void 0 : lastMeasurement.error
-        };
-      }
-      /**
-       * Start monitoring with specified interval
-       */
-      startMonitoring(intervalSeconds = 30, callback) {
-        this.onLatencyUpdate = callback;
-        this.measureLatency();
-        this.intervalId = setInterval(() => {
-          this.measureLatency();
-        }, intervalSeconds * 1e3);
-      }
-      /**
-       * Stop monitoring
-       */
-      stopMonitoring() {
-        if (this.intervalId) {
-          clearInterval(this.intervalId);
-          this.intervalId = void 0;
-        }
-        this.onLatencyUpdate = void 0;
-      }
-      /**
-       * Update RPC URL
-       */
-      updateRpcUrl(newUrl) {
-        this.rpcUrl = newUrl.endsWith("/") ? newUrl.slice(0, -1) : newUrl;
-        this.measurements = [];
-      }
-      /**
-       * Get color based on latency
-       */
-      static getLatencyColor(latency) {
-        if (latency < 0) {
-          return "gray";
-        }
-        if (latency < 100) {
-          return "green";
-        }
-        if (latency < 500) {
-          return "orange";
-        }
-        return "red";
-      }
-      /**
-       * Get status icon based on latency
-       */
-      static getLatencyIcon(latency) {
-        if (latency < 0) {
-          return "$(question)";
-        }
-        if (latency < 100) {
-          return "$(check)";
-        }
-        if (latency < 500) {
-          return "$(warning)";
-        }
-        return "$(error)";
+      renderUnknown() {
+        this.statusBarItem.text = "$(sync~spin) RPC ---ms";
+        this.statusBarItem.tooltip = "Measuring Stellar RPC latency...";
+        this.statusBarItem.backgroundColor = void 0;
       }
     };
     exports2.LatencyMonitor = LatencyMonitor;
+    function stripTrailingSlash(url) {
+      return url.endsWith("/") ? url.slice(0, -1) : url;
+    }
+    function iconFor(level) {
+      switch (level) {
+        case "healthy":
+          return "$(pulse)";
+        case "degraded":
+          return "$(warning)";
+        case "unhealthy":
+          return "$(error)";
+        default:
+          return "$(question)";
+      }
+    }
+    function backgroundFor(level) {
+      switch (level) {
+        case "degraded":
+          return new vscode2.ThemeColor("statusBarItem.warningBackground");
+        case "unhealthy":
+          return new vscode2.ThemeColor("statusBarItem.errorBackground");
+        default:
+          return void 0;
+      }
+    }
+    function buildTooltip(sample, level, opts) {
+      const md = new vscode2.MarkdownString();
+      md.isTrusted = false;
+      md.supportThemeIcons = true;
+      md.appendMarkdown(`**Stellar RPC** \u2014 ${level.toUpperCase()}
+
+`);
+      md.appendMarkdown(`- Endpoint: \`${opts.rpcUrl}\`
+`);
+      if (sample.success) {
+        md.appendMarkdown(`- Latency: **${sample.latencyMs} ms**
+`);
+      } else {
+        md.appendMarkdown(`- Status: **offline**
+`);
+        md.appendMarkdown(`- Error: ${sample.error ?? "unknown"}
+`);
+      }
+      md.appendMarkdown(`- Healthy \u2264 ${opts.healthyThresholdMs} ms \xB7 Degraded \u2264 ${opts.degradedThresholdMs} ms
+`);
+      md.appendMarkdown(`
+Click for detailed network health.`);
+      return md;
+    }
   }
 });
 
@@ -2690,25 +2741,27 @@ var require_networkStatusBar = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.disposeNetworkStatusBar = exports2.getLatencyMonitor = exports2.updateNetworkStatusBar = exports2.initNetworkStatusBar = void 0;
     var vscode2 = __importStar2(require("vscode"));
-    var latencyMonitor_1 = require_latencyMonitor();
+    var LatencyMonitor_1 = require_LatencyMonitor();
     var networkStatusBarItem;
-    var latencyStatusBarItem;
     var latencyMonitor;
     async function initNetworkStatusBar(context) {
       networkStatusBarItem = vscode2.window.createStatusBarItem(vscode2.StatusBarAlignment.Left, 100);
       networkStatusBarItem.command = "stellarSuite.switchNetwork";
       context.subscriptions.push(networkStatusBarItem);
-      latencyStatusBarItem = vscode2.window.createStatusBarItem(vscode2.StatusBarAlignment.Left, 99);
-      latencyStatusBarItem.command = "stellarSuite.showNetworkHealth";
-      context.subscriptions.push(latencyStatusBarItem);
       await updateNetworkStatusBar();
       networkStatusBarItem.show();
-      latencyStatusBarItem.show();
-      await startLatencyMonitoring();
+      startLatencyMonitor(context);
       context.subscriptions.push(vscode2.workspace.onDidChangeConfiguration(async (e) => {
         if (e.affectsConfiguration("stellarSuite.rpcUrl") || e.affectsConfiguration("stellarSuite.network")) {
           await updateNetworkStatusBar();
-          await startLatencyMonitoring();
+          if (latencyMonitor) {
+            const cfg = vscode2.workspace.getConfiguration("stellarSuite");
+            const rpcUrl = cfg.get("rpcUrl") || "https://soroban-testnet.stellar.org:443";
+            latencyMonitor.updateRpcUrl(rpcUrl);
+          }
+        }
+        if (e.affectsConfiguration("stellarSuite.latencyMonitor")) {
+          applyMonitorThresholds();
         }
       }));
     }
@@ -2724,39 +2777,25 @@ var require_networkStatusBar = __commonJS({
       }
     }
     exports2.updateNetworkStatusBar = updateNetworkStatusBar;
-    async function startLatencyMonitoring() {
-      if (latencyMonitor) {
-        latencyMonitor.stopMonitoring();
-      }
-      const config = vscode2.workspace.getConfiguration("stellarSuite");
-      const rpcUrl = config.get("rpcUrl") || "https://soroban-testnet.stellar.org:443";
-      latencyMonitor = new latencyMonitor_1.LatencyMonitor(rpcUrl);
-      latencyMonitor.startMonitoring(30, (result) => {
-        updateLatencyStatusBar(result);
+    function startLatencyMonitor(context) {
+      const cfg = vscode2.workspace.getConfiguration("stellarSuite");
+      const rpcUrl = cfg.get("rpcUrl") || "https://soroban-testnet.stellar.org:443";
+      const monitorCfg = vscode2.workspace.getConfiguration("stellarSuite.latencyMonitor");
+      latencyMonitor = new LatencyMonitor_1.LatencyMonitor({
+        rpcUrl,
+        pollIntervalMs: monitorCfg.get("pollIntervalSeconds", 30) * 1e3,
+        healthyThresholdMs: monitorCfg.get("healthyThresholdMs", 250),
+        degradedThresholdMs: monitorCfg.get("degradedThresholdMs", 800)
       });
-      latencyStatusBarItem.text = "$(sync~spin) ---ms";
-      latencyStatusBarItem.tooltip = "Measuring RPC latency...";
+      context.subscriptions.push(latencyMonitor);
+      latencyMonitor.start();
     }
-    function updateLatencyStatusBar(result) {
-      if (result.success) {
-        const icon = latencyMonitor_1.LatencyMonitor.getLatencyIcon(result.latency);
-        const color = latencyMonitor_1.LatencyMonitor.getLatencyColor(result.latency);
-        latencyStatusBarItem.text = `${icon} ${result.latency}ms`;
-        latencyStatusBarItem.tooltip = `RPC Latency: ${result.latency}ms (${color})
-Click for detailed network health`;
-        if (color === "red") {
-          latencyStatusBarItem.backgroundColor = new vscode2.ThemeColor("statusBarItem.errorBackground");
-        } else if (color === "orange") {
-          latencyStatusBarItem.backgroundColor = new vscode2.ThemeColor("statusBarItem.warningBackground");
-        } else {
-          latencyStatusBarItem.backgroundColor = void 0;
-        }
-      } else {
-        latencyStatusBarItem.text = "$(error) ---ms";
-        latencyStatusBarItem.tooltip = `RPC Error: ${result.error || "Unknown error"}
-Click for details`;
-        latencyStatusBarItem.backgroundColor = new vscode2.ThemeColor("statusBarItem.errorBackground");
+    function applyMonitorThresholds() {
+      if (!latencyMonitor) {
+        return;
       }
+      const monitorCfg = vscode2.workspace.getConfiguration("stellarSuite.latencyMonitor");
+      latencyMonitor.updateThresholds(monitorCfg.get("healthyThresholdMs", 250), monitorCfg.get("degradedThresholdMs", 800));
     }
     function getLatencyMonitor() {
       return latencyMonitor;
@@ -2764,7 +2803,8 @@ Click for details`;
     exports2.getLatencyMonitor = getLatencyMonitor;
     function disposeNetworkStatusBar() {
       if (latencyMonitor) {
-        latencyMonitor.stopMonitoring();
+        latencyMonitor.dispose();
+        latencyMonitor = void 0;
       }
     }
     exports2.disposeNetworkStatusBar = disposeNetworkStatusBar;
@@ -4456,17 +4496,23 @@ var require_showNetworkHealth = __commonJS({
     exports2.showNetworkHealth = void 0;
     var vscode2 = __importStar2(require("vscode"));
     var networkStatusBar_12 = require_networkStatusBar();
-    var latencyMonitor_1 = require_latencyMonitor();
     async function showNetworkHealth() {
       const monitor = (0, networkStatusBar_12.getLatencyMonitor)();
       if (!monitor) {
         vscode2.window.showWarningMessage("Network monitoring is not active");
         return;
       }
-      const health = monitor.getNetworkHealth();
+      const samples = monitor.getSamples();
+      const last = monitor.getLastSample();
       const config = vscode2.workspace.getConfiguration("stellarSuite");
       const rpcUrl = config.get("rpcUrl") || "https://soroban-testnet.stellar.org:443";
       const network = config.get("network") || "testnet";
+      const successful = samples.filter((s) => s.success);
+      const latencies = successful.map((s) => s.latencyMs);
+      const avg = latencies.length ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : -1;
+      const min = latencies.length ? Math.min(...latencies) : -1;
+      const max = latencies.length ? Math.max(...latencies) : -1;
+      const successRate = samples.length ? successful.length / samples.length * 100 : 0;
       const lines = [];
       lines.push("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
       lines.push("         STELLAR RPC NETWORK HEALTH REPORT");
@@ -4478,30 +4524,29 @@ var require_showNetworkHealth = __commonJS({
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
       lines.push("  LATENCY METRICS");
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
-      if (health.currentLatency >= 0) {
-        const color = latencyMonitor_1.LatencyMonitor.getLatencyColor(health.currentLatency);
-        const status = color === "green" ? "Excellent" : color === "orange" ? "Fair" : "Poor";
-        lines.push(`Current:        ${health.currentLatency}ms (${status})`);
-        lines.push(`Average:        ${health.averageLatency}ms`);
-        lines.push(`Min:            ${health.minLatency}ms`);
-        lines.push(`Max:            ${health.maxLatency}ms`);
+      if (last && last.success) {
+        const level = monitor.classify(last);
+        lines.push(`Current:        ${last.latencyMs}ms (${describeLevel(level)})`);
+        lines.push(`Average:        ${avg}ms`);
+        lines.push(`Min:            ${min}ms`);
+        lines.push(`Max:            ${max}ms`);
       } else {
         lines.push("Current:        Not available");
-        lines.push(`Last Error:     ${health.lastError || "Unknown error"}`);
+        lines.push(`Last Error:     ${last?.error ?? "Unknown error"}`);
       }
       lines.push("");
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
       lines.push("  RELIABILITY");
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
-      lines.push(`Success Rate:   ${health.successRate.toFixed(1)}%`);
-      lines.push(`Measurements:   ${health.measurements}`);
+      lines.push(`Success Rate:   ${successRate.toFixed(1)}%`);
+      lines.push(`Measurements:   ${samples.length}`);
       lines.push("");
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
       lines.push("  PERFORMANCE GUIDE");
       lines.push("\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
-      lines.push("< 100ms:        Excellent - Optimal for development");
-      lines.push("100-500ms:      Fair - May experience delays");
-      lines.push("> 500ms:        Poor - Consider switching endpoints");
+      lines.push("Healthy:        Optimal for development");
+      lines.push("Degraded:       Expect transaction delays");
+      lines.push("Unhealthy:      Consider switching endpoints");
       lines.push("");
       lines.push("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
       const report = lines.join("\n");
@@ -4510,30 +4555,44 @@ var require_showNetworkHealth = __commonJS({
       outputChannel.appendLine(report);
       outputChannel.show();
       const actions = [
-        { label: "$(refresh) Measure Now", description: "Run immediate latency test" },
         { label: "$(gear) Change RPC Endpoint", description: "Update RPC URL in settings" },
-        { label: "$(globe) Switch Network", description: "Change Stellar network" }
+        { label: "$(globe) Switch Network", description: "Change Stellar network" },
+        { label: "$(bell) Configure Alerts", description: "Open Health Alerts settings" }
       ];
-      const selection = await vscode2.window.showQuickPick(actions, {
-        placeHolder: `Current latency: ${health.currentLatency >= 0 ? health.currentLatency + "ms" : "N/A"}`
-      });
+      const placeholder = formatPlaceholder(last);
+      const selection = await vscode2.window.showQuickPick(actions, { placeHolder: placeholder });
       if (selection) {
-        if (selection.label.includes("Measure Now")) {
-          vscode2.window.showInformationMessage("Measuring RPC latency...");
-          const result = await monitor.measureLatency();
-          if (result.success) {
-            vscode2.window.showInformationMessage(`Latency: ${result.latency}ms`);
-          } else {
-            vscode2.window.showErrorMessage(`Failed to measure latency: ${result.error}`);
-          }
-        } else if (selection.label.includes("Change RPC")) {
+        if (selection.label.includes("Change RPC")) {
           vscode2.commands.executeCommand("workbench.action.openSettings", "stellarSuite.rpcUrl");
         } else if (selection.label.includes("Switch Network")) {
           vscode2.commands.executeCommand("stellarSuite.switchNetwork");
+        } else if (selection.label.includes("Alerts")) {
+          vscode2.commands.executeCommand("workbench.action.openSettings", "stellarSuite.healthAlerts");
         }
       }
     }
     exports2.showNetworkHealth = showNetworkHealth;
+    function describeLevel(level) {
+      switch (level) {
+        case "healthy":
+          return "Healthy";
+        case "degraded":
+          return "Degraded";
+        case "unhealthy":
+          return "Unhealthy";
+        default:
+          return "Unknown";
+      }
+    }
+    function formatPlaceholder(last) {
+      if (!last) {
+        return "Current latency: N/A";
+      }
+      if (!last.success) {
+        return `Current: offline (${last.error ?? "unknown error"})`;
+      }
+      return `Current latency: ${last.latencyMs}ms`;
+    }
   }
 });
 
@@ -5434,6 +5493,964 @@ var require_sidebarView = __commonJS({
   }
 });
 
+// out/views/ContractInvokeView.js
+var require_ContractInvokeView = __commonJS({
+  "out/views/ContractInvokeView.js"(exports2) {
+    "use strict";
+    var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    } : function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      o[k2] = m[k];
+    });
+    var __setModuleDefault2 = exports2 && exports2.__setModuleDefault || (Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar2 = exports2 && exports2.__importStar || function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod)
+          if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k))
+            __createBinding2(result, mod, k);
+      }
+      __setModuleDefault2(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.ContractInvokeViewProvider = void 0;
+    var vscode2 = __importStar2(require("vscode"));
+    var child_process_1 = require("child_process");
+    var util_1 = require("util");
+    var execAsync = (0, util_1.promisify)(child_process_1.exec);
+    var ContractInvokeViewProvider = class {
+      constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+      }
+      resolveWebviewView(webviewView, context, _token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+          enableScripts: true,
+          localResourceRoots: [this._extensionUri]
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+          switch (data.type) {
+            case "invokeContract": {
+              try {
+                vscode2.window.showInformationMessage(`Invoking contract: ${data.contractId}`);
+                const { stdout, stderr } = await execAsync(`stellar contract invoke --id ${data.contractId} --network testnet --source default -- ${data.method} ${data.args || ""}`);
+                this._view?.webview.postMessage({
+                  type: "invokeResult",
+                  result: stdout || stderr
+                });
+              } catch (error) {
+                this._view?.webview.postMessage({
+                  type: "invokeError",
+                  error: error.message || "Unknown error occurred during invocation"
+                });
+              }
+              break;
+            }
+          }
+        });
+      }
+      _getHtmlForWebview(webview) {
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Contract Invoke</title>
+                <style>
+                    body {
+                        font-family: var(--vscode-font-family);
+                        padding: 10px;
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    input, button {
+                        width: 100%;
+                        margin-bottom: 10px;
+                        padding: 8px;
+                        box-sizing: border-box;
+                        background-color: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border: 1px solid var(--vscode-input-border);
+                    }
+                    button {
+                        background-color: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        cursor: pointer;
+                    }
+                    button:hover {
+                        background-color: var(--vscode-button-hoverBackground);
+                    }
+                    #output {
+                        margin-top: 10px;
+                        padding: 10px;
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        white-space: pre-wrap;
+                        min-height: 100px;
+                        border: 1px solid var(--vscode-panel-border);
+                    }
+                    .error {
+                        color: var(--vscode-errorForeground);
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>Invoke Contract</h2>
+                <label for="contractId">Contract ID</label>
+                <input type="text" id="contractId" placeholder="C...">
+                
+                <label for="method">Method</label>
+                <input type="text" id="method" placeholder="hello">
+                
+                <label for="args">Arguments (Space separated)</label>
+                <input type="text" id="args" placeholder="--arg value">
+                
+                <button id="invokeBtn">Invoke</button>
+                
+                <h3>Output:</h3>
+                <div id="output">Results will appear here...</div>
+
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    
+                    document.getElementById('invokeBtn').addEventListener('click', () => {
+                        const contractId = document.getElementById('contractId').value;
+                        const method = document.getElementById('method').value;
+                        const args = document.getElementById('args').value;
+                        
+                        document.getElementById('output').innerText = 'Invoking...';
+                        document.getElementById('output').classList.remove('error');
+                        
+                        vscode.postMessage({
+                            type: 'invokeContract',
+                            contractId: contractId,
+                            method: method,
+                            args: args
+                        });
+                    });
+
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        const outputDiv = document.getElementById('output');
+                        
+                        if (message.type === 'invokeResult') {
+                            outputDiv.innerText = message.result;
+                            outputDiv.classList.remove('error');
+                        } else if (message.type === 'invokeError') {
+                            outputDiv.innerText = message.error;
+                            outputDiv.classList.add('error');
+                        }
+                    });
+                </script>
+            </body>
+            </html>`;
+      }
+    };
+    exports2.ContractInvokeViewProvider = ContractInvokeViewProvider;
+    ContractInvokeViewProvider.viewType = "stellarSuite.contractInvokeView";
+  }
+});
+
+// out/views/AccountBalanceView.js
+var require_AccountBalanceView = __commonJS({
+  "out/views/AccountBalanceView.js"(exports2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.AccountBalanceViewProvider = void 0;
+    var AccountBalanceViewProvider = class {
+      constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+      }
+      resolveWebviewView(webviewView, context, _token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+          enableScripts: true,
+          localResourceRoots: [this._extensionUri]
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+          switch (data.type) {
+            case "refreshBalance": {
+              try {
+                const publicKey = data.publicKey;
+                if (!publicKey) {
+                  throw new Error("Public key is required");
+                }
+                const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}`);
+                if (!response.ok) {
+                  throw new Error("Account not found or network error");
+                }
+                const accountData = await response.json();
+                const txResponse = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}/transactions?limit=5&order=desc`);
+                const txData = await txResponse.json();
+                this._view?.webview.postMessage({
+                  type: "balanceResult",
+                  balances: accountData.balances,
+                  transactions: txData._embedded.records
+                });
+              } catch (error) {
+                this._view?.webview.postMessage({
+                  type: "error",
+                  error: error.message || "Unknown error occurred"
+                });
+              }
+              break;
+            }
+          }
+        });
+      }
+      _getHtmlForWebview(webview) {
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Account Balance</title>
+                <style>
+                    body {
+                        font-family: var(--vscode-font-family);
+                        padding: 10px;
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    input, button {
+                        width: 100%;
+                        margin-bottom: 10px;
+                        padding: 8px;
+                        box-sizing: border-box;
+                        background-color: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border: 1px solid var(--vscode-input-border);
+                    }
+                    button {
+                        background-color: var(--vscode-button-background);
+                        color: var(--vscode-button-foreground);
+                        border: none;
+                        cursor: pointer;
+                    }
+                    button:hover {
+                        background-color: var(--vscode-button-hoverBackground);
+                    }
+                    .balance-card, .tx-card {
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        padding: 10px;
+                        margin-bottom: 10px;
+                        border-radius: 4px;
+                        border: 1px solid var(--vscode-panel-border);
+                    }
+                    .asset-code {
+                        font-weight: bold;
+                    }
+                    .asset-balance {
+                        float: right;
+                    }
+                    .tx-hash {
+                        font-family: monospace;
+                        font-size: 0.9em;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    a {
+                        color: var(--vscode-textLink-foreground);
+                        text-decoration: none;
+                    }
+                    a:hover {
+                        text-decoration: underline;
+                    }
+                    .error {
+                        color: var(--vscode-errorForeground);
+                        padding: 10px;
+                    }
+                </style>
+            </head>
+            <body>
+                <h2>Account Info</h2>
+                <label for="publicKey">Public Key (G...)</label>
+                <input type="text" id="publicKey" placeholder="GA...">
+                
+                <button id="refreshBtn">Check Balance & History</button>
+                
+                <div id="error" class="error" style="display: none;"></div>
+                
+                <h3>Balances</h3>
+                <div id="balancesList">Enter a public key to view balances.</div>
+                
+                <h3>Recent Transactions</h3>
+                <div id="transactionsList">No transactions to display.</div>
+
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    
+                    document.getElementById('refreshBtn').addEventListener('click', () => {
+                        const publicKey = document.getElementById('publicKey').value;
+                        
+                        document.getElementById('balancesList').innerText = 'Loading...';
+                        document.getElementById('transactionsList').innerText = 'Loading...';
+                        document.getElementById('error').style.display = 'none';
+                        
+                        vscode.postMessage({
+                            type: 'refreshBalance',
+                            publicKey: publicKey
+                        });
+                    });
+
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        
+                        if (message.type === 'balanceResult') {
+                            // Render Balances
+                            const balancesList = document.getElementById('balancesList');
+                            balancesList.innerHTML = '';
+                            
+                            if (message.balances && message.balances.length > 0) {
+                                message.balances.forEach(b => {
+                                    const isNative = b.asset_type === 'native';
+                                    const code = isNative ? 'XLM' : b.asset_code;
+                                    
+                                    balancesList.innerHTML += \`
+                                        <div class="balance-card">
+                                            <span class="asset-code">\${code}</span>
+                                            <span class="asset-balance">\${b.balance}</span>
+                                        </div>
+                                    \`;
+                                });
+                            } else {
+                                balancesList.innerText = 'No balances found.';
+                            }
+                            
+                            // Render Transactions
+                            const txList = document.getElementById('transactionsList');
+                            txList.innerHTML = '';
+                            
+                            if (message.transactions && message.transactions.length > 0) {
+                                message.transactions.forEach(tx => {
+                                    const date = new Date(tx.created_at).toLocaleDateString();
+                                    txList.innerHTML += \`
+                                        <div class="tx-card">
+                                            <div><strong>\${date}</strong></div>
+                                            <div class="tx-hash">
+                                                <a href="https://stellar.expert/explorer/testnet/tx/\${tx.id}" target="_blank">
+                                                    \${tx.id.substring(0, 16)}...
+                                                </a>
+                                            </div>
+                                            <div>Successful: \${tx.successful ? '\u2705' : '\u274C'}</div>
+                                        </div>
+                                    \`;
+                                });
+                            } else {
+                                txList.innerText = 'No recent transactions.';
+                            }
+                            
+                        } else if (message.type === 'error') {
+                            const errorDiv = document.getElementById('error');
+                            errorDiv.innerText = message.error;
+                            errorDiv.style.display = 'block';
+                            document.getElementById('balancesList').innerText = '';
+                            document.getElementById('transactionsList').innerText = '';
+                        }
+                    });
+                </script>
+            </body>
+            </html>`;
+      }
+    };
+    exports2.AccountBalanceViewProvider = AccountBalanceViewProvider;
+    AccountBalanceViewProvider.viewType = "stellarSuite.accountBalanceView";
+  }
+});
+
+// out/commands/OpenInWebIDE.js
+var require_OpenInWebIDE = __commonJS({
+  "out/commands/OpenInWebIDE.js"(exports2) {
+    "use strict";
+    var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    } : function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      o[k2] = m[k];
+    });
+    var __setModuleDefault2 = exports2 && exports2.__setModuleDefault || (Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar2 = exports2 && exports2.__importStar || function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod)
+          if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k))
+            __createBinding2(result, mod, k);
+      }
+      __setModuleDefault2(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.registerOpenInWebIDECommand = void 0;
+    var vscode2 = __importStar2(require("vscode"));
+    function registerOpenInWebIDECommand(context) {
+      const disposable = vscode2.commands.registerCommand("stellarSuite.openInWebIDE", () => {
+        const activeEditor = vscode2.window.activeTextEditor;
+        let fileParam = "";
+        let contentParam = "";
+        if (activeEditor) {
+          const document = activeEditor.document;
+          const fileName = document.fileName.split("/").pop() || "untitled.rs";
+          const content = document.getText();
+          fileParam = encodeURIComponent(fileName);
+          contentParam = encodeURIComponent(content);
+        }
+        const baseUrl = "https://ide.stellar.org";
+        let webIdeUrl = baseUrl;
+        if (fileParam && contentParam) {
+          webIdeUrl = `${baseUrl}?file=${fileParam}&content=${contentParam}`;
+        }
+        vscode2.env.openExternal(vscode2.Uri.parse(webIdeUrl));
+        vscode2.window.showInformationMessage("Opening Stellar Web IDE...");
+      });
+      context.subscriptions.push(disposable);
+    }
+    exports2.registerOpenInWebIDECommand = registerOpenInWebIDECommand;
+  }
+});
+
+// out/services/LinterService.js
+var require_LinterService = __commonJS({
+  "out/services/LinterService.js"(exports2) {
+    "use strict";
+    var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    } : function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      o[k2] = m[k];
+    });
+    var __setModuleDefault2 = exports2 && exports2.__setModuleDefault || (Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar2 = exports2 && exports2.__importStar || function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod)
+          if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k))
+            __createBinding2(result, mod, k);
+      }
+      __setModuleDefault2(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.SorobanLinterService = void 0;
+    var vscode2 = __importStar2(require("vscode"));
+    var SOROBAN_LINTER_SOURCE = "soroban-linter";
+    var RULES = [
+      {
+        id: "no-floating-point",
+        severity: vscode2.DiagnosticSeverity.Error,
+        pattern: /\b(?:f32|f64)\b/g,
+        message: "Floating-point types are not supported in Soroban contracts",
+        explanation: "Soroban WASM execution does not support floating-point arithmetic. Use fixed-point integer math (i128 / u128) or the soroban_sdk numeric helpers instead.",
+        quickFix: () => ({
+          title: "Replace with i128",
+          replacement: "i128"
+        })
+      },
+      {
+        id: "no-std-println",
+        severity: vscode2.DiagnosticSeverity.Error,
+        pattern: /\b(?:println!|print!|eprintln!|eprint!|dbg!)\s*\(/g,
+        message: "Standard I/O macros are not available in Soroban contracts",
+        explanation: "Soroban runs in a no_std WASM sandbox. Use `env.events().publish(...)` or the soroban_sdk `log!` macro for diagnostics.",
+        quickFix: () => ({
+          title: "Replace with log! macro",
+          replacement: "log!("
+        })
+      },
+      {
+        id: "no-unwrap",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\.unwrap\s*\(\s*\)/g,
+        message: "Avoid `.unwrap()` in contract code \u2014 panics burn fees and break user transactions",
+        explanation: "Returning a `Result` or using `.unwrap_or(...)` / `.ok_or(MyError::...)` gives callers a structured failure they can handle, instead of a runtime panic.",
+        quickFix: () => ({
+          title: "Replace with `.unwrap_or_else(|_| panic_with_error!(env, /* TODO: error */))`",
+          replacement: ".unwrap_or_else(|_| panic_with_error!(env, /* TODO: error */))"
+        })
+      },
+      {
+        id: "no-expect",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\.expect\s*\(\s*"[^"]*"\s*\)/g,
+        message: "Avoid `.expect()` in contract code \u2014 prefer typed contract errors",
+        explanation: "Like `.unwrap()`, `.expect()` panics on error. Define a `#[contracterror]` enum and convert errors with `?` so callers see a typed failure."
+      },
+      {
+        id: "no-panic-macro",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /(?<!_with_error!)\bpanic!\s*\(/g,
+        message: "Use `panic_with_error!` instead of bare `panic!` so callers see a typed error",
+        explanation: "`panic!` produces an opaque host error. `panic_with_error!(env, MyError::Variant)` lets clients decode the failure cleanly.",
+        quickFix: () => ({
+          title: "Replace with `panic_with_error!`",
+          replacement: "panic_with_error!(env, /* TODO: error */"
+        })
+      },
+      {
+        id: "no-std-vec",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\bstd::vec::Vec\b|\buse\s+std::vec::Vec\b/g,
+        message: "Use `soroban_sdk::Vec` rather than `std::vec::Vec` inside contracts",
+        explanation: "Contract storage and host functions only accept Soroban host types. `std::vec::Vec` cannot cross the host boundary."
+      },
+      {
+        id: "no-std-string",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\bstd::string::String\b|\buse\s+std::string::String\b/g,
+        message: "Use `soroban_sdk::String` rather than `std::string::String` inside contracts",
+        explanation: "Soroban host types must cross the WASM boundary. Replace with `soroban_sdk::String` (and `Symbol` for short identifiers)."
+      },
+      {
+        id: "no-std-hashmap",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\bstd::collections::HashMap\b|\bHashMap::new\s*\(/g,
+        message: "Use `soroban_sdk::Map` instead of `HashMap` in contracts",
+        explanation: "`HashMap` is not available in the Soroban host environment. `soroban_sdk::Map<K, V>` is the host-compatible equivalent."
+      },
+      {
+        id: "no-system-time",
+        severity: vscode2.DiagnosticSeverity.Error,
+        pattern: /std::time::SystemTime|Instant::now\s*\(/g,
+        message: "System time is not available inside Soroban contracts",
+        explanation: "Use `env.ledger().timestamp()` for ledger-deterministic time. System clocks would break determinism across validators.",
+        quickFix: () => ({
+          title: "Replace with `env.ledger().timestamp()`",
+          replacement: "env.ledger().timestamp()"
+        })
+      },
+      {
+        id: "no-rand",
+        severity: vscode2.DiagnosticSeverity.Error,
+        pattern: /\brand::|\brand_chacha::|\bThreadRng\b/g,
+        message: "Pseudo-random sources are non-deterministic and must not run inside contracts",
+        explanation: "Validators must agree on contract output. Source entropy from on-chain commitments (e.g. ledger sequence) or off-chain VRFs."
+      },
+      {
+        id: "storage-without-ttl",
+        severity: vscode2.DiagnosticSeverity.Information,
+        pattern: /env\.storage\(\)\.(persistent|temporary|instance)\(\)\.set\(/g,
+        message: "Consider extending TTL after writing to storage",
+        explanation: "Soroban storage entries expire. Pair `set(...)` with `extend_ttl(...)` (or call it on read) so your data outlives the next archival pass."
+      },
+      {
+        id: "env-not-first-arg",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        // matches `pub fn foo(<not env>:` inside a #[contractimpl] file when first arg isn't `env: Env`
+        pattern: /pub\s+fn\s+\w+\s*\(\s*(?!env\s*:\s*Env|_env\s*:\s*Env|&self|&mut\s+self|self)([a-zA-Z_]\w*)\s*:/g,
+        message: "Public contract functions usually take `env: Env` as the first parameter",
+        explanation: "The `Env` handle is the only way to access storage, events, and the ledger. Convention is to make it the first parameter so callers and bindings stay consistent."
+      },
+      {
+        id: "mut-static",
+        severity: vscode2.DiagnosticSeverity.Error,
+        pattern: /\bstatic\s+mut\s+\w+/g,
+        message: "Mutable statics are not allowed in Soroban contracts",
+        explanation: "Contract instances must be deterministic and stateless across invocations. Persist data via `env.storage()` instead of `static mut`."
+      },
+      {
+        id: "unsafe-block",
+        severity: vscode2.DiagnosticSeverity.Warning,
+        pattern: /\bunsafe\s*\{/g,
+        message: "`unsafe` blocks bypass Soroban's safety guarantees",
+        explanation: "The Soroban host already wraps the dangerous bits. Reach for safe abstractions before introducing `unsafe`."
+      },
+      {
+        id: "todo-marker",
+        severity: vscode2.DiagnosticSeverity.Information,
+        pattern: /\b(?:todo!\s*\(|unimplemented!\s*\()/g,
+        message: "Unimplemented placeholder will panic at runtime",
+        explanation: "Replace `todo!()` / `unimplemented!()` with a real implementation or a typed contract error before deploying."
+      }
+    ];
+    var RANGE_QUICK_FIXES = /* @__PURE__ */ new WeakMap();
+    var SorobanLinterService = class {
+      constructor() {
+        this.timers = /* @__PURE__ */ new Map();
+        this.subscriptions = [];
+        this.debounceMs = 250;
+        this.collection = vscode2.languages.createDiagnosticCollection("soroban");
+      }
+      register(context) {
+        context.subscriptions.push(this.collection, vscode2.languages.registerCodeActionsProvider({ language: "rust" }, this, {
+          providedCodeActionKinds: [vscode2.CodeActionKind.QuickFix]
+        }));
+        this.subscriptions.push(vscode2.workspace.onDidOpenTextDocument((doc) => this.lintDocument(doc)), vscode2.workspace.onDidChangeTextDocument((e) => this.scheduleLint(e.document)), vscode2.workspace.onDidSaveTextDocument((doc) => this.lintDocument(doc)), vscode2.workspace.onDidCloseTextDocument((doc) => this.collection.delete(doc.uri)));
+        for (const sub of this.subscriptions) {
+          context.subscriptions.push(sub);
+        }
+        for (const doc of vscode2.workspace.textDocuments) {
+          this.lintDocument(doc);
+        }
+      }
+      dispose() {
+        for (const timer of this.timers.values()) {
+          clearTimeout(timer);
+        }
+        this.timers.clear();
+        for (const sub of this.subscriptions) {
+          sub.dispose();
+        }
+        this.subscriptions = [];
+        this.collection.dispose();
+      }
+      provideCodeActions(document, range, context) {
+        const actions = [];
+        for (const diagnostic of context.diagnostics) {
+          if (diagnostic.source !== SOROBAN_LINTER_SOURCE) {
+            continue;
+          }
+          const fix = RANGE_QUICK_FIXES.get(diagnostic);
+          if (!fix) {
+            continue;
+          }
+          if (!diagnostic.range.intersection(range)) {
+            continue;
+          }
+          const action = new vscode2.CodeAction(fix.title, vscode2.CodeActionKind.QuickFix);
+          const edit = new vscode2.WorkspaceEdit();
+          edit.replace(document.uri, fix.range, fix.replacement);
+          action.edit = edit;
+          action.diagnostics = [diagnostic];
+          action.isPreferred = true;
+          actions.push(action);
+        }
+        return actions;
+      }
+      scheduleLint(document) {
+        if (!this.shouldLint(document)) {
+          return;
+        }
+        const key = document.uri.toString();
+        const existing = this.timers.get(key);
+        if (existing) {
+          clearTimeout(existing);
+        }
+        this.timers.set(key, setTimeout(() => {
+          this.timers.delete(key);
+          this.lintDocument(document);
+        }, this.debounceMs));
+      }
+      lintDocument(document) {
+        if (!this.shouldLint(document)) {
+          this.collection.delete(document.uri);
+          return;
+        }
+        const diagnostics = [];
+        const text = document.getText();
+        for (const rule of RULES) {
+          for (const match of matchAll(text, rule.pattern)) {
+            if (isInCommentOrString(text, match.index ?? 0)) {
+              continue;
+            }
+            const start = document.positionAt(match.index ?? 0);
+            const end = document.positionAt((match.index ?? 0) + match[0].length);
+            const range = new vscode2.Range(start, end);
+            const diagnostic = new vscode2.Diagnostic(range, rule.message, rule.severity);
+            diagnostic.code = rule.id;
+            diagnostic.source = SOROBAN_LINTER_SOURCE;
+            if (rule.explanation) {
+              diagnostic.relatedInformation = [
+                new vscode2.DiagnosticRelatedInformation(new vscode2.Location(document.uri, range), rule.explanation)
+              ];
+            }
+            if (rule.quickFix) {
+              const lineText = document.lineAt(start.line).text;
+              const fix = rule.quickFix(match, lineText);
+              if (fix) {
+                RANGE_QUICK_FIXES.set(diagnostic, {
+                  diagnosticIndex: diagnostics.length,
+                  range,
+                  title: fix.title,
+                  replacement: fix.replacement
+                });
+              }
+            }
+            diagnostics.push(diagnostic);
+          }
+        }
+        this.collection.set(document.uri, diagnostics);
+      }
+      shouldLint(document) {
+        if (document.isUntitled) {
+          return false;
+        }
+        if (document.languageId !== "rust") {
+          return false;
+        }
+        const cfg = vscode2.workspace.getConfiguration("stellarSuite.linter");
+        if (!cfg.get("enabled", true)) {
+          return false;
+        }
+        return true;
+      }
+    };
+    exports2.SorobanLinterService = SorobanLinterService;
+    SorobanLinterService.DIAGNOSTIC_SOURCE = SOROBAN_LINTER_SOURCE;
+    function* matchAll(text, pattern) {
+      if (!pattern.global) {
+        const m = text.match(pattern);
+        if (m) {
+          yield m;
+        }
+        return;
+      }
+      const re = new RegExp(pattern.source, pattern.flags);
+      let match;
+      while ((match = re.exec(text)) !== null) {
+        yield match;
+        if (match.index === re.lastIndex) {
+          re.lastIndex += 1;
+        }
+      }
+    }
+    function isInCommentOrString(text, index) {
+      let inLineComment = false;
+      let inBlockComment = false;
+      let inString = false;
+      let stringChar = null;
+      for (let i = 0; i < index; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (inLineComment) {
+          if (ch === "\n") {
+            inLineComment = false;
+          }
+          continue;
+        }
+        if (inBlockComment) {
+          if (ch === "*" && next === "/") {
+            inBlockComment = false;
+            i++;
+          }
+          continue;
+        }
+        if (inString) {
+          if (ch === "\\") {
+            i++;
+            continue;
+          }
+          if (ch === stringChar) {
+            inString = false;
+            stringChar = null;
+          }
+          continue;
+        }
+        if (ch === "/" && next === "/") {
+          inLineComment = true;
+          i++;
+          continue;
+        }
+        if (ch === "/" && next === "*") {
+          inBlockComment = true;
+          i++;
+          continue;
+        }
+        if (ch === '"' || ch === "'") {
+          inString = true;
+          stringChar = ch;
+        }
+      }
+      return inLineComment || inBlockComment || inString;
+    }
+  }
+});
+
+// out/services/HealthAlerts.js
+var require_HealthAlerts = __commonJS({
+  "out/services/HealthAlerts.js"(exports2) {
+    "use strict";
+    var __createBinding2 = exports2 && exports2.__createBinding || (Object.create ? function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    } : function(o, m, k, k2) {
+      if (k2 === void 0)
+        k2 = k;
+      o[k2] = m[k];
+    });
+    var __setModuleDefault2 = exports2 && exports2.__setModuleDefault || (Object.create ? function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    } : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar2 = exports2 && exports2.__importStar || function(mod) {
+      if (mod && mod.__esModule)
+        return mod;
+      var result = {};
+      if (mod != null) {
+        for (var k in mod)
+          if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k))
+            __createBinding2(result, mod, k);
+      }
+      __setModuleDefault2(result, mod);
+      return result;
+    };
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.HealthAlertsService = void 0;
+    var vscode2 = __importStar2(require("vscode"));
+    var DEFAULTS = {
+      enabled: true,
+      latencySpikeMs: 1500,
+      consecutiveFailuresForDowntime: 3,
+      minNotifyIntervalMs: 6e4
+    };
+    var HealthAlertsService = class {
+      constructor(monitor) {
+        this.monitor = monitor;
+        this.consecutiveFailures = 0;
+        this.currentlyDown = false;
+        this.lastNotifiedAt = {};
+        this.cfg = readConfig();
+        this.subscription = this.monitor.onSample((sample, level) => this.handleSample(sample, level));
+        this.configWatcher = vscode2.workspace.onDidChangeConfiguration((e) => {
+          if (e.affectsConfiguration("stellarSuite.healthAlerts")) {
+            this.cfg = readConfig();
+          }
+        });
+      }
+      handleSample(sample, level) {
+        if (!this.cfg.enabled) {
+          return;
+        }
+        if (!sample.success) {
+          this.consecutiveFailures += 1;
+          if (!this.currentlyDown && this.consecutiveFailures >= this.cfg.consecutiveFailuresForDowntime) {
+            this.currentlyDown = true;
+            this.notifyDowntime(sample);
+          }
+          return;
+        }
+        const wasDown = this.currentlyDown;
+        this.consecutiveFailures = 0;
+        if (wasDown) {
+          this.currentlyDown = false;
+          this.notifyRecovered(sample);
+        }
+        if (sample.latencyMs >= this.cfg.latencySpikeMs) {
+          this.notifyLatencySpike(sample, level);
+        }
+      }
+      notifyDowntime(sample) {
+        if (!this.shouldNotify("downtime")) {
+          return;
+        }
+        const msg = `Stellar RPC node appears to be down (${this.consecutiveFailures} consecutive failures). Last error: ${sample.error ?? "unknown"}`;
+        void vscode2.window.showWarningMessage(msg, "Switch Network", "Show Health", "Disable Alerts").then((action) => this.handleAction(action));
+      }
+      notifyRecovered(sample) {
+        if (!this.shouldNotify("recovered")) {
+          return;
+        }
+        void vscode2.window.showInformationMessage(`Stellar RPC is back online (latency ${sample.latencyMs}ms).`);
+      }
+      notifyLatencySpike(sample, level) {
+        if (!this.shouldNotify("latency-spike")) {
+          return;
+        }
+        const msg = `Stellar RPC latency is ${sample.latencyMs}ms (${level}) \u2014 above the configured ${this.cfg.latencySpikeMs}ms threshold.`;
+        void vscode2.window.showWarningMessage(msg, "Switch Network", "Show Health", "Disable Alerts").then((action) => this.handleAction(action));
+      }
+      handleAction(action) {
+        if (!action) {
+          return;
+        }
+        switch (action) {
+          case "Switch Network":
+            void vscode2.commands.executeCommand("stellarSuite.switchNetwork");
+            break;
+          case "Show Health":
+            void vscode2.commands.executeCommand("stellarSuite.showNetworkHealth");
+            break;
+          case "Disable Alerts":
+            void vscode2.workspace.getConfiguration("stellarSuite").update("healthAlerts.enabled", false, vscode2.ConfigurationTarget.Global);
+            break;
+        }
+      }
+      shouldNotify(category) {
+        const now = Date.now();
+        const last = this.lastNotifiedAt[category] ?? 0;
+        if (now - last < this.cfg.minNotifyIntervalMs) {
+          return false;
+        }
+        this.lastNotifiedAt[category] = now;
+        return true;
+      }
+      dispose() {
+        this.subscription?.dispose();
+        this.configWatcher.dispose();
+      }
+    };
+    exports2.HealthAlertsService = HealthAlertsService;
+    function readConfig() {
+      const cfg = vscode2.workspace.getConfiguration("stellarSuite.healthAlerts");
+      return {
+        enabled: cfg.get("enabled", DEFAULTS.enabled),
+        latencySpikeMs: clampPositive(cfg.get("latencySpikeMs", DEFAULTS.latencySpikeMs), DEFAULTS.latencySpikeMs),
+        consecutiveFailuresForDowntime: clampPositive(cfg.get("consecutiveFailuresForDowntime", DEFAULTS.consecutiveFailuresForDowntime), DEFAULTS.consecutiveFailuresForDowntime),
+        minNotifyIntervalMs: clampPositive(cfg.get("minNotifyIntervalMs", DEFAULTS.minNotifyIntervalMs), DEFAULTS.minNotifyIntervalMs)
+      };
+    }
+    function clampPositive(value, fallback) {
+      return Number.isFinite(value) && value > 0 ? value : fallback;
+    }
+  }
+});
+
 // out/extension.js
 var __createBinding = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
   if (k2 === void 0)
@@ -5484,14 +6501,23 @@ var showNetworkHealth_1 = require_showNetworkHealth();
 var networkStatusBar_1 = require_networkStatusBar();
 var identityStatusBar_1 = require_identityStatusBar();
 var sidebarView_1 = require_sidebarView();
+var ContractInvokeView_1 = require_ContractInvokeView();
+var AccountBalanceView_1 = require_AccountBalanceView();
+var OpenInWebIDE_1 = require_OpenInWebIDE();
 var outputChannel_1 = require_outputChannel();
 var sorobanCliService_1 = require_sorobanCliService();
+var LinterService_1 = require_LinterService();
+var HealthAlerts_1 = require_HealthAlerts();
+var networkStatusBar_2 = require_networkStatusBar();
 var sidebarProvider;
 async function activate(context) {
   const outputChannel = (0, outputChannel_1.getSharedOutputChannel)();
   try {
     sidebarProvider = new sidebarView_1.SidebarViewProvider(context.extensionUri, context);
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider(sidebarView_1.SidebarViewProvider.viewType, sidebarProvider));
+    const contractInvokeProvider = new ContractInvokeView_1.ContractInvokeViewProvider(context.extensionUri);
+    const accountBalanceProvider = new AccountBalanceView_1.AccountBalanceViewProvider(context.extensionUri);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider(sidebarView_1.SidebarViewProvider.viewType, sidebarProvider), vscode.window.registerWebviewViewProvider(ContractInvokeView_1.ContractInvokeViewProvider.viewType, contractInvokeProvider), vscode.window.registerWebviewViewProvider(AccountBalanceView_1.AccountBalanceViewProvider.viewType, accountBalanceProvider));
+    (0, OpenInWebIDE_1.registerOpenInWebIDECommand)(context);
     outputChannel.appendLine("[Extension] Checking for Stellar CLI in PATH...");
     const cliPath = await sorobanCliService_1.SorobanCliService.findCliPath();
     if (!cliPath) {
@@ -5505,7 +6531,15 @@ async function activate(context) {
       outputChannel.appendLine(`[Extension] SUCCESS: Found Stellar CLI at: ${cliPath}`);
       await (0, networkStatusBar_1.initNetworkStatusBar)(context);
       await (0, identityStatusBar_1.initIdentityStatusBar)(context);
+      const monitor = (0, networkStatusBar_2.getLatencyMonitor)();
+      if (monitor) {
+        const healthAlerts = new HealthAlerts_1.HealthAlertsService(monitor);
+        context.subscriptions.push(healthAlerts);
+      }
     }
+    const linter = new LinterService_1.SorobanLinterService();
+    linter.register(context);
+    context.subscriptions.push(linter);
     const simulateCommand = vscode.commands.registerCommand("stellarSuite.simulateTransaction", () => {
       return (0, simulateTransaction_1.simulateTransaction)(context, sidebarProvider);
     });

@@ -1,8 +1,7 @@
-// ─────────────────────────────────────────────────────────────────────────────
+
 // File-based blog post store.
 // To add a new post: add an entry to ALL_POSTS below.
 // Fields: slug (URL key), title, excerpt, date (ISO), category, tags, readingTime, content (MDX/markdown string)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type Post = {
   slug: string;
@@ -181,7 +180,8 @@ For mainnet keys, we recommend hardware wallet support — which is on our roadm
   },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Helpers
 
 export function getAllPosts(): Post[] {
   return [...ALL_POSTS].sort(

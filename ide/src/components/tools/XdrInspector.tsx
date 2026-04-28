@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { xdr } from "@stellar/stellar-sdk";
+import {
+  normalizeXdrPayload,
+  validateBase64XdrPayload,
+} from "@/utils/XdrValidator";
+import { CopyToClipboard } from "@/components/ide/CopyToClipboard";
+import { checksumXdrPayload, verifyXdrChecksum } from "@/utils/XdrChecksum";
 
 type DecodedType = "TransactionEnvelope" | "LedgerEntry" | "ScVal";
 
@@ -99,6 +105,12 @@ export default function XdrInspector() {
   const [inputBase64, setInputBase64] = useState("");
   const [decoded, setDecoded] = useState<DecodedState | null>(null);
   const [encodedBase64, setEncodedBase64] = useState("");
+  const [computedChecksum, setComputedChecksum] = useState("");
+  const [expectedChecksum, setExpectedChecksum] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [verificationTone, setVerificationTone] = useState<
+    "idle" | "match" | "mismatch" | "error"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const decodedJson = useMemo(() => {
@@ -110,26 +122,70 @@ export default function XdrInspector() {
   }, [decoded]);
 
   const handleDecode = () => {
-    const normalized = inputBase64.trim();
+    void (async () => {
+      const normalized = normalizeXdrPayload(inputBase64);
+      if (!normalized) {
+        setErrorMessage("Please paste a Base64 XDR value before decoding.");
+        setDecoded(null);
+        setEncodedBase64("");
+        setComputedChecksum("");
+        return;
+      }
+
+      const validationError = validateBase64XdrPayload(normalized);
+      if (validationError) {
+        setErrorMessage(validationError.error);
+        setDecoded(null);
+        setEncodedBase64("");
+        setComputedChecksum("");
+        return;
+      }
+
+      try {
+        const [decodedResult, checksumResult] = await Promise.all([
+          Promise.resolve(decodeXdr(normalized)),
+          checksumXdrPayload(normalized),
+        ]);
+        setDecoded(decodedResult);
+        setComputedChecksum(checksumResult.checksum);
+        setEncodedBase64("");
+        setErrorMessage(null);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to decode XDR.";
+        setErrorMessage(`Decode failed: ${message}`);
+        setDecoded(null);
+        setEncodedBase64("");
+        setComputedChecksum("");
+      }
+    })();
+  };
+
+  const handleVerifyChecksum = () => {
+    const normalized = normalizeXdrPayload(inputBase64);
     if (!normalized) {
-      setErrorMessage("Please paste a Base64 XDR value before decoding.");
-      setDecoded(null);
-      setEncodedBase64("");
+      setVerificationTone("error");
+      setVerificationMessage("Paste Base64 XDR before verifying a checksum.");
       return;
     }
 
-    try {
-      const decodedResult = decodeXdr(normalized);
-      setDecoded(decodedResult);
-      setEncodedBase64("");
-      setErrorMessage(null);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to decode XDR.";
-      setErrorMessage(`Decode failed: ${message}`);
-      setDecoded(null);
-      setEncodedBase64("");
-    }
+    void (async () => {
+      try {
+        const result = await verifyXdrChecksum(normalized, expectedChecksum);
+        setComputedChecksum(result.checksum);
+        setVerificationTone(result.matches ? "match" : "mismatch");
+        setVerificationMessage(
+          result.matches
+            ? "Checksum verified. The imported XDR matches the supplied SHA-256 digest."
+            : "Checksum mismatch. The imported XDR does not match the supplied SHA-256 digest.",
+        );
+      } catch (error) {
+        setVerificationTone("error");
+        setVerificationMessage(
+          error instanceof Error ? error.message : "Checksum verification failed.",
+        );
+      }
+    })();
   };
 
   const handleEncode = () => {
@@ -200,7 +256,11 @@ export default function XdrInspector() {
               <textarea
                 id="xdr-input"
                 value={inputBase64}
-                onChange={(event) => setInputBase64(event.target.value)}
+                onChange={(event) => {
+                  setInputBase64(event.target.value);
+                  setVerificationTone("idle");
+                  setVerificationMessage(null);
+                }}
                 placeholder="AAAAAgAAA..."
                 className="min-h-28 w-full rounded-md border border-input bg-background p-3 font-mono text-xs text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               />
@@ -220,6 +280,81 @@ export default function XdrInspector() {
                   Encode
                 </button>
               </div>
+            </div>
+
+            <div className="mt-4 space-y-2 rounded-md border border-border bg-background/60 p-3">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Checksum Verification
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Compare imported XDR against a provided SHA-256 digest before manual submission.
+                  </p>
+                </div>
+                {computedChecksum ? (
+                  <CopyToClipboard
+                    text={computedChecksum}
+                    label="Copy computed checksum"
+                    copiedLabel="Checksum copied!"
+                  />
+                ) : null}
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  htmlFor="xdr-checksum"
+                  className="text-xs font-medium text-foreground"
+                >
+                  Expected SHA-256 Checksum
+                </label>
+                <input
+                  id="xdr-checksum"
+                  value={expectedChecksum}
+                  onChange={(event) => {
+                    setExpectedChecksum(event.target.value);
+                    setVerificationTone("idle");
+                    setVerificationMessage(null);
+                  }}
+                  placeholder="e3b0c44298fc1c149afbf4c8996fb924..."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleVerifyChecksum}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                >
+                  Verify Checksum
+                </button>
+              </div>
+
+              {computedChecksum ? (
+                <div className="rounded-md border border-border bg-card px-3 py-2">
+                  <p className="text-[11px] font-medium text-muted-foreground">
+                    Computed checksum
+                  </p>
+                  <code className="mt-1 block break-all text-[11px] text-foreground">
+                    {computedChecksum}
+                  </code>
+                </div>
+              ) : null}
+
+              {verificationMessage ? (
+                <div
+                  className={`rounded-md border px-3 py-2 text-xs ${
+                    verificationTone === "match"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : verificationTone === "mismatch"
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                        : "border-red-500/30 bg-red-500/10 text-red-300"
+                  }`}
+                >
+                  {verificationMessage}
+                </div>
+              ) : null}
             </div>
 
             {errorMessage ? (

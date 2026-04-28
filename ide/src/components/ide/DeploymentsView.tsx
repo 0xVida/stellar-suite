@@ -195,10 +195,13 @@ export function DeploymentsView({
         ) : (
           <div className="px-2 space-y-1">
             {filteredContracts.map((contract) => (
-              <button
+              <div
                 key={contract.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectContract(contract.id, contract.network)}
-                className={`w-full group text-left px-2.5 py-2.5 rounded-lg transition-all relative border ${
+                onKeyDown={(e) => e.key === "Enter" && onSelectContract(contract.id, contract.network)}
+                className={`w-full group text-left px-2.5 py-2.5 rounded-lg transition-all relative border cursor-pointer ${
                   activeContractId === contract.id
                     ? "bg-primary/10 border-primary/30 ring-1 ring-primary/20 shadow-sm shadow-primary/10"
                     : "hover:bg-sidebar-accent/50 border-transparent"
@@ -287,7 +290,7 @@ export function DeploymentsView({
                 {activeContractId === contract.id && (
                   <div className="absolute left-0 top-2 bottom-2 w-1 bg-primary rounded-r-full" />
                 )}
-              </button>
+              </div>
             ))}
           </div>
         )}

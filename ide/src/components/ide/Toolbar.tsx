@@ -10,8 +10,7 @@ import {
   Sparkles,
   ShieldAlert,
   Loader2,
-  FileCode2,
-  Database,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,26 +18,22 @@ import { BuildButton } from "@/components/ide/BuildButton";
 import { Button } from "@/components/ui/button";
 import { type NetworkKey } from "@/lib/networkConfig";
 import ImportGithubModal from "@/components/ide/ImportGithubModal";
-import CiConfigGenerator from "@/components/modals/CiConfigGenerator";
-import StateMockEditor from "@/components/modals/StateMockEditor";
 import { SettingsModal } from "@/components/ide/SettingsModal";
 import { WalletManager } from "@/components/WalletManager";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { GitBlameToggle } from "@/components/editor/GitBlameLines";
 import { SignInButton } from "@/components/auth/SignInButton";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { SaveToCloudButton } from "@/components/cloud/SaveToCloudButton";
 import { useAuth } from "@/hooks/useAuth";
 import useEnvironmentSlotsStore from "@/store/useEnvironmentSlotsStore";
-import { LiveShareButton } from "@/components/ide/LiveShareButton";
 import { useLiveShareStore } from "@/store/useLiveShareStore";
-
 import NotificationCenter from "@/components/notifications/NotificationCenter";
 
 type BuildState = "idle" | "building" | "success" | "error";
 
 interface ToolbarProps {
   onCompile: () => void;
+  onCancelCompile?: () => void;
   onDeploy: () => void;
   onTest: () => void;
   isCompiling?: boolean;
@@ -54,6 +49,7 @@ interface ToolbarProps {
 
 export function Toolbar({
   onCompile,
+  onCancelCompile,
   onDeploy,
   onTest,
   isCompiling: propIsCompiling,
@@ -72,8 +68,6 @@ export function Toolbar({
     network: storeNetwork,
     setNetwork,
     saveStatus: storeSaveStatus,
-    mockLedgerState,
-    setMockLedgerState,
   } = useWorkspaceStore();
 
   const isCompiling = propIsCompiling ?? storeIsCompiling;
@@ -103,34 +97,24 @@ export function Toolbar({
         return "#94a3b8";
     }
   };
+
   const { mode } = useLiveShareStore();
   const { isAuthenticated } = useAuth();
   const isReadOnly = mode === "recipient";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [ciOpen, setCiOpen] = useState(false);
-  const [stateEditorOpen, setStateEditorOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [xdrOpen, setXdrOpen] = useState(false);
-  const hasMockState = mockLedgerState.entries.length > 0;
 
-  // Allow CommandPalette and StatusBar to open the settings modal via a custom event
   useEffect(() => {
     const handler = () => setSettingsOpen(true);
     window.addEventListener("ide:open-settings", handler);
     return () => window.removeEventListener("ide:open-settings", handler);
   }, []);
 
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("ide:xdr-toggle", { detail: { open: xdrOpen } }),
-    );
-  }, [xdrOpen]);
-
   return (
     <div className="border-b border-border bg-toolbar-bg">
-      {/* ── Desktop toolbar ── */}
+      {/* Desktop toolbar */}
       <div className="hidden items-center justify-between px-3 py-2.5 md:flex">
         <div className="flex items-center gap-2">
           <span className="mr-2 font-mono text-sm font-semibold text-primary">
@@ -143,6 +127,21 @@ export function Toolbar({
             state={isCompiling ? "building" : buildState}
             disabled={isReadOnly}
           />
+
+          {isCompiling && onCancelCompile ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onCancelCompile}
+              className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive"
+              title="Cancel build"
+              aria-label="Cancel build"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              Cancel
+            </Button>
+          ) : null}
 
           <Button
             onClick={onDeploy}
@@ -203,8 +202,6 @@ export function Toolbar({
             </Button>
           ) : null}
 
-          <GitBlameToggle />
-
           <Button
             onClick={() => setImportOpen(true)}
             variant="ghost"
@@ -215,31 +212,8 @@ export function Toolbar({
             <Github className="h-3.5 w-3.5" />
             Import
           </Button>
-          <Button
-            onClick={() => setCiOpen(true)}
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            disabled={isReadOnly}
-          >
-            <FileCode2 className="h-3.5 w-3.5" />
-            Export CI
-          </Button>
-          <Button
-            onClick={() => setStateEditorOpen(true)}
-            variant="ghost"
-            size="sm"
-            className={`h-8 gap-1.5 text-xs ${hasMockState ? "text-primary" : ""}`}
-            title="Mock Ledger State"
-            disabled={isReadOnly}
-          >
-            <Database className="h-3.5 w-3.5" />
-            Mock State{hasMockState ? ` (${mockLedgerState.entries.length})` : ""}
-          </Button>
 
           <SaveToCloudButton disabled={isReadOnly} />
-
-          <LiveShareButton />
 
           {saveStatus ? (
             <span className="ml-2 font-mono text-[10px] text-muted-foreground">
@@ -295,17 +269,6 @@ export function Toolbar({
               </select>
             </div>
           </label>
-          <Button
-            type="button"
-            variant={xdrOpen ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setXdrOpen((prev) => !prev)}
-            className="h-8 gap-1.5 text-xs"
-            disabled={isReadOnly}
-          >
-            XDR
-          </Button>
-          <LiveShareButton />
           <WalletManager />
           {isAuthenticated ? <UserMenu /> : <SignInButton />}
           <button
@@ -319,7 +282,7 @@ export function Toolbar({
         </div>
       </div>
 
-      {/* ── Mobile toolbar ── */}
+      {/* Mobile toolbar */}
       <div className="flex items-center justify-between px-2 py-2 md:hidden">
         <div className="flex items-center gap-2">
           <span className="font-mono text-xs font-semibold text-primary">
@@ -386,16 +349,6 @@ export function Toolbar({
           <div className="origin-right scale-90">
             {isAuthenticated ? <UserMenu /> : <SignInButton />}
           </div>
-          <Button
-            type="button"
-            variant={xdrOpen ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setXdrOpen((prev) => !prev)}
-            className="h-7 px-2 text-[10px]"
-            disabled={isReadOnly}
-          >
-            XDR
-          </Button>
           <button
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             className="p-1.5 text-muted-foreground hover:text-foreground"
@@ -409,14 +362,12 @@ export function Toolbar({
           </button>
         </div>
       </div>
-      {/* ── Mobile expanded menu ── */}
+
+      {/* Mobile expanded menu */}
       {mobileMenuOpen ? (
         <div className="flex flex-col gap-2 border-b border-border px-2 pb-2 md:hidden">
           <Button
-            onClick={() => {
-              onCompile();
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { onCompile(); setMobileMenuOpen(false); }}
             disabled={isCompiling || isReadOnly}
             className="h-9 flex-1 gap-1 text-[11px]"
           >
@@ -425,10 +376,7 @@ export function Toolbar({
           </Button>
 
           <Button
-            onClick={() => {
-              onDeploy();
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { onDeploy(); setMobileMenuOpen(false); }}
             variant="outline"
             disabled={isReadOnly}
             className="h-9 flex-1 gap-1 text-[11px]"
@@ -441,10 +389,7 @@ export function Toolbar({
             type="button"
             variant="outline"
             className="h-9 flex-1 gap-1 text-[11px]"
-            onClick={() => {
-              onTest();
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { onTest(); setMobileMenuOpen(false); }}
             disabled={isReadOnly}
           >
             Test
@@ -455,10 +400,7 @@ export function Toolbar({
               type="button"
               variant="outline"
               className="h-9 flex-1 gap-1 text-[11px]"
-              onClick={() => {
-                onRunClippy();
-                setMobileMenuOpen(false);
-              }}
+              onClick={() => { onRunClippy(); setMobileMenuOpen(false); }}
               disabled={isRunningClippy || isReadOnly}
             >
               {isRunningClippy ? (
@@ -475,10 +417,7 @@ export function Toolbar({
               type="button"
               variant="outline"
               className="h-9 flex-1 gap-1 text-[11px]"
-              onClick={() => {
-                onRunAudit();
-                setMobileMenuOpen(false);
-              }}
+              onClick={() => { onRunAudit(); setMobileMenuOpen(false); }}
               disabled={isRunningAudit || isReadOnly}
             >
               {isRunningAudit ? (
@@ -493,10 +432,7 @@ export function Toolbar({
           <Button
             variant="outline"
             className="h-9 flex-1 gap-1 text-[11px]"
-            onClick={() => {
-              setImportOpen(true);
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { setImportOpen(true); setMobileMenuOpen(false); }}
             disabled={isReadOnly}
           >
             <Github className="h-3 w-3" />
@@ -506,35 +442,7 @@ export function Toolbar({
           <Button
             variant="outline"
             className="h-9 flex-1 gap-1 text-[11px]"
-            onClick={() => {
-              setCiOpen(true);
-              setMobileMenuOpen(false);
-            }}
-            disabled={isReadOnly}
-          >
-            <FileCode2 className="h-3 w-3" />
-            Export CI
-          </Button>
-          <Button
-            className={`h-9 flex-1 gap-1 text-[11px] ${hasMockState ? "text-primary" : ""}`}
-            onClick={() => {
-              setStateEditorOpen(true);
-              setMobileMenuOpen(false);
-            }}
-            disabled={isReadOnly}
-          >
-            <Database className="h-3 w-3" />
-            Mock State
-          </Button>
-
-          <LiveShareButton />
-          <Button
-            variant="outline"
-            className="h-9 flex-1 gap-1 text-[11px]"
-            onClick={() => {
-              setSettingsOpen(true);
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }}
           >
             <Settings className="h-3 w-3" />
             Settings
@@ -543,13 +451,6 @@ export function Toolbar({
       ) : null}
 
       <ImportGithubModal open={importOpen} onClose={() => setImportOpen(false)} />
-      <CiConfigGenerator open={ciOpen} onOpenChange={setCiOpen} />
-      <StateMockEditor
-        open={stateEditorOpen}
-        onOpenChange={setStateEditorOpen}
-        value={mockLedgerState}
-        onSave={setMockLedgerState}
-      />
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );

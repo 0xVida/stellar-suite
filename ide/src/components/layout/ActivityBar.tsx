@@ -21,30 +21,19 @@ import {
   ClipboardList,
   MessageSquare,
   GraduationCap,
+  Globe,
 } from "lucide-react";
 import { ReactNode } from "react";
 
 export type ActivityTab =
   | "explorer"
   | "git"
-  | "comments"
   | "deployments"
   | "identities"
-  | "multisig"
-  | "liquidity"
   | "search"
   | "security"
   | "tests"
-  | "fuzzing"
-  | "outline"
-  | "references"
-  | "binary-diff"
-  | "oracle"
-  | "benchmarks"
-  | "inspector"
-  | "audit"
-  | "assets"
-  | "tutorials";
+  | "network";
 
 interface ActivityBarProps {
   activeTab: ActivityTab;
@@ -69,15 +58,15 @@ const tabs: ActivityBarTab[] = [
   },
   {
     id: "git",
-    icon: <History className="h-5 w-5 rotate-180" />, // Use History rotated as a placeholder for Git if GitBranch is not available or just to match look
+    icon: <History className="h-5 w-5 rotate-180" />,
     label: "Source Control",
     title: "Source Control (Git)",
   },
   {
-    id: "comments",
-    icon: <MessageSquare className="h-5 w-5" />,
-    label: "Comments",
-    title: "Line Comments and Annotations",
+    id: "search",
+    icon: <Search className="h-5 w-5" />,
+    label: "Search",
+    title: "Search Files",
   },
   {
     id: "deployments",
@@ -92,36 +81,6 @@ const tabs: ActivityBarTab[] = [
     title: "Identities",
   },
   {
-    id: "multisig",
-    icon: <GitMerge className="h-5 w-5" />,
-    label: "Multisig",
-    title: "Multisig Transaction Builder",
-  },
-  {
-    id: "liquidity",
-    icon: <TrendingUp className="h-5 w-5" />,
-    label: "LP Simulator",
-    title: "Liquidity Pool Swap Simulator",
-  },
-  {
-    id: "search",
-    icon: <Search className="h-5 w-5" />,
-    label: "Search",
-    title: "Search Files",
-  },
-  {
-    id: "outline",
-    icon: <ListTree className="h-5 w-5" />,
-    label: "Outline",
-    title: "Symbol Outline",
-  },
-  {
-    id: "binary-diff",
-    icon: <Binary className="h-5 w-5" />,
-    label: "Binary Diff",
-    title: "WASM Binary Diffing Tool",
-  },
-  {
     id: "security",
     icon: <ShieldAlert className="h-5 w-5" />,
     label: "Security",
@@ -134,40 +93,10 @@ const tabs: ActivityBarTab[] = [
     title: "Test Explorer",
   },
   {
-    id: "fuzzing",
-    icon: <Bug className="h-5 w-5" />,
-    label: "Fuzzing",
-    title: "cargo-fuzz Security Testing",
-  },
-  {
-    id: "inspector",
-    icon: <FileSearch className="h-5 w-5" />,
-    label: "Inspector",
-    title: "WASM Contract Inspector",
-  },
-  {
-    id: "references",
-    icon: <Library className="h-5 w-5" />,
-    label: "References",
-    title: "Find All References",
-  },
-  {
-    id: "benchmarks",
-    icon: <BarChart2 className="h-5 w-5" />,
-    label: "Benchmarks",
-    title: "Criterion Benchmark Dashboard",
-  },
-  {
-    id: "audit",
-    icon: <ClipboardList className="h-5 w-5" />,
-    label: "Audit Log",
-    title: "Project Audit Log",
-  },
-  {
-    id: "tutorials",
-    icon: <GraduationCap className="h-5 w-5" />,
-    label: "Tutorials",
-    title: "Interactive Tutorials",
+    id: "network",
+    icon: <Globe className="h-5 w-5" />,
+    label: "Network",
+    title: "Network Explorer",
   },
 ];
 

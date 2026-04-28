@@ -4,6 +4,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { ChevronDown, ChevronUp, Terminal as TermIcon, Trash2 } from "lucide-react";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { LogRedactor, useRedaction } from "@/components/ide/LogRedactor";
 
 export interface LogEntry {
   type: "info" | "success" | "warning" | "error";
@@ -32,15 +33,18 @@ export function Terminal({
     setTerminalExpanded,
     setTerminalOutput,
   } = useWorkspaceStore();
+  const { apply: applyRedaction } = useRedaction();
   const output = useMemo(() => {
-    if (!logs) {
-      return storeOutput;
-    }
-
-    return logs
-      .map((entry) => `[${entry.timestamp}] ${entry.type.toUpperCase()} ${entry.message}`)
-      .join("\r\n");
-  }, [logs, storeOutput]);
+    const raw = !logs
+      ? storeOutput
+      : logs
+          .map(
+            (entry) =>
+              `[${entry.timestamp}] ${entry.type.toUpperCase()} ${entry.message}`,
+          )
+          .join("\r\n");
+    return applyRedaction(raw).redacted;
+  }, [logs, storeOutput, applyRedaction]);
   const isExpanded = propIsExpanded ?? storeExpanded;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<XTerm | null>(null);
@@ -150,6 +154,14 @@ export function Terminal({
         </div>
 
         <div className="flex items-center gap-1">
+          {isExpanded && (
+            <span
+              onClick={(event) => event.stopPropagation()}
+              className="inline-flex"
+            >
+              <LogRedactor />
+            </span>
+          )}
           {isExpanded && (propOnClear || output.length > 0) && (
             <span
               role="button"

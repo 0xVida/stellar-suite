@@ -1,0 +1,20 @@
+{
+  "name": "Stellar IDE — Soroban Smart Contract Development",
+  "short_name": "Stellar IDE",
+  "description": "Browser-based IDE for developing, compiling, and deploying Stellar Soroban smart contracts — works offline.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer tools", "productivity"],
+  "prefer_related_applications": false
+}

@@ -135,6 +135,7 @@ export function DeploymentStepper({
     <Dialog open={open} onOpenChange={(v) => { if (!v && isTerminal) onClose(); }}>
       <DialogContent
         className="sm:max-w-md bg-card border-border"
+        data-testid="deployment-stepper"
         // Prevent accidental dismissal mid-deploy
         onInteractOutside={(e) => { if (!isTerminal) e.preventDefault(); }}
         onEscapeKeyDown={(e) => { if (!isTerminal) e.preventDefault(); }}
@@ -168,6 +169,8 @@ export function DeploymentStepper({
             return (
               <li
                 key={s.key}
+                data-testid={`deploy-step-${s.key}`}
+                data-status={status}
                 className={cn(
                   "flex items-start gap-3 rounded-md px-3 py-2 transition-colors duration-200",
                   status === "active" && "bg-primary/5 border border-primary/20",
@@ -201,7 +204,7 @@ export function DeploymentStepper({
 
         {/* ── Success banner ────────────────────────────────────────── */}
         {step === "success" && (
-          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 space-y-2">
+          <div data-testid="deploy-success" className="animate-in fade-in slide-in-from-bottom-1 duration-300 space-y-2">
             <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               <p className="text-xs text-emerald-400 font-mono">
@@ -232,7 +235,7 @@ export function DeploymentStepper({
 
         {/* ── Error banner ──────────────────────────────────────────── */}
         {step === "error" && error && (
-          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 space-y-2">
+          <div data-testid="deploy-error" className="animate-in fade-in slide-in-from-bottom-1 duration-300 space-y-2">
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2">
               <XCircle className="h-4 w-4 text-destructive shrink-0 mt-px" />
               <p className="text-xs text-destructive font-mono break-all">{error}</p>
@@ -245,6 +248,7 @@ export function DeploymentStepper({
                 </span>
                 <button
                   onClick={onRetryInstantiate}
+                  data-testid="deploy-retry-instantiate"
                   className="shrink-0 flex items-center gap-1 text-[10px] font-semibold text-amber-300 hover:text-amber-200 transition-colors"
                   aria-label="Retry instantiation"
                 >
@@ -260,6 +264,7 @@ export function DeploymentStepper({
         {showTimeoutWarning && !isTerminal && (
           <div
             role="alert"
+            data-testid="deploy-timeout-warning"
             className="animate-in fade-in duration-500 flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2"
           >
             <span className="text-amber-400 text-[10px] leading-relaxed font-mono">

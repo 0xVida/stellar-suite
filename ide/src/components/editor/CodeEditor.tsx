@@ -25,7 +25,7 @@ import React, { Suspense, useEffect, useRef, useState } from "react";
 import { analyzeMathSafety } from "../../lib/mathSafetyAnalyzer";
 import { useMathSafetyStore } from "../../store/useMathSafetyStore";
 import { useUserSettingsStore } from "@/store/useUserSettingsStore";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { Breadcrumbs } from "@/components/ide/Breadcrumbs";
 import { GitBlameLines } from "./GitBlameLines";
 import { getAllMonacoCompletions } from "@/utils/proptestSnippets";
 import { useTestGutter } from "@/hooks/useTestGutter";
@@ -34,6 +34,7 @@ import { git } from "@/lib/git";
 import "@/styles/editor-gutter.css";
 import { referenceProvider } from "@/lib/referenceProvider";
 import { useLiveShare } from "@/hooks/useLiveShare";
+import { registerRustHoverProvider } from "@/lib/rustHoverProvider";
 
 interface CodeEditorProps {
   onCursorChange?: (line: number, col: number) => void;
@@ -41,7 +42,7 @@ interface CodeEditorProps {
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
-  const { activeTabPath, files, updateFileContent } = useWorkspaceStore();
+  const { activeTabPath, files, openTabs, updateFileContent } = useWorkspaceStore();
   const { diagnostics } = useDiagnosticsStore();
   const { config, setMathDiagnostics, getAllDiagnostics } =
     useMathSafetyStore();
@@ -57,6 +58,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   const coverageDecorations =
     useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
   const codeActionProviderRegistered = useRef(false);
+  const disposablesRef = useRef<Monaco.IDisposable[]>([]);
+  const managedModelPathsRef = useRef<Set<string>>(new Set());
 
   // Git gutter: track mounted editor/monaco and HEAD content for active file
   const [mountedEditor, setMountedEditor] =
@@ -81,7 +84,68 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
   }, [files]);
   useEffect(() => {
     activeFileIdRef.current = activeFileId;
+    if (activeFileId) {
+      managedModelPathsRef.current.add(activeFileId);
+    }
   }, [activeFileId]);
+
+  const disposeWorkspaceModel = React.useCallback(
+    (fileId: string) => {
+      const monaco = monacoRef.current;
+      if (!monaco) return;
+
+      for (const model of monaco.editor.getModels()) {
+        const modelPath = decodeURIComponent(model.uri.path).replace(/^\/+/, "");
+        const modelUri = decodeURIComponent(model.uri.toString());
+        if (modelPath === fileId || modelUri.endsWith(fileId)) {
+          monaco.editor.setModelMarkers(model, "diagnostics", []);
+          model.dispose();
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const openFileIds = new Set(openTabs.map((tab) => tab.path.join("/")));
+
+    for (const fileId of Array.from(managedModelPathsRef.current)) {
+      if (!openFileIds.has(fileId)) {
+        disposeWorkspaceModel(fileId);
+        managedModelPathsRef.current.delete(fileId);
+      }
+    }
+  }, [openTabs, disposeWorkspaceModel]);
+
+  useEffect(() => {
+    return () => {
+      const editor = editorRef.current;
+      const currentFileId = activeFileIdRef.current;
+
+      if (editor && currentFileId) {
+        const viewState = editor.saveViewState();
+        if (viewState) {
+          saveViewState(currentFileId, viewState);
+        }
+      }
+
+      coverageDecorations.current?.clear();
+      coverageDecorations.current = null;
+
+      for (const disposable of disposablesRef.current.splice(0)) {
+        disposable.dispose();
+      }
+
+      for (const fileId of Array.from(managedModelPathsRef.current)) {
+        disposeWorkspaceModel(fileId);
+      }
+      managedModelPathsRef.current.clear();
+
+      setJumpToLine(null);
+      editorRef.current = null;
+      monacoRef.current = null;
+    };
+  }, [disposeWorkspaceModel, saveViewState, setJumpToLine]);
 
   const activeFile = React.useMemo(() => {
     const findNode = (
@@ -273,10 +337,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     // Initialize symbol indexer and definition provider
     symbolIndexer.indexFiles(files);
     definitionProvider.initialize(editor, monaco);
-    definitionProvider.registerDefinitionProvider(monaco);
-    definitionProvider.registerOnDefinitionHandler(monaco);
+    disposablesRef.current.push(definitionProvider.registerDefinitionProvider(monaco));
+    disposablesRef.current.push(
+      ...definitionProvider.registerOnDefinitionHandler(monaco),
+    );
     referenceProvider.initialize(monaco);
-    referenceProvider.register(monaco);
+    disposablesRef.current.push(referenceProvider.register(monaco));
+    disposablesRef.current.push(registerRustHoverProvider(monaco, editor));
 
     // Listen for file open requests from definition provider
     const handleFileOpen = (event: CustomEvent) => {
@@ -328,11 +395,11 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       onSave?.();
     });
 
-    editor.onDidChangeCursorPosition((e) => {
+    disposablesRef.current.push(editor.onDidChangeCursorPosition((e) => {
       onCursorChange?.(e.position.lineNumber, e.position.column);
-    });
+    }));
 
-    editor.onDidChangeHiddenAreas(() => {
+    disposablesRef.current.push(editor.onDidChangeHiddenAreas(() => {
       const currentFileId = activeFileIdRef.current;
       if (!currentFileId) return;
 
@@ -340,7 +407,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       if (viewState) {
         saveViewState(currentFileId, viewState);
       }
-    });
+    }));
 
     monaco.editor.defineTheme("stellar-dark", {
       base: "vs-dark",
@@ -389,18 +456,18 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
       const legend = semanticProvider.getLegend();
 
       // Register semantic tokens provider
-      monaco.languages.registerDocumentSemanticTokensProvider(
+      disposablesRef.current.push(monaco.languages.registerDocumentSemanticTokensProvider(
         "rust",
         semanticProvider,
         legend,
-      );
+      ));
     }
 
     // Register code action provider for error help
     if (!codeActionProviderRegistered.current) {
       codeActionProviderRegistered.current = true;
 
-      monaco.languages.registerCodeActionProvider("rust", {
+      disposablesRef.current.push(monaco.languages.registerCodeActionProvider("rust", {
         provideCodeActions: (model, range, context) => {
           const actions: Monaco.languages.CodeAction[] = [];
 
@@ -429,22 +496,22 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
             dispose: () => {},
           };
         },
-      });
+      }));
 
       // Register the command to open error help
-      editor.addAction({
+      disposablesRef.current.push(editor.addAction({
         id: "stellar.openErrorHelp",
         label: "Open Error Help",
         run: (_editor, errorCode: string) => {
           openErrorHelp(errorCode);
         },
-      });
+      }));
     }
 
     if (!rustProviderRegistered.current) {
       rustProviderRegistered.current = true;
 
-      monaco.languages.setLanguageConfiguration("rust", {
+      disposablesRef.current.push(monaco.languages.setLanguageConfiguration("rust", {
         comments: {
           lineComment: "//",
           blockComment: ["/*", "*/"],
@@ -473,14 +540,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
           },
           offSide: false,
         },
-      });
+      }));
 
-      monaco.languages.registerFoldingRangeProvider(
+      disposablesRef.current.push(monaco.languages.registerFoldingRangeProvider(
         "rust",
         createRustFoldingRangeProvider(),
-      );
+      ));
 
-      monaco.languages.registerCompletionItemProvider("rust", {
+      disposablesRef.current.push(monaco.languages.registerCompletionItemProvider("rust", {
         triggerCharacters: [".", ":", " "], // 👈 IMPORTANT
 
         provideCompletionItems: () => {
@@ -536,10 +603,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
 
           return { suggestions };
         },
-      });
+      }));
 
       // Workspace-wide rename provider (F2)
-      monaco.languages.registerRenameProvider("rust", {
+      disposablesRef.current.push(monaco.languages.registerRenameProvider("rust", {
         provideRenameEdits(model, position, newName) {
           const oldName = model.getWordAtPosition(position)?.word;
           if (!oldName) return { edits: [] };
@@ -607,17 +674,18 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
             text: word.word,
           };
         },
-      });
+      }));
     }
 
-    // Cleanup function
-    return () => {
+    disposablesRef.current.push({
+      dispose: () => {
       window.removeEventListener("openFile", handleFileOpen as EventListener);
       window.removeEventListener(
         "jumpToPosition",
         handleJumpToPosition as EventListener,
       );
-    };
+      },
+    });
   };
 
   if (!activeFile) {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type NetworkKey } from "@/lib/networkConfig";
+import type { SimulationComparisonData } from "@/lib/simulationDiff";
 
 export type TransactionResultStatus = "success" | "error";
 export type TransactionSource = "simulate" | "send" | "server-action" | "rpc";
@@ -18,6 +19,7 @@ export interface TransactionResultEntry {
   errorMessage: string | null;
   durationMs?: number;
   source?: TransactionSource;
+  simulationComparison?: SimulationComparisonData | null;
 }
 
 interface TransactionResultsState {

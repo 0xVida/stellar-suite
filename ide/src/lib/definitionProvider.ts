@@ -160,10 +160,12 @@ export class DefinitionProvider {
   }
 
   public registerDefinitionProvider(monaco: typeof Monaco) {
-    monaco.languages.registerDefinitionProvider(["rust", "toml"], this);
+    return monaco.languages.registerDefinitionProvider(["rust", "toml"], this);
   }
 
   public registerOnDefinitionHandler(monaco: typeof Monaco) {
+    const disposables: Monaco.IDisposable[] = [];
+
     if (this.editor) {
       // Register command for Ctrl+Click / Cmd+Click
       this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.F1, () => {
@@ -179,7 +181,7 @@ export class DefinitionProvider {
       });
 
       // Enable Ctrl+Click / Cmd+Click for go to definition
-      this.editor.onMouseDown((e) => {
+      disposables.push(this.editor.onMouseDown((e) => {
         if (e.event.ctrlKey || e.event.metaKey) {
           const position = e.target.position;
           const model = this.editor!.getModel();
@@ -193,10 +195,10 @@ export class DefinitionProvider {
             }
           }
         }
-      });
+      }));
 
       // Update cursor style on hover with Ctrl/Cmd
-      this.editor.onMouseMove((e) => {
+      disposables.push(this.editor.onMouseMove((e) => {
         if (e.event.ctrlKey || e.event.metaKey) {
           const position = e.target.position;
           const model = this.editor!.getModel();
@@ -218,14 +220,16 @@ export class DefinitionProvider {
         } else {
           this.editor!.getContainerDomNode().style.cursor = "default";
         }
-      });
+      }));
 
-      this.editor.onMouseLeave(() => {
+      disposables.push(this.editor.onMouseLeave(() => {
         if (this.editor) {
           this.editor.getContainerDomNode().style.cursor = "default";
         }
-      });
+      }));
     }
+
+    return disposables;
   }
 }
 

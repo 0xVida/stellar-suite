@@ -1,23 +1,24 @@
 "use client";
 
 import { CommandPalette } from "@/components/ide/CommandPalette";
-import Index from "@/features/ide/Index";
+import dynamic from "next/dynamic";
+const Index = dynamic(() => import("@/features/ide/Index"), { ssr: false });
 import { MobileGatekeeper } from "@/components/ide/MobileGatekeeper";
 import { QuickOpen } from "@/components/ide/QuickOpen";
 import { SettingsModal } from "@/components/ide/SettingsModal";
+import { ReleaseNotes } from "@/components/modals/ReleaseNotes";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import XdrInspector from "@/components/tools/XdrInspector";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
-// `Index` already imported above; duplicate import removed.
 
 export default function HomePage() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
     const handleGlobalShortcuts = (event: KeyboardEvent) => {
@@ -75,28 +76,21 @@ export default function HomePage() {
     };
   }, []);
 
+  if (!isMounted) return null;
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <MobileGatekeeper />
-          <XdrInspector />
-          <Index />
-          <QuickOpen />
-          <CommandPalette
-            open={commandPaletteOpen}
-            onOpenChange={setCommandPaletteOpen}
-          />
-          <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <>
+      <Toaster />
+      <Sonner />
+      <MobileGatekeeper />
+      <Index />
+      <QuickOpen />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
+      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <ReleaseNotes />
+    </>
   );
 }

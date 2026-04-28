@@ -143,7 +143,8 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
   },
 ];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+// Helpers
 
 export function getAllFaqItems(): FaqItem[] {
   return FAQ_CATEGORIES.flatMap((c) => c.items);

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Breadcrumbs } from '../Breadcrumbs';
+import { Breadcrumbs } from '@/components/ide/Breadcrumbs';
 import { useWorkspaceStore } from '@/store/workspaceStore';
 import type { FileNode } from '@/lib/sample-contracts';
 

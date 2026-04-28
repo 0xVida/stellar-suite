@@ -20,12 +20,26 @@ export interface WorkspaceRoot {
   };
 }
 
+export interface ArchivedWorkspaceRoot extends WorkspaceRoot {
+  deletedAt: string;
+}
+
+export const TRASH_RETENTION_DAYS = 30;
+const TRASH_RETENTION_MS = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
 interface MultiRootState {
   roots: WorkspaceRoot[];
+  trash: ArchivedWorkspaceRoot[];
   /** Add a new root folder */
   addRoot: (name: string, files?: FileNode[]) => string;
-  /** Remove a root by id */
+  /** Move a root to trash by id */
   removeRoot: (id: string) => void;
+  /** Restore a root from trash */
+  restoreRoot: (id: string) => void;
+  /** Permanently delete a trashed root */
+  permanentlyDeleteRoot: (id: string) => void;
+  /** Purge roots that exceeded retention window */
+  purgeExpiredTrash: () => void;
   /** Reorder roots (drag-and-drop) */
   reorderRoots: (fromIndex: number, toIndex: number) => void;
   /** Update files for a specific root */
@@ -62,8 +76,9 @@ const DEFAULT_ROOT: WorkspaceRoot = {
 
 export const useMultiRootStore = create<MultiRootState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       roots: [DEFAULT_ROOT],
+      trash: [],
 
       addRoot: (name, files = []) => {
         const id = genId();
@@ -78,11 +93,60 @@ export const useMultiRootStore = create<MultiRootState>()(
       },
 
       removeRoot: (id) => {
+        set((state) => {
+          const removedRoot = state.roots.find((root) => root.id === id);
+          if (!removedRoot) {
+            return state;
+          }
+
+          return {
+            roots: state.roots.filter((root) => root.id !== id),
+            trash: [
+              ...state.trash,
+              {
+                ...removedRoot,
+                deletedAt: new Date().toISOString(),
+              },
+            ],
+          };
+        });
+      },
+
+      restoreRoot: (id) => {
+        set((state) => {
+          const item = state.trash.find((root) => root.id === id);
+          if (!item) return state;
+
+          const restoredRoot: WorkspaceRoot = {
+            id: item.id,
+            name: item.name,
+            files: item.files,
+            buildContext: item.buildContext,
+          };
+
+          return {
+            roots: state.roots.some((root) => root.id === restoredRoot.id)
+              ? state.roots
+              : [...state.roots, restoredRoot],
+            trash: state.trash.filter((root) => root.id !== id),
+          };
+        });
+      },
+
+      permanentlyDeleteRoot: (id) => {
         set((state) => ({
-          roots:
-            state.roots.length > 1
-              ? state.roots.filter((r) => r.id !== id)
-              : state.roots, // always keep at least one root
+          trash: state.trash.filter((root) => root.id !== id),
+        }));
+      },
+
+      purgeExpiredTrash: () => {
+        const now = Date.now();
+        set((state) => ({
+          trash: state.trash.filter((root) => {
+            const deletedAtMs = new Date(root.deletedAt).getTime();
+            if (Number.isNaN(deletedAtMs)) return false;
+            return now - deletedAtMs < TRASH_RETENTION_MS;
+          }),
         }));
       },
 
@@ -123,7 +187,7 @@ export const useMultiRootStore = create<MultiRootState>()(
     }),
     {
       name: "stellar-suite-multi-root-store",
-      partialize: (state) => ({ roots: state.roots }),
+      partialize: (state) => ({ roots: state.roots, trash: state.trash }),
     }
   )
 );

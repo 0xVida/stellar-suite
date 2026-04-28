@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { txLink, truncateHash } from "@/utils/explorerLinks";
 import { stringifyDecodedValue } from "@/utils/scValDecoder";
 import { type TransactionResultEntry } from "@/store/useTransactionResultsStore";
+import { SimulationComparison } from "@/components/ide/SimulationComparison";
 
 interface TransactionResultLogProps {
   entry: TransactionResultEntry;
@@ -61,7 +62,7 @@ export function TransactionResultLog({ entry }: TransactionResultLogProps) {
               <span className="text-muted-foreground/80">N/A</span>
             )}
             {entry.txHash && (
-              <button onClick={() => handleCopy(entry.txHash ?? "")} className="p-1 text-muted-foreground hover:text-foreground" title="Copy transaction hash">
+              <button onClick={() => handleCopy(entry.txHash ?? "")} className="p-1 text-muted-foreground hover:text-foreground" title="Copy transaction hash" aria-label="Copy transaction hash">
                 <Copy className="h-3 w-3" />
               </button>
             )}
@@ -81,6 +82,10 @@ export function TransactionResultLog({ entry }: TransactionResultLogProps) {
               <p className="text-[11px] text-destructive">{entry.errorMessage}</p>
             )}
           </div>
+
+          {entry.simulationComparison && (
+            <SimulationComparison comparison={entry.simulationComparison} />
+          )}
         </div>
       )}
     </div>

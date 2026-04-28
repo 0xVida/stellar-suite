@@ -5,6 +5,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalStore } from "@/store/useTerminalStore";
+import { useUserSettingsStore, TERMINAL_THEMES } from "@/store/useUserSettingsStore";
 
 /**
  * TerminalPane
@@ -22,37 +23,16 @@ export function TerminalPane() {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const { pendingLines, clearPending, setWriter } = useTerminalStore();
+  const { terminalTheme, terminalFontFamily, terminalFontSize } = useUserSettingsStore();
 
   // ── Boot xterm once on mount ──────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
     const term = new XTerm({
-      theme: {
-        background:  "#0d1117",
-        foreground:  "#e6edf3",
-        cursor:      "#58a6ff",
-        cursorAccent:"#0d1117",
-        black:       "#484f58",
-        red:         "#ff7b72",
-        green:       "#3fb950",
-        yellow:      "#d29922",
-        blue:        "#58a6ff",
-        magenta:     "#bc8cff",
-        cyan:        "#39c5cf",
-        white:       "#b1bac4",
-        brightBlack: "#6e7681",
-        brightRed:   "#ffa198",
-        brightGreen: "#56d364",
-        brightYellow:"#e3b341",
-        brightBlue:  "#79c0ff",
-        brightMagenta:"#d2a8ff",
-        brightCyan:  "#56d4dd",
-        brightWhite: "#f0f6fc",
-        selectionBackground: "#264f78",
-      },
-      fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", Menlo, monospace',
-      fontSize: 12,
+      theme: TERMINAL_THEMES[terminalTheme],
+      fontFamily: terminalFontFamily,
+      fontSize: terminalFontSize,
       lineHeight: 1.5,
       letterSpacing: 0,
       scrollback: 5000,
@@ -86,14 +66,15 @@ export function TerminalPane() {
     };
   }, [setWriter]);
 
-  // ── Drain pending lines written before the terminal mounted ──────────
+  // ── Update terminal settings when they change ──────────────────────
   useEffect(() => {
-    if (!xtermRef.current || pendingLines.length === 0) return;
-    for (const line of pendingLines) {
-      xtermRef.current.write(line);
-    }
-    clearPending();
-  }, [pendingLines, clearPending]);
+    if (!xtermRef.current) return;
+    xtermRef.current.options.theme = TERMINAL_THEMES[terminalTheme];
+    xtermRef.current.options.fontFamily = terminalFontFamily;
+    xtermRef.current.options.fontSize = terminalFontSize;
+    // Refresh the terminal to apply changes
+    xtermRef.current.refresh(0, xtermRef.current.rows - 1);
+  }, [terminalTheme, terminalFontFamily, terminalFontSize]);
 
   // ── Resize observer → fitAddon.fit() ────────────────────────────────
   const handleResize = useCallback(() => {

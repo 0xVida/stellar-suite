@@ -32,6 +32,7 @@ export function BuildButton({
   state = "idle",
   className,
   compact = false,
+  disabled = false,
 }: BuildButtonProps) {
   const variantClassName =
     state === "success"

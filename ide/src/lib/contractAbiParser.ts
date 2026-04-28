@@ -252,7 +252,7 @@ const createFunctionSpecsFromContractSpec = (spec: contract.Spec): FunctionSpec[
     outputs: fn.outputs().map((output) => ({
       type: describeSpecType(output),
     })),
-    mutability: 'write', // TODO: detect from spec if possible
+    mutability: "write",
   }));
 
 const createPreview = (result: Omit<ParsedContractSchema, "preview">) =>

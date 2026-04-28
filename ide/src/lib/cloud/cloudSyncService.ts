@@ -31,6 +31,8 @@ export interface ProjectMeta {
 export interface ProjectData extends ProjectMeta {
   files: WorkspaceTextFile[];
   fileHashes: Record<string, string>;
+  openTabs?: TabInfo[];
+  activeTabPath?: string[];
 }
 
 // Returned by saveProject

@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import { Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
+import { Keypair } from "@stellar/stellar-sdk";
 import { Server } from "@stellar/stellar-sdk/rpc";
 import type { Identity } from "@/store/useIdentityStore";
+import { assertValidTransactionEnvelopeXdr } from "@/utils/XdrValidator";
 
 export interface MultisigSession {
   xdr: string;
@@ -33,10 +34,12 @@ export const useMultisigStore = create<MultisigStore>((set, get) => ({
   broadcastHash: null,
 
   startSession: (xdr, threshold, networkPassphrase) => {
+    const validation = assertValidTransactionEnvelopeXdr(xdr, networkPassphrase);
+
     set({
       session: {
-        xdr,
-        originalXdr: xdr,
+        xdr: validation.normalizedXdr,
+        originalXdr: validation.normalizedXdr,
         signers: [],
         threshold,
         networkPassphrase,
@@ -54,7 +57,10 @@ export const useMultisigStore = create<MultisigStore>((set, get) => ({
       throw new Error(`${identity.nickname} has already signed this transaction.`);
     }
 
-    const tx = TransactionBuilder.fromXDR(session.xdr, session.networkPassphrase);
+    const tx = assertValidTransactionEnvelopeXdr(
+      session.xdr,
+      session.networkPassphrase,
+    ).transaction;
     tx.sign(Keypair.fromSecret(identity.secretKey));
     const newXdr = tx.toXDR();
 
@@ -94,7 +100,10 @@ export const useMultisigStore = create<MultisigStore>((set, get) => ({
       const allowHttp = rpcUrl.startsWith("http://");
       const server = new Server(rpcUrl, { allowHttp });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tx = TransactionBuilder.fromXDR(session.xdr, session.networkPassphrase) as any;
+      const tx = assertValidTransactionEnvelopeXdr(
+        session.xdr,
+        session.networkPassphrase,
+      ).transaction as any;
       const response = await server.sendTransaction(tx);
 
       if (response.status !== "PENDING" && response.status !== "DUPLICATE") {

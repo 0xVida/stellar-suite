@@ -11,6 +11,7 @@ import { Radio, Search, Trash2, X, AlertCircle, ChevronDown } from "lucide-react
 import { useContractEvents } from "@/hooks/useContractEvents";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type { ContractEvent } from "@/utils/eventSubscriber";
+import { LogRedactor, useRedaction } from "@/components/ide/LogRedactor";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,6 +57,14 @@ interface EventRowProps {
 
 const EventRow = React.memo(function EventRow({ event, index }: EventRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const { apply } = useRedaction();
+
+  const safeData = useMemo(() => apply(event.data).redacted, [apply, event.data]);
+  const safeContractId = useMemo(
+    () => apply(event.contractId).redacted,
+    [apply, event.contractId],
+  );
+  const safeTxHash = useMemo(() => apply(event.txHash).redacted, [apply, event.txHash]);
 
   // Alternate very-subtle row tinting for scannability
   const rowBg = index % 2 === 0 ? "bg-transparent" : "bg-white/[0.02]";
@@ -92,15 +101,15 @@ const EventRow = React.memo(function EventRow({ event, index }: EventRowProps) {
 
         {/* Data preview — single line, truncated */}
         <span className="min-w-0 flex-1 truncate text-white/50">
-          {event.data}
+          {safeData}
         </span>
 
         {/* Tx hash */}
         <span
           className="shrink-0 text-white/25 opacity-0 transition-opacity group-hover:opacity-100"
-          title={event.txHash}
+          title={safeTxHash}
         >
-          tx:{shortHash(event.txHash)}
+          tx:{shortHash(safeTxHash)}
         </span>
       </button>
 
@@ -112,10 +121,10 @@ const EventRow = React.memo(function EventRow({ event, index }: EventRowProps) {
             <dd className="break-all text-white/60">{event.id}</dd>
 
             <dt className="text-white/30">contract</dt>
-            <dd className="break-all text-white/60">{event.contractId}</dd>
+            <dd className="break-all text-white/60">{safeContractId}</dd>
 
             <dt className="text-white/30">tx</dt>
-            <dd className="break-all text-white/60">{event.txHash}</dd>
+            <dd className="break-all text-white/60">{safeTxHash}</dd>
 
             <dt className="text-white/30">time</dt>
             <dd className="text-white/60">{event.timestamp}</dd>
@@ -126,7 +135,7 @@ const EventRow = React.memo(function EventRow({ event, index }: EventRowProps) {
             <dt className="self-start text-white/30">data</dt>
             <dd>
               <pre className="overflow-x-auto whitespace-pre-wrap break-all text-[#4ADE80]/90">
-                {prettyData(event.data)}
+                {prettyData(safeData)}
               </pre>
             </dd>
           </dl>
@@ -270,6 +279,9 @@ export function EventsPane() {
             {filtered.length}
           </span>
         )}
+
+        {/* Redaction toggle */}
+        <LogRedactor />
 
         {/* Clear log button */}
         <button

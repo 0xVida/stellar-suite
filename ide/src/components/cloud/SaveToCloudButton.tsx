@@ -23,14 +23,14 @@ export function SaveToCloudButton({ disabled }: { disabled?: boolean }) {
   const { user, isAuthenticated } = useAuth();
   const { syncStatus, errorMessage, clearError, triggerSave } =
     useCloudSyncStore();
-  const { files, network } = useWorkspaceStore();
+  const { files, network, openTabs, activeTabPath } = useWorkspaceStore();
 
   if (!isAuthenticated || !user) return null;
 
   const handleSave = () => {
     if (syncStatus === "saving" || syncStatus === "loading") return;
     if (syncStatus === "error") clearError();
-    void triggerSave(user.id ?? user.email ?? "anon", flattenWorkspaceFiles(files), network);
+    void triggerSave(user.id ?? user.email ?? "anon", flattenWorkspaceFiles(files), network, openTabs, activeTabPath);
   };
 
   const icon =

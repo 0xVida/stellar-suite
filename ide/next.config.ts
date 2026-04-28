@@ -1,19 +1,33 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import type { NextConfig } from "next";
 
-const configDir = path.dirname(fileURLToPath(import.meta.url));
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' blob: data:;
+  font-src 'self' data:;
+  worker-src 'self' blob:;
+  connect-src 'self' https: wss:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  upgrade-insecure-requests;
+`.replace(/\s{2,}/g, ' ').trim();
 
-const nextConfig = {
-  output: "standalone",
-  outputFileTracingRoot: configDir,
-  turbopack: {
-    root: configDir,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
+const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader,
+          },
+        ],
+      },
+    ];
   },
 };
 

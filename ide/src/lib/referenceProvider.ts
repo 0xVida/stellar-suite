@@ -54,7 +54,7 @@ export class ReferenceProvider implements Monaco.languages.ReferenceProvider {
 
   public register(monaco: typeof Monaco) {
     this.monaco = monaco;
-    monaco.languages.registerReferenceProvider(["rust", "toml"], this);
+    return monaco.languages.registerReferenceProvider(["rust", "toml"], this);
   }
 }
 

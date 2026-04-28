@@ -19,6 +19,7 @@ import { useMultisigStore } from "@/store/useMultisigStore";
 import { useIdentityStore } from "@/store/useIdentityStore";
 import { NETWORK_CONFIG, type NetworkKey } from "@/lib/networkConfig";
 import { Badge } from "@/components/ui/badge";
+import { XdrChecksumCard } from "@/components/ide/XdrChecksumCard";
 
 interface MultisigViewProps {
   network: NetworkKey;
@@ -378,6 +379,11 @@ export function MultisigView({ network }: MultisigViewProps) {
           <div className="bg-background border border-border rounded p-2 text-[9px] font-mono text-muted-foreground break-all max-h-20 overflow-y-auto">
             {session.xdr}
           </div>
+          <XdrChecksumCard
+            xdr={session.xdr}
+            title="Envelope SHA-256"
+            description="Share this checksum with cosigners before import or manual submission."
+          />
         </div>
 
         {/* Broadcast section */}

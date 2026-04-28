@@ -568,7 +568,7 @@ mod prop_tests {
             let contract_id = env.register(\${5:MyContract}, ());
             let client = \${5:MyContract}Client::new(&env, &contract_id);
 
-            // TODO: call contract and assert invariants
+            // call contract and assert invariants
             let result = client.\${6:my_fn}(&value);
             prop_assert!(result >= 0, "result must be non-negative");
             \$0

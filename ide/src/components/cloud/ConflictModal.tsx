@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useCloudSyncStore } from "@/store/useCloudSyncStore";
 import { buildFileTree, type ProjectData } from "@/lib/cloud/cloudSyncService";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import type { TabInfo } from "@/lib/cloud/cloudSyncService";
 import type { FileNode } from "@/lib/sample-contracts";
 
 interface ConflictModalProps {
@@ -29,7 +30,7 @@ interface ConflictModalProps {
 export function ConflictModal({ conflictData }: ConflictModalProps) {
   const { resolveConflict, triggerSave, projectId, projectName, lastSyncedAt } =
     useCloudSyncStore();
-  const { files, network, setFiles } = useWorkspaceStore();
+  const { files, network, setFiles, openTabs: currentOpenTabs, setOpenTabs, activeTabPath: currentActiveTabPath, setActiveTabPath } = useWorkspaceStore();
   const flatFiles = useWorkspaceStore((s) =>
     s.files.flatMap(function flatten(
       node: FileNode,
@@ -50,13 +51,20 @@ export function ConflictModal({ conflictData }: ConflictModalProps) {
 
   const handleKeepLocal = () => {
     resolveConflict("local");
-    // Force a save immediately with local content
-    void triggerSave("__force__", flatFiles, network);
+    // Force a save immediately with local content and tab state
+    void triggerSave("__force__", flatFiles, network, currentOpenTabs, currentActiveTabPath);
   };
 
   const handleUseCloud = () => {
     const tree = buildFileTree(conflictData.files) as FileNode[];
     setFiles(tree);
+    // Also sync tab state from cloud
+    if (conflictData.openTabs) {
+      setOpenTabs(conflictData.openTabs);
+    }
+    if (conflictData.activeTabPath) {
+      setActiveTabPath(conflictData.activeTabPath);
+    }
     resolveConflict("cloud");
   };
 
@@ -85,6 +93,7 @@ export function ConflictModal({ conflictData }: ConflictModalProps) {
               </div>
               <p className="text-[11px]">Last synced: {localDate}</p>
               <p className="text-[11px]">{flatFiles.length} file(s)</p>
+              <p className="text-[11px]">{currentOpenTabs.length} tab(s) open</p>
             </div>
 
             {/* Cloud */}
@@ -95,6 +104,9 @@ export function ConflictModal({ conflictData }: ConflictModalProps) {
               </div>
               <p className="text-[11px]">Updated: {cloudDate}</p>
               <p className="text-[11px]">{conflictData.files.length} file(s)</p>
+              {conflictData.openTabs && conflictData.openTabs.length > 0 && (
+                <p className="text-[11px]">{conflictData.openTabs.length} tab(s) open</p>
+              )}
             </div>
           </div>
 

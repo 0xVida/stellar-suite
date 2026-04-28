@@ -45,6 +45,20 @@
           "type": "webview",
           "icon": "resources/stellar-icon.png",
           "when": "true"
+        },
+        {
+          "id": "stellarSuite.contractInvokeView",
+          "name": "Contract Invoke",
+          "type": "webview",
+          "icon": "resources/stellar-icon.png",
+          "when": "true"
+        },
+        {
+          "id": "stellarSuite.accountBalanceView",
+          "name": "Account Balance",
+          "type": "webview",
+          "icon": "resources/stellar-icon.png",
+          "when": "true"
         }
       ]
     },
@@ -123,6 +137,11 @@
         "command": "stellarSuite.showNetworkHealth",
         "title": "Kit Studio: Show Network Health",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "stellarSuite.openInWebIDE",
+        "title": "Kit Studio: Open in Web IDE",
+        "icon": "$(globe)"
       }
     ],
     "menus": {

@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  Clock3,
   FileText,
   Folder,
   FolderOpen,
@@ -14,7 +15,11 @@ import {
   X,
 } from "lucide-react";
 import { FileNode } from "@/lib/sample-contracts";
-import { useMultiRootStore, type WorkspaceRoot } from "@/store/useMultiRootStore";
+import {
+  useMultiRootStore,
+  TRASH_RETENTION_DAYS,
+  type WorkspaceRoot,
+} from "@/store/useMultiRootStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -319,7 +324,7 @@ function RootSection({
   };
 
   const handleRemoveRoot = () => {
-    if (!window.confirm(`Remove project "${root.name}" from workspace?`)) return;
+    if (!window.confirm(`Move project "${root.name}" to Trash?`)) return;
     removeRoot(root.id);
   };
 
@@ -463,14 +468,27 @@ function RootSection({
 // ---------------------------------------------------------------------------
 
 export function MultiRootExplorer() {
-  const { roots, addRoot, reorderRoots } = useMultiRootStore();
+  const {
+    roots,
+    trash,
+    addRoot,
+    reorderRoots,
+    restoreRoot,
+    permanentlyDeleteRoot,
+    purgeExpiredTrash,
+  } = useMultiRootStore();
   const { addTab, setMobilePanel } = useWorkspaceStore();
 
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [activeView, setActiveView] = useState<"active" | "trash">("active");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    purgeExpiredTrash();
+  }, [purgeExpiredTrash]);
 
   const handleFileSelect = useCallback(
     (_rootId: string, path: string[], file: FileNode) => {
@@ -494,6 +512,20 @@ export function MultiRootExplorer() {
     addRoot(name);
     setNewFolderName("");
     setAddingFolder(false);
+  };
+
+  const getDaysRemaining = (deletedAt: string) => {
+    const ageMs = Date.now() - new Date(deletedAt).getTime();
+    const retentionMs = TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    if (!Number.isFinite(ageMs)) return 0;
+    return Math.max(0, Math.ceil((retentionMs - ageMs) / (24 * 60 * 60 * 1000)));
+  };
+
+  const handlePermanentDelete = (id: string, name: string) => {
+    if (!window.confirm(`Permanently delete "${name}"? This cannot be undone.`)) {
+      return;
+    }
+    permanentlyDeleteRoot(id);
   };
 
   return (
@@ -524,8 +556,33 @@ export function MultiRootExplorer() {
           </Tooltip>
         </div>
 
+        <div className="grid grid-cols-2 border-b border-sidebar-border bg-muted/20 px-2 py-1">
+          <button
+            type="button"
+            className={`rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              activeView === "active"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setActiveView("active")}
+          >
+            Active ({roots.length})
+          </button>
+          <button
+            type="button"
+            className={`rounded px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              activeView === "trash"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setActiveView("trash")}
+          >
+            Trash ({trash.length})
+          </button>
+        </div>
+
         {/* Add folder inline form */}
-        {addingFolder && (
+        {addingFolder && activeView === "active" && (
           <div className="flex items-center gap-2 border-b border-sidebar-border px-3 py-2">
             <Input
               ref={inputRef}
@@ -560,24 +617,82 @@ export function MultiRootExplorer() {
 
         {/* Roots list */}
         <div className="flex-1 overflow-y-auto">
-          {roots.map((root, index) => (
-            <RootSection
-              key={root.id}
-              root={root}
-              index={index}
-              totalRoots={roots.length}
-              activePath={[]}
-              onFileSelect={handleFileSelect}
-              onDragStart={setDragFrom}
-              onDragOver={setDragOver}
-              onDrop={handleDrop}
-              isDragTarget={dragOver === index && dragFrom !== index}
-            />
-          ))}
+          {activeView === "active" ? (
+            roots.length === 0 ? (
+              <p className="px-4 py-3 text-xs text-muted-foreground">
+                No active projects. Add a folder or restore one from Trash.
+              </p>
+            ) : (
+              roots.map((root, index) => (
+                <RootSection
+                  key={root.id}
+                  root={root}
+                  index={index}
+                  totalRoots={roots.length}
+                  activePath={[]}
+                  onFileSelect={handleFileSelect}
+                  onDragStart={setDragFrom}
+                  onDragOver={setDragOver}
+                  onDrop={handleDrop}
+                  isDragTarget={dragOver === index && dragFrom !== index}
+                />
+              ))
+            )
+          ) : trash.length === 0 ? (
+            <p className="px-4 py-3 text-xs text-muted-foreground">
+              Trash is empty.
+            </p>
+          ) : (
+            <div className="space-y-2 p-2">
+              {trash
+                .slice()
+                .sort(
+                  (a, b) =>
+                    new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime(),
+                )
+                .map((item) => {
+                  const daysRemaining = getDaysRemaining(item.deletedAt);
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-md border border-sidebar-border bg-card/60 p-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold">{item.name}</p>
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock3 className="h-3 w-3" />
+                            <span>{daysRemaining} day{daysRemaining === 1 ? "" : "s"} remaining</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => restoreRoot(item.id)}
+                          >
+                            Restore
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-6 px-2 text-[10px]"
+                            onClick={() => handlePermanentDelete(item.id, item.name)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
 
         {/* Footer hint */}
-        {roots.length > 1 && (
+        {activeView === "active" && roots.length > 1 && (
           <div className="border-t border-sidebar-border px-3 py-2 text-[10px] text-muted-foreground">
             {roots.length} projects in workspace · drag headers to reorder
           </div>

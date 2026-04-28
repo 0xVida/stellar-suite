@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import {
   Dialog,
@@ -13,10 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useUserSettingsStore, Language } from "@/store/useUserSettingsStore";
-import { Sun, Moon, Monitor, Type, Save, Globe, Variable, Languages } from "lucide-react";
+import { Sun, Moon, Monitor, Type, Save, Globe, Variable, Languages, Zap, AlertCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { EnvVarManager } from "@/components/settings/EnvVarManager";
 import { ResourceUsageDashboard } from "@/components/settings/ResourceUsageDashboard";
+import { ThemeEditor } from "@/components/settings/ThemeEditor";
+import { Diagnostics } from "@/components/settings/Diagnostics";
+import { TerminalSettings } from "@/components/settings/TerminalSettings";
 import { useTranslation } from "react-i18next";
 import {
   Select,
@@ -36,8 +37,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isMounted, setIsMounted] = React.useState(false);
   React.useEffect(() => setIsMounted(true), []);
 
-  const { fontSize, formatOnSave, language, setFontSize, setFormatOnSave, setLanguage } =
-    useUserSettingsStore();
+  const { 
+    fontSize, 
+    formatOnSave, 
+    language, 
+    experimentalLocalBuild,
+    setFontSize, 
+    setFormatOnSave, 
+    setLanguage,
+    setExperimentalLocalBuild,
+  } = useUserSettingsStore();
   const { theme, setTheme } = useTheme();
 
   if (!isMounted) return null;
@@ -61,10 +70,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full mt-4">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/50 p-1">
             <TabsTrigger value="general" className="data-[state=active]:bg-background">{t('general.general', 'General')}</TabsTrigger>
             <TabsTrigger value="editor" className="data-[state=active]:bg-background">{t('general.editor', 'Editor')}</TabsTrigger>
             <TabsTrigger value="usage" className="data-[state=active]:bg-background">{t('general.usage', 'Usage')}</TabsTrigger>
+            <TabsTrigger value="diagnostics" className="data-[state=active]:bg-background">{t('general.diagnostics', 'Diagnostics')}</TabsTrigger>
             <TabsTrigger value="environment" className="data-[state=active]:bg-background">{t('general.environment', 'Environment')}</TabsTrigger>
             <TabsTrigger value="network" className="data-[state=active]:bg-background">{t('general.network', 'Network')}</TabsTrigger>
           </TabsList>
@@ -92,6 +102,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </button>
                 ))}
               </div>
+              <ThemeEditor />
             </div>
 
             <div className="space-y-4 pt-4 border-t border-border">
@@ -172,10 +183,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 className="data-[state=checked]:bg-primary"
               />
             </div>
+
+            <div className="flex items-center justify-between p-4 rounded-xl bg-amber-900/20 border border-amber-600/30">
+              <div className="space-y-1">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" /> Experimental Local Build
+                </Label>
+                <p className="text-sm text-muted-foreground flex gap-1">
+                  <AlertCircle className="h-3 w-3 mt-0.5 text-amber-600 flex-shrink-0" />
+                  <span>Compiles Rust contracts entirely in-browser (high memory usage). No backend required.</span>
+                </p>
+              </div>
+              <Switch
+                checked={experimentalLocalBuild}
+                onCheckedChange={setExperimentalLocalBuild}
+                className="data-[state=checked]:bg-amber-600"
+              />
+            </div>
+
+            <TerminalSettings />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-4 py-6 animate-in fade-in-50 duration-300">
             <ResourceUsageDashboard />
+          </TabsContent>
+
+          <TabsContent value="diagnostics" className="space-y-4 py-6 animate-in fade-in-50 duration-300">
+            <Diagnostics />
           </TabsContent>
 
           <TabsContent value="environment" className="space-y-4 py-6 animate-in fade-in-50 duration-300">

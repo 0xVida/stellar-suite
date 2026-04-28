@@ -4,6 +4,7 @@ import { Api, Server } from "@stellar/stellar-sdk/rpc";
 import type { NetworkKey } from "@/lib/networkConfig";
 import { withRpcFailover } from "@/lib/rpcFailover";
 import type { ActiveContext, Identity } from "@/store/useIdentityStore";
+import { assertValidTransactionEnvelopeXdr } from "@/utils/XdrValidator";
 import type { WalletProviderType } from "@/wallet/WalletService";
 import { WalletService } from "@/wallet/WalletService";
 import { ErrorTranslator } from "./errorTranslator";
@@ -115,7 +116,10 @@ export const createWalletSigningDelegator = ({
         throw new Error("The selected local identity is missing its secret key.");
       }
 
-      const transaction = TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
+      const transaction = assertValidTransactionEnvelopeXdr(
+        transactionXdr,
+        networkPassphrase,
+      ).transaction;
       transaction.sign(Keypair.fromSecret(activeIdentity.secretKey));
       return transaction.toXDR();
     }

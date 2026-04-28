@@ -34,6 +34,7 @@ import { git } from "@/lib/git";
 import "@/styles/editor-gutter.css";
 import { referenceProvider } from "@/lib/referenceProvider";
 import { useLiveShare } from "@/hooks/useLiveShare";
+import { registerRustHoverProvider } from "@/lib/rustHoverProvider";
 
 interface CodeEditorProps {
   onCursorChange?: (line: number, col: number) => void;
@@ -342,6 +343,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ onCursorChange, onSave }) => {
     );
     referenceProvider.initialize(monaco);
     disposablesRef.current.push(referenceProvider.register(monaco));
+    disposablesRef.current.push(registerRustHoverProvider(monaco, editor));
 
     // Listen for file open requests from definition provider
     const handleFileOpen = (event: CustomEvent) => {

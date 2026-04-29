@@ -8,8 +8,6 @@
  * - Clicking a node opens CommitDetail
  */
 
-"use client";
-
 import {
   memo,
   useCallback,
@@ -21,6 +19,7 @@ import {
 import { GitCommit, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { fetchHistory, type CommitNode } from "@/lib/vcs/historyService";
 import {
   calculatePositions,
@@ -266,9 +265,17 @@ export function GitHistoryTree() {
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-sidebar-border shrink-0">
-        <span className="text-[10px] text-muted-foreground">
-          {commits.length} commit{commits.length !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <Badge
+            variant="secondary"
+            className="text-[9px] font-bold h-4 px-1.5"
+          >
+            {commits.length}
+          </Badge>
+          <span className="text-[10px] text-muted-foreground">
+            commit{commits.length !== 1 ? "s" : ""}
+          </span>
+        </div>
         <Button
           size="sm"
           variant="ghost"

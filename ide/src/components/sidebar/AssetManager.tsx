@@ -1,17 +1,15 @@
-"use client";
-
 import React, { useMemo, useState } from "react";
-import { 
-  FileImage, 
-  FileCode, 
-  Info, 
-  Search, 
-  Maximize2, 
-  ChevronRight,
-  ChevronDown
+import {
+  FileImage,
+  Info,
+  Search,
+  Maximize2,
+  ChevronDown,
 } from "lucide-react";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { FileNode } from "@/lib/sample-contracts";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface Asset {
   name: string;
@@ -37,14 +35,18 @@ export function AssetManager() {
           traverse(node.children, currentPath);
         } else if (node.type === "file") {
           const extension = node.name.split(".").pop()?.toLowerCase();
-          if (["png", "jpg", "jpeg", "svg", "webp", "gif"].includes(extension || "")) {
+          if (
+            ["png", "jpg", "jpeg", "svg", "webp", "gif"].includes(
+              extension || "",
+            )
+          ) {
             assets.push({
               name: node.name,
               path: currentPath,
               type: extension || "unknown",
               size: node.content?.length || 0, // Simplified size estimation
               content: node.content || "",
-              dimensions: extension === "svg" ? "Vector" : "512 x 512" // Mock dimensions
+              dimensions: extension === "svg" ? "Vector" : "512 x 512", // Mock dimensions
             });
           }
         }
@@ -55,13 +57,15 @@ export function AssetManager() {
   }, [files]);
 
   const filteredAssets = useMemo(() => {
-    return allAssets.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    return allAssets.filter((a) =>
+      a.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
   }, [allAssets, searchQuery]);
 
   const renderThumbnail = (asset: Asset) => {
     if (asset.type === "svg") {
       return (
-        <div 
+        <div
           className="w-full h-full flex items-center justify-center p-2 bg-muted/20 overflow-hidden"
           dangerouslySetInnerHTML={{ __html: asset.content }}
         />
@@ -80,16 +84,18 @@ export function AssetManager() {
       <div className="p-3 border-b border-border space-y-3">
         <div className="flex items-center gap-2">
           <FileImage className="h-4 w-4 text-primary" />
-          <h2 className="text-[11px] font-bold uppercase tracking-wider text-foreground">Assets</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+            Assets
+          </h2>
         </div>
-        
+
         {/* Search */}
         <div className="relative group">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <input
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+          <Input
             type="text"
             placeholder="Search assets..."
-            className="w-full h-8 bg-muted/50 border border-border rounded-md pl-8 pr-3 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            className="h-8 pl-8 text-[11px] bg-muted/50"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -108,7 +114,13 @@ export function AssetManager() {
             {filteredAssets.map((asset) => (
               <button
                 key={asset.path.join("/")}
-                onClick={() => setSelectedAsset(selectedAsset?.path.join("/") === asset.path.join("/") ? null : asset)}
+                onClick={() =>
+                  setSelectedAsset(
+                    selectedAsset?.path.join("/") === asset.path.join("/")
+                      ? null
+                      : asset,
+                  )
+                }
                 className={`group relative aspect-square rounded-md border transition-all overflow-hidden ${
                   selectedAsset?.path.join("/") === asset.path.join("/")
                     ? "border-primary ring-1 ring-primary bg-primary/10"
@@ -118,7 +130,9 @@ export function AssetManager() {
               >
                 {renderThumbnail(asset)}
                 <div className="absolute inset-x-0 bottom-0 bg-background/80 backdrop-blur-sm p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-[9px] truncate font-medium text-foreground">{asset.name}</p>
+                  <p className="text-[9px] truncate font-medium text-foreground">
+                    {asset.name}
+                  </p>
                 </div>
               </button>
             ))}
@@ -134,37 +148,51 @@ export function AssetManager() {
               <h3 className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1.5">
                 <Info className="h-3 w-3" /> Asset Details
               </h3>
-              <button 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setSelectedAsset(null)}
-                className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
                 title="Close details"
               >
                 <ChevronDown className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             </div>
-            
+
             <div className="space-y-1.5">
               <div className="flex justify-between items-center text-[10px]">
                 <span className="text-muted-foreground">Name:</span>
-                <span className="text-foreground font-medium truncate ml-4 max-w-[120px]">{selectedAsset.name}</span>
+                <span className="text-foreground font-medium truncate ml-4 max-w-[120px]">
+                  {selectedAsset.name}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[10px]">
                 <span className="text-muted-foreground">Type:</span>
-                <span className="text-foreground font-medium uppercase">{selectedAsset.type}</span>
+                <span className="text-foreground font-medium uppercase">
+                  {selectedAsset.type}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[10px]">
                 <span className="text-muted-foreground">Dimensions:</span>
-                <span className="text-foreground font-medium">{selectedAsset.dimensions}</span>
+                <span className="text-foreground font-medium">
+                  {selectedAsset.dimensions}
+                </span>
               </div>
               <div className="flex justify-between items-center text-[10px]">
                 <span className="text-muted-foreground">File Size:</span>
-                <span className="text-foreground font-medium">{(selectedAsset.size / 1024).toFixed(1)} KB</span>
+                <span className="text-foreground font-medium">
+                  {(selectedAsset.size / 1024).toFixed(1)} KB
+                </span>
               </div>
             </div>
 
-            <button className="w-full flex items-center justify-center gap-2 py-1.5 bg-primary/20 text-primary border border-primary/20 rounded text-[10px] font-bold hover:bg-primary/30 transition-all uppercase tracking-wider">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full gap-2 text-[10px] font-bold uppercase tracking-wider"
+            >
               <Maximize2 className="h-3 w-3" /> Preview Full
-            </button>
+            </Button>
           </div>
         </div>
       )}

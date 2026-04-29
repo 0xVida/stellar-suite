@@ -1,27 +1,3 @@
-/**
- * SourceControl.tsx
- *
- * Staging / unstaging sidebar panel.
- *
- * Layout (accordion-style, Staged on top):
- *
- *   ┌─ STAGED CHANGES (N) ──────────────── [−All] ─┐
- *   │  M  contracts/hello.rs              [−]       │
- *   │  U  contracts/new.rs                [−]       │
- *   └──────────────────────────────────────────────┘
- *   ┌─ CHANGES (N) ─────────────────────── [+All] ─┐
- *   │  M  Cargo.toml                      [+]       │
- *   │  D  old.rs                          [+]       │
- *   └──────────────────────────────────────────────┘
- *
- * Status badges:
- *   M = Modified   (amber)
- *   U = Untracked  (emerald)
- *   D = Deleted    (rose)
- *
- * Safety: unstage uses git.resetIndex (index-only, never --hard).
- */
-
 import { memo, useCallback, useEffect, useState } from "react";
 import {
   Plus,
@@ -37,29 +13,35 @@ import {
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useStagingStore } from "@/store/useStagingStore";
 import { useVCSStore } from "@/store/vcsStore";
 import type { StagedFile, StagingStatus } from "@/lib/vcs/stagingService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // ── Status badge ──────────────────────────────────────────────────────────
 
 const STATUS_SYMBOL: Record<StagingStatus, string> = {
-  modified:  "M",
+  modified: "M",
   untracked: "U",
-  deleted:   "D",
+  deleted: "D",
 };
 
 const STATUS_COLOUR: Record<StagingStatus, string> = {
-  modified:  "text-amber-400",
+  modified: "text-amber-400",
   untracked: "text-emerald-400",
-  deleted:   "text-rose-400",
+  deleted: "text-rose-400",
 };
 
 const STATUS_LABEL: Record<StagingStatus, string> = {
-  modified:  "Modified",
+  modified: "Modified",
   untracked: "Untracked",
-  deleted:   "Deleted",
+  deleted: "Deleted",
 };
 
 interface StatusBadgeProps {
@@ -106,7 +88,7 @@ const FileRow = memo(function FileRow({
       e.stopPropagation();
       onAction(file.path);
     },
-    [file.path, onAction]
+    [file.path, onAction],
   );
 
   // Derive display name: show only the filename, full path on hover
@@ -182,10 +164,11 @@ function SectionHeader({
 }: SectionHeaderProps) {
   return (
     <div className="flex items-center px-2 py-1 border-b border-sidebar-border/50 bg-sidebar">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onToggle}
-        className="flex flex-1 items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+        className="flex flex-1 items-center justify-start gap-1.5 h-7 p-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-transparent"
         aria-expanded={expanded}
       >
         {expanded ? (
@@ -195,11 +178,14 @@ function SectionHeader({
         )}
         <span>{label}</span>
         {count > 0 && (
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+          <Badge
+            variant="secondary"
+            className="rounded-full px-1.5 py-0 text-[9px] font-bold h-4 min-w-[1.25rem] justify-center"
+          >
             {count}
-          </span>
+          </Badge>
         )}
-      </button>
+      </Button>
 
       {count > 0 && (
         <Tooltip>
@@ -302,16 +288,22 @@ export function SourceControl() {
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-start gap-1.5 mx-3 mt-2 px-2 py-1.5 rounded border border-rose-500/20 bg-rose-500/10 text-[10px] text-rose-400">
-          <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
-          <span className="flex-1 leading-snug">{error}</span>
-          <button
-            onClick={clearError}
-            className="shrink-0 opacity-60 hover:opacity-100"
-            aria-label="Dismiss error"
-          >
-            ×
-          </button>
+        <div className="mx-3 mt-2">
+          <Alert variant="destructive" className="py-2 px-3 relative">
+            <XCircle className="h-3 w-3" />
+            <AlertDescription className="text-[10px] leading-snug pr-4">
+              {error}
+            </AlertDescription>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-4 absolute top-2 right-1.5 opacity-60 hover:opacity-100"
+              onClick={clearError}
+              aria-label="Dismiss error"
+            >
+              ×
+            </Button>
+          </Alert>
         </div>
       )}
 

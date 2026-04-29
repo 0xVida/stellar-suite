@@ -21,6 +21,7 @@ import { SorobanCliService } from './services/sorobanCliService';
 import { SorobanLinterService } from './services/LinterService';
 import { HealthAlertsService } from './services/HealthAlerts';
 import { getLatencyMonitor } from './ui/networkStatusBar';
+import { registerSorobanCompletionProvider } from './providers/SorobanCompletionProvider';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 
@@ -63,6 +64,8 @@ export async function activate(context: vscode.ExtensionContext) {
                 context.subscriptions.push(healthAlerts);
             }
         }
+
+        registerSorobanCompletionProvider(context);
 
         const linter = new SorobanLinterService();
         linter.register(context);

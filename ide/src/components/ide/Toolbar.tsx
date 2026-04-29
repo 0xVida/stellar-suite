@@ -144,6 +144,7 @@ export function Toolbar({
           ) : null}
 
           <Button
+            id="tour-deploy-btn"
             onClick={onDeploy}
             variant="ghost"
             size="sm"
@@ -155,6 +156,7 @@ export function Toolbar({
           </Button>
 
           <Button
+            id="tour-test-btn"
             type="button"
             variant="ghost"
             size="sm"

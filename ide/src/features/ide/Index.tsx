@@ -84,6 +84,7 @@ import { useTransactionResultsStore } from "@/store/useTransactionResultsStore";
 import { executeWriteTransaction } from "@/lib/transactionExecution";
 import { useWalletStore } from "@/store/walletStore";
 import { SimulationDiff } from "@/components/ide/SimulationDiff";
+import { InteractiveTour } from "@/components/ide/InteractiveTour";
 
 const COMPILE_API_URL =
   process.env.NEXT_PUBLIC_COMPILE_API_URL ?? "/api/compile";
@@ -285,12 +286,20 @@ export default function Index() {
   const [rightView, setRightView] = useState<"interact" | "state">("interact");
 
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [sampleLoaded, setSampleLoaded] = useState(false);
 
   useEffect(() => {
     if (files.length === 0) {
       setWizardOpen(true);
     }
   }, [files.length]);
+
+  // Mark a sample as loaded the first time the wizard closes with files present
+  useEffect(() => {
+    if (!wizardOpen && files.length > 0 && !sampleLoaded) {
+      setSampleLoaded(true);
+    }
+  }, [wizardOpen, files.length, sampleLoaded]);
 
   // Propagate shared/workspace environment settings to the personal store
   // once the workspace store has finished rehydrating from IndexedDB.
@@ -1655,6 +1664,8 @@ export default function Index() {
       />
 
       <HotkeysModal open={isHotkeysOpen} onOpenChange={setIsHotkeysOpen} />
+
+      <InteractiveTour sampleLoaded={sampleLoaded} />
 
       {/* ── Pre-signing simulation diff modal ─────────────────────────── */}
       {simulationDiffData && (

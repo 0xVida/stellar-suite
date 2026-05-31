@@ -30,6 +30,8 @@ import {
   DEFAULT_TRANSACTION_POLL_TIMEOUT_MS,
   type TransactionExecutionStatus,
 } from "./transactionExecution";
+import { buildProtocolCompatibilityReport } from "./protocolUpgrade";
+import type { ProtocolVersion } from "@/config/ProtocolMatrix";
 
 export interface InstantiateContractOptions {
   /** Hex-encoded WASM hash returned by the upload step. */
@@ -40,6 +42,7 @@ export interface InstantiateContractOptions {
   activeIdentity: Identity | null;
   webWalletPublicKey: string | null;
   walletType: WalletProviderType | null;
+  protocolVersion?: ProtocolVersion;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   onStatus?: (status: TransactionExecutionStatus) => void;
@@ -137,6 +140,7 @@ export const instantiateContract = async ({
   activeIdentity,
   webWalletPublicKey,
   walletType,
+  protocolVersion,
   pollIntervalMs = DEFAULT_TRANSACTION_POLL_INTERVAL_MS,
   pollTimeoutMs = DEFAULT_TRANSACTION_POLL_TIMEOUT_MS,
   onStatus,
@@ -145,8 +149,18 @@ export const instantiateContract = async ({
   const publicKey = getPublicKey(activeContext, activeIdentity, webWalletPublicKey);
   const allowHttp = getAllowHttp(rpcUrl);
   const server = new Server(rpcUrl, { allowHttp });
+  const protocolCompatibility = buildProtocolCompatibilityReport(protocolVersion, [
+    "invokeHostFunction",
+    "createContract",
+  ]);
 
-  onStatus?.({ phase: "preparing", message: "Assembling createContract transaction…" });
+  onStatus?.({
+    phase: "preparing",
+    message: `Assembling createContract transaction for Protocol ${protocolCompatibility.protocolVersion}…`,
+  });
+  protocolCompatibility.warnings.forEach((warning) => {
+    onStatus?.({ phase: "preparing", message: `Protocol warning: ${warning}` });
+  });
 
   // Fetch the source account
   const account = await server.getAccount(publicKey);
@@ -277,6 +291,7 @@ export interface UploadWasmOptions {
   activeIdentity: Identity | null;
   webWalletPublicKey: string | null;
   walletType: WalletProviderType | null;
+  protocolVersion?: ProtocolVersion;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   onStatus?: (status: TransactionExecutionStatus) => void;
@@ -325,6 +340,7 @@ export const uploadWasm = async ({
   activeIdentity,
   webWalletPublicKey,
   walletType,
+  protocolVersion,
   pollIntervalMs = DEFAULT_TRANSACTION_POLL_INTERVAL_MS,
   pollTimeoutMs = DEFAULT_TRANSACTION_POLL_TIMEOUT_MS,
   onStatus,
@@ -332,8 +348,18 @@ export const uploadWasm = async ({
   const publicKey = getPublicKey(activeContext, activeIdentity, webWalletPublicKey);
   const allowHttp = getAllowHttp(rpcUrl);
   const server = new Server(rpcUrl, { allowHttp });
+  const protocolCompatibility = buildProtocolCompatibilityReport(protocolVersion, [
+    "invokeHostFunction",
+    "uploadContractWasm",
+  ]);
 
-  onStatus?.({ phase: "preparing", message: "Assembling uploadWasm transaction…" });
+  onStatus?.({
+    phase: "preparing",
+    message: `Assembling uploadWasm transaction for Protocol ${protocolCompatibility.protocolVersion}…`,
+  });
+  protocolCompatibility.warnings.forEach((warning) => {
+    onStatus?.({ phase: "preparing", message: `Protocol warning: ${warning}` });
+  });
 
   // Fetch the source account
   const account = await server.getAccount(publicKey);
@@ -427,4 +453,3 @@ export const uploadWasm = async ({
 
   return { wasmHash, transactionHash: sendResponse.hash };
 };
-

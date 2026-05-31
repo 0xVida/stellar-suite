@@ -12,8 +12,13 @@ import RustfmtEditor from '../settings/RustfmtEditor';
 import { EnvVarManager } from '../settings/EnvVarManager';
 import SharedEnvironmentSettings from './SharedEnvironmentSettings';
 import PostBuildHooksSettings from '../settings/PostBuildHooksSettings';
+import { SUPPORTED_PROTOCOL_VERSIONS, getProtocolSpec, type ProtocolVersion } from '@/config/ProtocolMatrix';
+import { useNetworkStore } from '@/store/useNetworkStore';
 
 const SettingsPanel: React.FC = () => {
+  const simulationProtocolVersion = useNetworkStore((s) => s.simulationProtocolVersion);
+  const setSimulationProtocolVersion = useNetworkStore((s) => s.setSimulationProtocolVersion);
+
   return (
     <div className="h-full w-full p-4 overflow-auto">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -64,6 +69,35 @@ const SettingsPanel: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="network" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Soroban Protocol</CardTitle>
+                <CardDescription>
+                  Choose the protocol version used by simulation and deployment pre-flight checks.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <select
+                  value={simulationProtocolVersion}
+                  onChange={(event) =>
+                    setSimulationProtocolVersion(Number(event.target.value) as ProtocolVersion)
+                  }
+                  className="w-full max-w-sm rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {SUPPORTED_PROTOCOL_VERSIONS.map((version) => {
+                    const spec = getProtocolSpec(version);
+                    return (
+                      <option key={version} value={version}>
+                        {spec.label}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-sm text-muted-foreground">
+                  Deprecated and removed operations are warned before simulation or signing.
+                </p>
+              </CardContent>
+            </Card>
             <SharedEnvironmentSettings />
           </TabsContent>
           
@@ -87,4 +121,3 @@ const SettingsPanel: React.FC = () => {
 };
 
 export default SettingsPanel;
-

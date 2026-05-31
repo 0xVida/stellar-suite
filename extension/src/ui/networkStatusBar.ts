@@ -53,6 +53,7 @@ function startLatencyMonitor(context: vscode.ExtensionContext): void {
 
     latencyMonitor = new LatencyMonitor({
         rpcUrl,
+        nodeLabel: 'RPC',
         pollIntervalMs: monitorCfg.get<number>('pollIntervalSeconds', 30) * 1000,
         healthyThresholdMs: monitorCfg.get<number>('healthyThresholdMs', 250),
         degradedThresholdMs: monitorCfg.get<number>('degradedThresholdMs', 800),

@@ -30,6 +30,11 @@ import {
   type NetworkConfig,
   type CustomHeaders,
 } from "@/lib/networkConfig";
+import {
+  LATEST_PROTOCOL_VERSION,
+  SUPPORTED_PROTOCOL_VERSIONS,
+  type ProtocolVersion,
+} from "@/config/ProtocolMatrix";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -119,6 +124,8 @@ export interface NetworkStoreState {
   customHorizonUrl: string;
   /** Per-request HTTP headers sent to the RPC endpoint */
   customHeaders: CustomHeaders;
+  /** Protocol version used by local simulation/pre-flight deployment checks */
+  simulationProtocolVersion: ProtocolVersion;
 
   // ── Saved profiles ────────────────────────────────────────────────────────
 
@@ -213,6 +220,9 @@ export interface NetworkStoreState {
 
   /** Merge additional headers into customHeaders (existing keys are overwritten). */
   setCustomHeaders: (headers: CustomHeaders) => void;
+
+  /** Select the Soroban protocol version used for simulation compatibility checks. */
+  setSimulationProtocolVersion: (version: ProtocolVersion) => ValidationResult;
 
   /** Remove a single header key. */
   removeCustomHeader: (key: string) => void;
@@ -347,6 +357,7 @@ const DEFAULTS = {
   customPassphrase: "",
   customHorizonUrl: "",
   customHeaders: {} as CustomHeaders,
+  simulationProtocolVersion: LATEST_PROTOCOL_VERSION,
   profiles: [] as CustomNetworkProfile[],
   validationError: null as string | null,
   lastChangedAt: null as string | null,
@@ -511,6 +522,17 @@ export const useNetworkStore = create<NetworkStoreState>()(
         set((s) => ({
           customHeaders: { ...s.customHeaders, ...headers },
         })),
+
+      setSimulationProtocolVersion: (version) => {
+        if (!SUPPORTED_PROTOCOL_VERSIONS.includes(version)) {
+          return {
+            valid: false,
+            error: `Protocol ${version} is not supported by this IDE build.`,
+          };
+        }
+        set({ simulationProtocolVersion: version, validationError: null });
+        return { valid: true };
+      },
 
       removeCustomHeader: (key) =>
         set((s) => {
@@ -808,6 +830,7 @@ export const useNetworkStore = create<NetworkStoreState>()(
         customPassphrase: s.customPassphrase,
         customHorizonUrl: s.customHorizonUrl,
         customHeaders: s.customHeaders,
+        simulationProtocolVersion: s.simulationProtocolVersion,
         profiles: s.profiles,
         lastChangedAt: s.lastChangedAt,
         networkWorkspaces: s.networkWorkspaces,

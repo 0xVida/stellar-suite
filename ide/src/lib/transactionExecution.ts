@@ -8,6 +8,8 @@ import { assertValidTransactionEnvelopeXdr } from "@/utils/XdrValidator";
 import type { WalletProviderType } from "@/wallet/WalletService";
 import { WalletAdapter } from "@/lib/wallet/WalletAdapter";
 import { ErrorTranslator } from "./errorTranslator";
+import { buildProtocolCompatibilityReport } from "./protocolUpgrade";
+import type { ProtocolVersion } from "@/config/ProtocolMatrix";
 
 export type WalletSignIntent =
   | { kind: "invoke"; contractId?: string; fnName?: string; network?: string }
@@ -52,6 +54,7 @@ export interface ExecuteWriteTransactionOptions {
   activeIdentity: Identity | null;
   webWalletPublicKey: string | null;
   walletType: WalletProviderType | null;
+  protocolVersion?: ProtocolVersion;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   onStatus?: (status: TransactionExecutionStatus) => void;
@@ -209,16 +212,22 @@ export const executeWriteTransaction = async ({
   activeIdentity,
   webWalletPublicKey,
   walletType,
+  protocolVersion,
   pollIntervalMs = DEFAULT_TRANSACTION_POLL_INTERVAL_MS,
   pollTimeoutMs = DEFAULT_TRANSACTION_POLL_TIMEOUT_MS,
   onStatus,
 }: ExecuteWriteTransactionOptions) => {
   const publicKey = getActivePublicKey(activeContext, activeIdentity, webWalletPublicKey);
   const normalizedArgs = normalizeInvocationArgs(args);
+  const protocolCompatibility = buildProtocolCompatibilityReport(protocolVersion, [
+    "invokeHostFunction",
+  ]);
 
   onStatus?.({
     phase: "preparing",
-    message: `Assembling ${fnName} transaction...`,
+    message: protocolCompatibility.warnings.length
+      ? `Assembling ${fnName} transaction for Protocol ${protocolCompatibility.protocolVersion} with compatibility warnings...`
+      : `Assembling ${fnName} transaction for Protocol ${protocolCompatibility.protocolVersion}...`,
   });
 
   const { result: rpcContext } = await withRpcFailover({

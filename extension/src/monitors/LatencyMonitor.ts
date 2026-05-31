@@ -11,6 +11,7 @@ export interface LatencySample {
 
 export interface LatencyMonitorOptions {
     rpcUrl: string;
+    nodeLabel?: string;
     pollIntervalMs?: number;
     requestTimeoutMs?: number;
     healthyThresholdMs?: number;
@@ -40,6 +41,7 @@ export class LatencyMonitor implements vscode.Disposable {
     constructor(options: LatencyMonitorOptions) {
         this.opts = {
             rpcUrl: stripTrailingSlash(options.rpcUrl),
+            nodeLabel: options.nodeLabel ?? 'RPC',
             pollIntervalMs: options.pollIntervalMs ?? DEFAULTS.pollIntervalMs,
             requestTimeoutMs: options.requestTimeoutMs ?? DEFAULTS.requestTimeoutMs,
             healthyThresholdMs: options.healthyThresholdMs ?? DEFAULTS.healthyThresholdMs,
@@ -179,16 +181,18 @@ export class LatencyMonitor implements vscode.Disposable {
     private render(sample: LatencySample): void {
         const level = this.classify(sample);
         const icon = iconFor(level);
-        const label = sample.success ? `${sample.latencyMs}ms` : 'offline';
-        this.statusBarItem.text = `${icon} RPC ${label}`;
+        const label = `${sample.latencyMs}ms`;
+        this.statusBarItem.text = `${icon} ${this.opts.nodeLabel} ${label}`;
         this.statusBarItem.tooltip = buildTooltip(sample, level, this.opts);
         this.statusBarItem.backgroundColor = backgroundFor(level);
+        this.statusBarItem.color = colorFor(level);
     }
 
     private renderUnknown(): void {
-        this.statusBarItem.text = '$(sync~spin) RPC ---ms';
-        this.statusBarItem.tooltip = 'Measuring Stellar RPC latency...';
+        this.statusBarItem.text = `$(sync~spin) ${this.opts.nodeLabel} ---ms`;
+        this.statusBarItem.tooltip = `Measuring Stellar ${this.opts.nodeLabel} latency...`;
         this.statusBarItem.backgroundColor = undefined;
+        this.statusBarItem.color = undefined;
     }
 }
 
@@ -220,11 +224,24 @@ function backgroundFor(level: HealthLevel): vscode.ThemeColor | undefined {
     }
 }
 
+function colorFor(level: HealthLevel): vscode.ThemeColor | undefined {
+    switch (level) {
+        case 'healthy':
+            return new vscode.ThemeColor('charts.green');
+        case 'degraded':
+            return new vscode.ThemeColor('charts.yellow');
+        case 'unhealthy':
+            return new vscode.ThemeColor('charts.red');
+        default:
+            return undefined;
+    }
+}
+
 function buildTooltip(sample: LatencySample, level: HealthLevel, opts: Required<LatencyMonitorOptions>): vscode.MarkdownString {
     const md = new vscode.MarkdownString();
     md.isTrusted = false;
     md.supportThemeIcons = true;
-    md.appendMarkdown(`**Stellar RPC** — ${level.toUpperCase()}\n\n`);
+    md.appendMarkdown(`**Stellar ${opts.nodeLabel}** — ${level.toUpperCase()}\n\n`);
     md.appendMarkdown(`- Endpoint: \`${opts.rpcUrl}\`\n`);
     if (sample.success) {
         md.appendMarkdown(`- Latency: **${sample.latencyMs} ms**\n`);

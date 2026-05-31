@@ -87,6 +87,8 @@ import { executeWriteTransaction } from "@/lib/transactionExecution";
 import { useWalletStore } from "@/store/walletStore";
 import { SimulationDiff } from "@/components/ide/SimulationDiff";
 import { InteractiveTour } from "@/components/ide/InteractiveTour";
+import { useNetworkStore } from "@/store/useNetworkStore";
+import { buildProtocolCompatibilityReport } from "@/lib/protocolUpgrade";
 
 const COMPILE_API_URL =
   process.env.NEXT_PUBLIC_COMPILE_API_URL ?? "/api/compile";
@@ -812,6 +814,7 @@ export default function Index() {
           activeIdentity,
           webWalletPublicKey: null,
           walletType: null,
+          protocolVersion: useNetworkStore.getState().simulationProtocolVersion,
           onStatus: (s) => {
             appendTerminalOutput(`  [instantiate] ${s.message}\r\n`);
           },
@@ -1003,6 +1006,7 @@ export default function Index() {
         activeIdentity,
         webWalletPublicKey: null,
         walletType: null,
+        protocolVersion: useNetworkStore.getState().simulationProtocolVersion,
         onStatus: (s) => {
           appendTerminalOutput(`  [upload] ${s.message}\r\n`);
         },
@@ -1366,6 +1370,10 @@ export default function Index() {
         };
 
         let simulationPayload = assembled.simulationResult ?? assembled.simulation ?? null;
+        const protocolVersion = useNetworkStore.getState().simulationProtocolVersion;
+        const protocolCompatibility = buildProtocolCompatibilityReport(protocolVersion, [
+          "invokeHostFunction",
+        ]);
         const simulationSource =
           assembled.raw ??
           assembled.transaction ??
@@ -1428,6 +1436,10 @@ export default function Index() {
           : "simulation completed";
 
         appendTerminalOutput(`Pre-flight ready: ${summaryText}.\r\n`);
+        appendTerminalOutput(`Simulation protocol: ${protocolCompatibility.protocolVersion}.\r\n`);
+        protocolCompatibility.warnings.forEach((warning) => {
+          appendTerminalOutput(`Protocol warning: ${warning}\r\n`);
+        });
         if (simulationComparison?.feeBreakdown.minResourceFee) {
           appendTerminalOutput(
             `Estimated min resource fee: ${simulationComparison.feeBreakdown.minResourceFee}\r\n`,
@@ -1512,6 +1524,7 @@ export default function Index() {
         activeIdentity,
         webWalletPublicKey,
         walletType,
+        protocolVersion: useNetworkStore.getState().simulationProtocolVersion,
         onStatus: (s) => {
           setInvokeState({ phase: s.phase as typeof invokeState.phase, message: s.message });
           appendTerminalOutput(`  [${s.phase}] ${s.message}\r\n`);

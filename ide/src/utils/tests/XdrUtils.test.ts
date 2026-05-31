@@ -61,6 +61,46 @@ describe("XdrUtils", () => {
       const { xdrBase64 } = encodeToXdr("base64-check");
       expect(() => decodeFromXdr(xdrBase64)).not.toThrow();
     });
+
+    it("round-trips a safe positive bigint value (converts to number)", () => {
+      const { xdrBase64 } = encodeToXdr(42n);
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toBe(42);
+    });
+
+    it("round-trips a safe negative bigint value (converts to number)", () => {
+      const { xdrBase64 } = encodeToXdr(-100n);
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toBe(-100);
+    });
+
+    it("round-trips an unsafe negative bigint value (remains bigint)", () => {
+      const { xdrBase64 } = encodeToXdr(-9007199254740993n);
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toBe(-9007199254740993n);
+    });
+
+    it("round-trips a null value", () => {
+      const { xdrBase64, scvType } = encodeToXdr(null);
+      expect(scvType).toBe("scvVoid");
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toBeNull();
+    });
+
+    it("round-trips an array using encodeToXdr / decodeFromXdr", () => {
+      const input = [1, "two", true, 42n];
+      const { xdrBase64, scvType } = encodeToXdr(input);
+      expect(scvType).toBe("scvVec");
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toEqual([1, "two", true, 42]);
+    });
+
+    it("round-trips a map / object using encodeToXdr / decodeFromXdr", () => {
+      const input = { a: 1, b: "two", c: 100n };
+      const { xdrBase64 } = encodeToXdr(input);
+      const { value } = decodeFromXdr(xdrBase64);
+      expect(value).toEqual({ a: 1, b: "two", c: 100 });
+    });
   });
 
   describe("encodeMap / decodeMap", () => {

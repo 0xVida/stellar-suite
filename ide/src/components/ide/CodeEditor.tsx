@@ -149,8 +149,14 @@ useEffect(() => {
     }
   }, [activeFile?.content, config.enabled, activeFileId, analyze]);
 
-  // User settings (font size and theme)
-  const { fontSize, theme: currentTheme } = useUserSettingsStore();
+  // User settings (font size, theme, and editor visual preferences — issue #928)
+  const {
+    fontSize,
+    theme: currentTheme,
+    editorMinimap,
+    editorIndentGuides,
+    editorFontLigatures,
+  } = useUserSettingsStore();
 
   const handleEditorChange: OnChange = (value) => {
     if (value !== undefined) {
@@ -699,7 +705,10 @@ useEffect(() => {
             options={{
               fontSize: fontSize,
               readOnly: mode === "recipient",
-              minimap: { enabled: false },
+              // Editor visual preferences (issue #928) — driven by UserSettingsStore.
+              minimap: { enabled: editorMinimap },
+              guides: { indentation: editorIndentGuides },
+              fontLigatures: editorFontLigatures,
               scrollBeyondLastLine: false,
               automaticLayout: true,
               tabSize: 4,

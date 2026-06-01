@@ -189,6 +189,13 @@ interface UserSettingsState {
   terminalTheme: TerminalTheme;
   terminalFontFamily: string;
   terminalFontSize: number;
+  // ── Editor visual preferences (issue #928) ──────────────────────────────────
+  /** Show the Monaco code minimap on the right edge of the editor. */
+  editorMinimap: boolean;
+  /** Render vertical indentation guide lines. */
+  editorIndentGuides: boolean;
+  /** Enable programming font ligatures (e.g. => rendered as a glyph). */
+  editorFontLigatures: boolean;
   setTheme: (theme: Theme) => void;
   setLanguage: (language: Language) => void;
   setBrandTheme: (brandTheme: BrandThemeTokens) => void;
@@ -198,6 +205,9 @@ interface UserSettingsState {
   setTerminalTheme: (terminalTheme: TerminalTheme) => void;
   setTerminalFontFamily: (fontFamily: string) => void;
   setTerminalFontSize: (fontSize: number) => void;
+  setEditorMinimap: (enabled: boolean) => void;
+  setEditorIndentGuides: (enabled: boolean) => void;
+  setEditorFontLigatures: (enabled: boolean) => void;
 }
 
 export const useUserSettingsStore = create<UserSettingsState>()(
@@ -212,6 +222,9 @@ export const useUserSettingsStore = create<UserSettingsState>()(
       terminalTheme: 'default',
       terminalFontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", Menlo, monospace',
       terminalFontSize: 12,
+      editorMinimap: false,
+      editorIndentGuides: true,
+      editorFontLigatures: true,
       setTheme: (theme) => set({ theme }),
       setLanguage: (language) => set({ language }),
       setBrandTheme: (brandTheme) => {
@@ -224,6 +237,9 @@ export const useUserSettingsStore = create<UserSettingsState>()(
       setTerminalTheme: (terminalTheme) => set({ terminalTheme }),
       setTerminalFontFamily: (terminalFontFamily) => set({ terminalFontFamily }),
       setTerminalFontSize: (terminalFontSize) => set({ terminalFontSize }),
+      setEditorMinimap: (editorMinimap) => set({ editorMinimap }),
+      setEditorIndentGuides: (editorIndentGuides) => set({ editorIndentGuides }),
+      setEditorFontLigatures: (editorFontLigatures) => set({ editorFontLigatures }),
     }),
     {
       name: 'user-settings',

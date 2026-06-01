@@ -1,6 +1,8 @@
 import { ErrorTranslator, type TranslatedError } from "./errorTranslator";
 import type { NetworkKey } from "./networkConfig";
 import { fetchWithRpcFailover } from "./rpcFailover";
+import { buildProtocolCompatibilityReport, getProtocolSimulationEnvelope } from "./protocolUpgrade";
+import type { ProtocolVersion } from "@/config/ProtocolMatrix";
 
 export interface SimulationResult {
   success: boolean;
@@ -14,6 +16,8 @@ export interface SimulationResult {
   };
   events?: unknown[];
   auth?: unknown[];
+  protocolVersion?: ProtocolVersion;
+  warnings?: string[];
 }
 
 export interface CustomHeaders {
@@ -64,13 +68,20 @@ export class RpcService {
     contractId: string,
     functionName: string,
     args: unknown[],
+    protocolVersion?: ProtocolVersion,
   ): Promise<SimulationResult> {
     try {
+      const protocol = getProtocolSimulationEnvelope(protocolVersion);
+      const compatibility = buildProtocolCompatibilityReport(protocol.protocolVersion, [
+        "invokeHostFunction",
+      ]);
       const requestBody = {
         jsonrpc: "2.0",
         id: 1,
         method: "simulateTransaction",
         params: {
+          protocolVersion: protocol.protocolVersion,
+          simulationRules: protocol.simulationRules,
           transaction: {
             contractId,
             functionName,
@@ -136,6 +147,8 @@ export class RpcService {
         success: true,
         result: result?.returnValue ?? result?.result ?? result,
         resourceUsage: normalizeResourceUsage(result?.resourceUsage ?? result?.resource_usage),
+        protocolVersion: protocol.protocolVersion,
+        warnings: compatibility.warnings,
       };
     } catch (error) {
       if (error instanceof TypeError && error.message.includes("fetch")) {

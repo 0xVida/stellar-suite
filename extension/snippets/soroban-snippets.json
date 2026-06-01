@@ -1,0 +1,603 @@
+{
+  "Soroban no_std header": {
+    "prefix": "sb-no-std",
+    "body": [
+      "#![no_std]",
+      "",
+      "use soroban_sdk::{contract, contractimpl, Env};",
+      "",
+      "$0"
+    ],
+    "description": "no_std crate header with the minimal soroban_sdk imports. Soroban contracts must be no_std because the WASM runtime does not provide std."
+  },
+  "Soroban contract skeleton": {
+    "prefix": "sb-contract",
+    "body": [
+      "#[contract]",
+      "pub struct ${1:MyContract};",
+      "",
+      "#[contractimpl]",
+      "impl ${1:MyContract} {",
+      "    pub fn ${2:hello}(env: Env, ${3:to}: ${4:Symbol}) -> ${5:Symbol} {",
+      "        $0",
+      "    }",
+      "}"
+    ],
+    "description": "Minimal #[contract] struct plus #[contractimpl] block. This is the canonical Soroban contract entry point."
+  },
+  "Soroban contract test module": {
+    "prefix": "sb-contract-mod",
+    "body": [
+      "#[cfg(test)]",
+      "mod test;",
+      "$0"
+    ],
+    "description": "Wires up a sibling test.rs module so unit tests are compiled out of the deployed WASM."
+  },
+  "Soroban prelude imports": {
+    "prefix": "sb-import-prelude",
+    "body": [
+      "use soroban_sdk::{",
+      "    contract, contractimpl, contracttype, contracterror,",
+      "    Address, Bytes, BytesN, Env, IntoVal, Map, String, Symbol, Vec,",
+      "    log, panic_with_error, symbol_short, vec,",
+      "};",
+      "$0"
+    ],
+    "description": "Common multi-import covering most Soroban contract use cases: macros, host types, and helpers."
+  },
+  "Soroban single import": {
+    "prefix": "sb-import",
+    "body": [
+      "use soroban_sdk::{$0};"
+    ],
+    "description": "Empty soroban_sdk use statement, ready to fill in with the symbols you need."
+  },
+  "Soroban contracttype enum": {
+    "prefix": "sb-contracttype-enum",
+    "body": [
+      "#[contracttype]",
+      "#[derive(Clone)]",
+      "pub enum ${1:DataKey} {",
+      "    ${2:Admin},",
+      "    ${3:Balance}(Address),",
+      "    $0",
+      "}"
+    ],
+    "description": "Storage-key enum decorated with #[contracttype] so it can cross the host boundary."
+  },
+  "Soroban contracttype struct": {
+    "prefix": "sb-contracttype-struct",
+    "body": [
+      "#[contracttype]",
+      "#[derive(Clone)]",
+      "pub struct ${1:State} {",
+      "    pub ${2:owner}: Address,",
+      "    pub ${3:value}: i128,",
+      "    $0",
+      "}"
+    ],
+    "description": "Host-compatible struct: #[contracttype] makes it serialisable into Soroban storage and arguments."
+  },
+  "Soroban contracterror enum": {
+    "prefix": "sb-contracterror",
+    "body": [
+      "#[contracterror]",
+      "#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]",
+      "#[repr(u32)]",
+      "pub enum ${1:Error} {",
+      "    ${2:NotInitialized} = 1,",
+      "    ${3:Unauthorized} = 2,",
+      "    ${4:InvalidAmount} = 3,",
+      "    $0",
+      "}"
+    ],
+    "description": "Typed contract-error enum. Variants are encoded as u32 status codes that clients can decode."
+  },
+  "Soroban contractmeta macro": {
+    "prefix": "sb-contractmeta",
+    "body": [
+      "soroban_sdk::contractmeta!(",
+      "    key = \"${1:Description}\",",
+      "    val = \"${2:Short description of the contract}\"",
+      ");$0"
+    ],
+    "description": "Embeds metadata (description, version, repo URL, etc.) into the compiled WASM customsection."
+  },
+  "Soroban contract trait": {
+    "prefix": "sb-trait",
+    "body": [
+      "pub trait ${1:TokenTrait} {",
+      "    fn ${2:name}(env: Env) -> String;",
+      "    $0",
+      "}",
+      "",
+      "#[contractimpl]",
+      "impl ${1:TokenTrait} for ${3:MyContract} {",
+      "    fn ${2:name}(_env: Env) -> String {",
+      "        String::from_str(&_env, \"${4:My Token}\")",
+      "    }",
+      "}"
+    ],
+    "description": "Trait + #[contractimpl] pair. Useful for SEP-41 / token-style interfaces where you want a shared trait surface."
+  },
+  "Soroban symbol_short macro": {
+    "prefix": "sb-symbol-short",
+    "body": [
+      "symbol_short!(\"${1:KEY}\")$0"
+    ],
+    "description": "Compile-time short Symbol (≤9 chars). Cheaper than runtime Symbol::new for storage keys and event topics."
+  },
+  "Soroban Symbol::new": {
+    "prefix": "sb-symbol-new",
+    "body": [
+      "Symbol::new(&env, \"${1:long_symbol_name}\")$0"
+    ],
+    "description": "Runtime Symbol for names longer than 9 chars. Use symbol_short! when possible — it is free at runtime."
+  },
+  "Soroban initialize function": {
+    "prefix": "sb-fn-init",
+    "body": [
+      "pub fn initialize(env: Env, ${1:admin}: Address) -> Result<(), ${2:Error}> {",
+      "    if env.storage().instance().has(&DataKey::Admin) {",
+      "        return Err(${2:Error}::AlreadyInitialized);",
+      "    }",
+      "    env.storage().instance().set(&DataKey::Admin, &${1:admin});",
+      "    env.storage().instance().extend_ttl(${3:50}, ${4:100});",
+      "    Ok(())",
+      "}$0"
+    ],
+    "description": "One-shot initializer that refuses to run twice. Always store an Admin and extend TTL on the instance entry."
+  },
+  "Soroban public contract method": {
+    "prefix": "sb-fn-pub",
+    "body": [
+      "pub fn ${1:method}(env: Env, ${2:arg}: ${3:Type}) -> ${4:()} {",
+      "    $0",
+      "}"
+    ],
+    "description": "Skeleton of a public contract function. The first parameter must be `env: Env` so the body has host access."
+  },
+  "Soroban Result-returning fn": {
+    "prefix": "sb-fn-result",
+    "body": [
+      "pub fn ${1:transfer}(env: Env, ${2:from}: Address, ${3:to}: Address, ${4:amount}: i128) -> Result<(), ${5:Error}> {",
+      "    if ${4:amount} <= 0 {",
+      "        return Err(${5:Error}::InvalidAmount);",
+      "    }",
+      "    $0",
+      "    Ok(())",
+      "}"
+    ],
+    "description": "Function returning a typed Result. Prefer this over panicking — clients get a structured error."
+  },
+  "Soroban storage getter": {
+    "prefix": "sb-fn-getter",
+    "body": [
+      "pub fn ${1:get_balance}(env: Env, ${2:owner}: Address) -> i128 {",
+      "    env.storage()",
+      "        .persistent()",
+      "        .get(&DataKey::${3:Balance}(${2:owner}))",
+      "        .unwrap_or(0)",
+      "}$0"
+    ],
+    "description": "Persistent storage getter with a sane default. Avoids panics on first-time reads."
+  },
+  "Soroban storage setter (with TTL bump)": {
+    "prefix": "sb-fn-setter",
+    "body": [
+      "pub fn ${1:set_balance}(env: Env, ${2:owner}: Address, ${3:amount}: i128) {",
+      "    let key = DataKey::${4:Balance}(${2:owner});",
+      "    env.storage().persistent().set(&key, &${3:amount});",
+      "    env.storage()",
+      "        .persistent()",
+      "        .extend_ttl(&key, ${5:50}, ${6:100});",
+      "}$0"
+    ],
+    "description": "Persistent setter that extends the entry's TTL right after writing. Prevents premature archival."
+  },
+  "Soroban admin-only function": {
+    "prefix": "sb-fn-admin-only",
+    "body": [
+      "pub fn ${1:set_admin}(env: Env, ${2:new_admin}: Address) {",
+      "    let admin: Address = env",
+      "        .storage()",
+      "        .instance()",
+      "        .get(&DataKey::Admin)",
+      "        .expect(\"contract is not initialized\");",
+      "    admin.require_auth();",
+      "    env.storage().instance().set(&DataKey::Admin, &${2:new_admin});",
+      "}$0"
+    ],
+    "description": "Admin-gated state mutation. `require_auth` enforces that the current admin signed the invocation."
+  },
+  "Soroban pausable pattern": {
+    "prefix": "sb-fn-pause",
+    "body": [
+      "fn assert_not_paused(env: &Env) {",
+      "    let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);",
+      "    if paused {",
+      "        panic_with_error!(env, ${1:Error}::Paused);",
+      "    }",
+      "}",
+      "",
+      "pub fn pause(env: Env) {",
+      "    let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();",
+      "    admin.require_auth();",
+      "    env.storage().instance().set(&DataKey::Paused, &true);",
+      "}",
+      "",
+      "pub fn unpause(env: Env) {",
+      "    let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();",
+      "    admin.require_auth();",
+      "    env.storage().instance().set(&DataKey::Paused, &false);",
+      "}$0"
+    ],
+    "description": "Pausable contract pattern: an admin-controlled boolean and a guard helper that mutating functions must call first."
+  },
+  "Soroban upgrade WASM": {
+    "prefix": "sb-fn-upgrade",
+    "body": [
+      "pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {",
+      "    let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();",
+      "    admin.require_auth();",
+      "    env.deployer().update_current_contract_wasm(new_wasm_hash);",
+      "}$0"
+    ],
+    "description": "Standard admin-gated WASM upgrade. Always require_auth — without it anyone can swap your bytecode."
+  },
+  "Soroban storage: instance get": {
+    "prefix": "sb-storage-get-instance",
+    "body": [
+      "let ${1:value}: ${2:Type} = env.storage().instance().get(&${3:DataKey::Admin}).unwrap_or_default();$0"
+    ],
+    "description": "Read from instance storage (cleared with the contract). Cheap to extend, lifetime tied to contract instance."
+  },
+  "Soroban storage: instance set": {
+    "prefix": "sb-storage-set-instance",
+    "body": [
+      "env.storage().instance().set(&${1:DataKey::Admin}, &${2:value});",
+      "env.storage().instance().extend_ttl(${3:50}, ${4:100});$0"
+    ],
+    "description": "Write to instance storage and extend its TTL. Instance storage shares a single TTL for the whole contract."
+  },
+  "Soroban storage: persistent get": {
+    "prefix": "sb-storage-get-persistent",
+    "body": [
+      "let ${1:value}: ${2:Type} = env.storage().persistent().get(&${3:key}).unwrap_or_default();$0"
+    ],
+    "description": "Read a per-key persistent entry. Each key has its own TTL — be sure to bump it when you read or write."
+  },
+  "Soroban storage: persistent set": {
+    "prefix": "sb-storage-set-persistent",
+    "body": [
+      "env.storage().persistent().set(&${1:key}, &${2:value});",
+      "env.storage().persistent().extend_ttl(&${1:key}, ${3:50}, ${4:100});$0"
+    ],
+    "description": "Write to persistent storage and extend its TTL right after. Skipping the bump risks early archival."
+  },
+  "Soroban storage: temporary get": {
+    "prefix": "sb-storage-get-temporary",
+    "body": [
+      "let ${1:value}: ${2:Type} = env.storage().temporary().get(&${3:key}).unwrap_or_default();$0"
+    ],
+    "description": "Read from temporary storage. Cheaper than persistent; entries are unrecoverable once expired."
+  },
+  "Soroban storage: temporary set": {
+    "prefix": "sb-storage-set-temporary",
+    "body": [
+      "env.storage().temporary().set(&${1:key}, &${2:value});",
+      "env.storage().temporary().extend_ttl(&${1:key}, ${3:50}, ${4:100});$0"
+    ],
+    "description": "Write to temporary storage and extend TTL. Use for rate limits, nonces, or anything ephemeral."
+  },
+  "Soroban storage: extend TTL": {
+    "prefix": "sb-storage-extend-ttl",
+    "body": [
+      "env.storage().${1|persistent,temporary,instance|}().extend_ttl(&${2:key}, ${3:50}, ${4:100});$0"
+    ],
+    "description": "Extend an entry's TTL. Picks between persistent / temporary / instance via a multiple-choice tab stop."
+  },
+  "Soroban storage: has key": {
+    "prefix": "sb-storage-has",
+    "body": [
+      "let exists: bool = env.storage().${1|persistent,temporary,instance|}().has(&${2:key});$0"
+    ],
+    "description": "Existence check that does not deserialise the value. Cheaper than `get(...).is_some()`."
+  },
+  "Soroban auth: require_auth": {
+    "prefix": "sb-auth-require",
+    "body": [
+      "${1:caller}.require_auth();$0"
+    ],
+    "description": "Asserts that the address has authorised the current invocation. Required before any sensitive state change."
+  },
+  "Soroban auth: require_auth_for_args": {
+    "prefix": "sb-auth-args",
+    "body": [
+      "${1:caller}.require_auth_for_args((${2:arg1}, ${3:arg2}).into_val(&env));$0"
+    ],
+    "description": "Authorises a specific argument tuple. Lets callers approve narrow operations rather than blanket invocation auth."
+  },
+  "Soroban auth: admin check helper": {
+    "prefix": "sb-auth-admin",
+    "body": [
+      "fn require_admin(env: &Env) {",
+      "    let admin: Address = env",
+      "        .storage()",
+      "        .instance()",
+      "        .get(&DataKey::Admin)",
+      "        .expect(\"not initialized\");",
+      "    admin.require_auth();",
+      "}$0"
+    ],
+    "description": "Reusable admin-gate helper. Call at the top of any admin-only function."
+  },
+  "Soroban auth: contract auth context": {
+    "prefix": "sb-auth-context",
+    "body": [
+      "let auths = env.auths();",
+      "for ${1:auth} in auths.iter() {",
+      "    $0",
+      "}"
+    ],
+    "description": "Iterate over the current auth contexts. Useful for assertions in tests and for advanced multi-auth flows."
+  },
+  "Soroban token: client": {
+    "prefix": "sb-token-client",
+    "body": [
+      "let ${1:token} = soroban_sdk::token::Client::new(&env, &${2:token_address});$0"
+    ],
+    "description": "Construct a token client against a SAC or SEP-41 contract address."
+  },
+  "Soroban token: transfer": {
+    "prefix": "sb-token-transfer",
+    "body": [
+      "soroban_sdk::token::Client::new(&env, &${1:token_address})",
+      "    .transfer(&${2:from}, &${3:to}, &${4:amount});$0"
+    ],
+    "description": "Transfer tokens between two addresses. The `from` address must `require_auth` somewhere up the call stack."
+  },
+  "Soroban token: mint": {
+    "prefix": "sb-token-mint",
+    "body": [
+      "soroban_sdk::token::StellarAssetClient::new(&env, &${1:token_address})",
+      "    .mint(&${2:to}, &${3:amount});$0"
+    ],
+    "description": "Mint tokens via the StellarAssetClient surface. Requires the token admin to authorise."
+  },
+  "Soroban token: burn": {
+    "prefix": "sb-token-burn",
+    "body": [
+      "soroban_sdk::token::Client::new(&env, &${1:token_address})",
+      "    .burn(&${2:from}, &${3:amount});$0"
+    ],
+    "description": "Burn tokens from `from`. The address must require_auth."
+  },
+  "Soroban token: balance": {
+    "prefix": "sb-token-balance",
+    "body": [
+      "let balance: i128 = soroban_sdk::token::Client::new(&env, &${1:token_address}).balance(&${2:owner});$0"
+    ],
+    "description": "Read a token balance for the given owner address."
+  },
+  "Soroban event: publish single topic": {
+    "prefix": "sb-event-publish",
+    "body": [
+      "env.events().publish((symbol_short!(\"${1:topic}\"),), ${2:payload});$0"
+    ],
+    "description": "Publish an event with a single short symbol topic. Topics are how indexers and clients filter events."
+  },
+  "Soroban event: multiple topics": {
+    "prefix": "sb-event-topic",
+    "body": [
+      "env.events().publish(",
+      "    (symbol_short!(\"${1:transfer}\"), ${2:from}.clone(), ${3:to}.clone()),",
+      "    ${4:amount},",
+      ");$0"
+    ],
+    "description": "Multi-topic event (e.g. transfer events emit `(transfer, from, to)` topics with amount as data)."
+  },
+  "Soroban log macro": {
+    "prefix": "sb-event-log",
+    "body": [
+      "log!(&env, \"${1:message}\", ${2:value});$0"
+    ],
+    "description": "Diagnostic log emitted to host output. Stripped from optimised release builds — fine to leave in code."
+  },
+  "Soroban contract client": {
+    "prefix": "sb-client-new",
+    "body": [
+      "let ${1:client} = ${2:MyContract}Client::new(&env, &${3:contract_id});$0"
+    ],
+    "description": "Generated client for a deployed contract. Macro-generated by #[contractimpl]."
+  },
+  "Soroban cross-contract invoke": {
+    "prefix": "sb-cross-call",
+    "body": [
+      "let result: ${1:ReturnType} = env.invoke_contract(",
+      "    &${2:contract_id},",
+      "    &symbol_short!(\"${3:method}\"),",
+      "    soroban_sdk::vec![&env, ${4:arg1}.into_val(&env)],",
+      ");$0"
+    ],
+    "description": "Low-level cross-contract call. Prefer the generated client when you control both contracts; this helps for dynamic calls."
+  },
+  "Soroban current contract address": {
+    "prefix": "sb-address-from-contract",
+    "body": [
+      "let ${1:self_address} = env.current_contract_address();$0"
+    ],
+    "description": "Returns the address of the currently executing contract. Useful for self-references in events and storage."
+  },
+  "Soroban deploy from contract": {
+    "prefix": "sb-create-contract",
+    "body": [
+      "let ${1:deployed} = env",
+      "    .deployer()",
+      "    .with_current_contract(${2:salt})",
+      "    .deploy(${3:wasm_hash});$0"
+    ],
+    "description": "Deploy a child contract using the current contract as factory. The salt determines the resulting address."
+  },
+  "Soroban ledger timestamp": {
+    "prefix": "sb-ledger-timestamp",
+    "body": [
+      "let now: u64 = env.ledger().timestamp();$0"
+    ],
+    "description": "Deterministic ledger close-time in unix seconds. Use this instead of std::time inside contracts."
+  },
+  "Soroban ledger sequence": {
+    "prefix": "sb-ledger-sequence",
+    "body": [
+      "let seq: u32 = env.ledger().sequence();$0"
+    ],
+    "description": "Current ledger sequence number. Common as a randomness commit, deadline ledger, or schedule key."
+  },
+  "Soroban ledger network id": {
+    "prefix": "sb-ledger-network-id",
+    "body": [
+      "let network_id: BytesN<32> = env.ledger().network_id();$0"
+    ],
+    "description": "Network passphrase hash. Useful for cross-network signature scoping."
+  },
+  "Soroban panic_with_error": {
+    "prefix": "sb-panic-with-error",
+    "body": [
+      "panic_with_error!(&env, ${1:Error}::${2:Variant});$0"
+    ],
+    "description": "Panic with a typed contract error so callers see a structured failure instead of an opaque host error."
+  },
+  "Soroban error conversion": {
+    "prefix": "sb-error-conversion",
+    "body": [
+      "impl From<${1:OtherError}> for ${2:Error} {",
+      "    fn from(_e: ${1:OtherError}) -> Self {",
+      "        ${2:Error}::${3:Variant}",
+      "    }",
+      "}$0"
+    ],
+    "description": "Implement `From<OtherError>` so the `?` operator can bubble nested errors up into your contract error enum."
+  },
+  "Soroban return Result with ?": {
+    "prefix": "sb-result-question",
+    "body": [
+      "let ${1:value} = ${2:expr}?;$0"
+    ],
+    "description": "Bubble up a Result error using `?`. Pair with a `From` impl that targets your contract error enum."
+  },
+  "Soroban test module": {
+    "prefix": "sb-test-mod",
+    "body": [
+      "#![cfg(test)]",
+      "",
+      "use super::*;",
+      "use soroban_sdk::{testutils::Address as _, Env};",
+      "",
+      "#[test]",
+      "fn ${1:test_initialize}() {",
+      "    let env = Env::default();",
+      "    env.mock_all_auths();",
+      "",
+      "    let contract_id = env.register(${2:MyContract}, ());",
+      "    let client = ${2:MyContract}Client::new(&env, &contract_id);",
+      "",
+      "    $0",
+      "}"
+    ],
+    "description": "Test module skeleton with Env, mocked auths, and a registered contract client."
+  },
+  "Soroban Env::default": {
+    "prefix": "sb-test-env",
+    "body": [
+      "let env = Env::default();",
+      "env.mock_all_auths();$0"
+    ],
+    "description": "Spin up a test Env and mock every auth so calls do not need explicit signers."
+  },
+  "Soroban register contract & client": {
+    "prefix": "sb-test-register",
+    "body": [
+      "let contract_id = env.register(${1:MyContract}, ());",
+      "let ${2:client} = ${1:MyContract}Client::new(&env, &contract_id);$0"
+    ],
+    "description": "Register a contract under test and grab its generated client. Pair with Env::default."
+  },
+  "Soroban mock specific auths": {
+    "prefix": "sb-test-mock-auth",
+    "body": [
+      "use soroban_sdk::testutils::{Address as _, MockAuth, MockAuthInvoke};",
+      "use soroban_sdk::IntoVal;",
+      "",
+      "let ${1:user} = soroban_sdk::Address::generate(&env);",
+      "client",
+      "    .mock_auths(&[MockAuth {",
+      "        address: &${1:user},",
+      "        invoke: &MockAuthInvoke {",
+      "            contract: &contract_id,",
+      "            fn_name: \"${2:transfer}\",",
+      "            args: (${3:from}, ${4:to}, ${5:amount}).into_val(&env),",
+      "            sub_invokes: &[],",
+      "        },",
+      "    }])",
+      "    .${2:transfer}(&${3:from}, &${4:to}, &${5:amount});$0"
+    ],
+    "description": "Tighter alternative to mock_all_auths: assert that a specific address authorised a specific call."
+  },
+  "Soroban budget profile": {
+    "prefix": "sb-test-budget",
+    "body": [
+      "env.budget().reset_default();",
+      "${1:client}.${2:method}(&${3:arg});",
+      "std::println!(\"{}\", env.budget());$0"
+    ],
+    "description": "Reset and print the resource budget around a contract call. Useful for catching gas regressions in tests."
+  },
+  "Soroban DataKey enum pattern": {
+    "prefix": "sb-data-key-enum",
+    "body": [
+      "#[contracttype]",
+      "#[derive(Clone)]",
+      "pub enum DataKey {",
+      "    Admin,",
+      "    Paused,",
+      "    Balance(Address),",
+      "    Allowance(Address, Address),",
+      "    $0",
+      "}"
+    ],
+    "description": "Convention DataKey enum covering admin, pause flag, balance map, and allowance map."
+  },
+  "Soroban Vec literal": {
+    "prefix": "sb-vec",
+    "body": [
+      "let ${1:items}: Vec<${2:i128}> = vec![&env, ${3:1}, ${4:2}, ${5:3}];$0"
+    ],
+    "description": "Construct a Soroban Vec literal with the env-bound `vec!` macro."
+  },
+  "Soroban Map::new": {
+    "prefix": "sb-map",
+    "body": [
+      "let mut ${1:map}: Map<${2:Address}, ${3:i128}> = Map::new(&env);",
+      "${1:map}.set(${4:key}, ${5:value});$0"
+    ],
+    "description": "Construct a host-compatible Map. Use this instead of HashMap inside contracts."
+  },
+  "Soroban BytesN<32>": {
+    "prefix": "sb-bytes-fixed",
+    "body": [
+      "let ${1:hash}: BytesN<32> = ${2:value}.into();$0"
+    ],
+    "description": "Fixed-length 32-byte buffer. Used for WASM hashes, ledger network IDs, and Ed25519 keys."
+  },
+  "Soroban storage TTL constants": {
+    "prefix": "sb-ttl-consts",
+    "body": [
+      "const ${1:DAY_LEDGERS}: u32 = 17_280;",
+      "const ${2:THRESHOLD}: u32 = 30 * ${1:DAY_LEDGERS};",
+      "const ${3:EXTEND_TO}: u32 = 60 * ${1:DAY_LEDGERS};",
+      "$0"
+    ],
+    "description": "Common TTL constants in ledgers (~5 second close time → 17,280 ledgers per day). Use as `extend_ttl(THRESHOLD, EXTEND_TO)`."
+  }
+}

@@ -25,9 +25,17 @@
     "rust",
     "developer-tools"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:rust"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
+    "snippets": [
+      {
+        "language": "rust",
+        "path": "./snippets/soroban-snippets.json"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -42,6 +50,20 @@
         {
           "id": "stellarSuite.contractsView",
           "name": "Contracts",
+          "type": "webview",
+          "icon": "resources/stellar-icon.png",
+          "when": "true"
+        },
+        {
+          "id": "stellarSuite.contractInvokeView",
+          "name": "Contract Invoke",
+          "type": "webview",
+          "icon": "resources/stellar-icon.png",
+          "when": "true"
+        },
+        {
+          "id": "stellarSuite.accountBalanceView",
+          "name": "Account Balance",
           "type": "webview",
           "icon": "resources/stellar-icon.png",
           "when": "true"
@@ -123,6 +145,21 @@
         "command": "stellarSuite.showNetworkHealth",
         "title": "Kit Studio: Show Network Health",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "stellarSuite.openInWebIDE",
+        "title": "Kit Studio: Open in Web IDE",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "stellar.quickDeploy",
+        "title": "Kit Studio: Quick Deploy Soroban Contract",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "stellar.syncAccount",
+        "title": "Kit Studio: Sync Stellar Account",
+        "icon": "$(sync)"
       }
     ],
     "menus": {
@@ -224,6 +261,57 @@
           "type": "string",
           "default": "Test SDF Network ; September 2015",
           "description": "Network passphrase for signing transactions (Only needed if using rpcUrl without a named network)"
+        },
+        "stellarSuite.latencyMonitor.pollIntervalSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 5,
+          "description": "How often the status-bar latency monitor pings the configured RPC endpoint."
+        },
+        "stellarSuite.latencyMonitor.healthyThresholdMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 1,
+          "description": "Status-bar shows green up to this latency. Above this and below the degraded threshold the indicator turns yellow."
+        },
+        "stellarSuite.latencyMonitor.degradedThresholdMs": {
+          "type": "number",
+          "default": 800,
+          "minimum": 1,
+          "description": "Status-bar turns red above this latency."
+        },
+        "stellarSuite.healthAlerts.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show VS Code notifications when the selected Horizon/RPC node experiences downtime or latency spikes."
+        },
+        "stellarSuite.healthAlerts.latencySpikeMs": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 1,
+          "description": "Trigger a warning notification when a single latency sample exceeds this many milliseconds."
+        },
+        "stellarSuite.healthAlerts.consecutiveFailuresForDowntime": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "Number of consecutive failed pings required before raising a downtime alert."
+        },
+        "stellarSuite.healthAlerts.minNotifyIntervalMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 1000,
+          "description": "Minimum interval between notifications of the same kind, to avoid alert fatigue."
+        },
+        "stellarSuite.linter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the Soroban linter on Rust files and surface diagnostics in the Problems panel."
+        },
+        "stellarSuite.secretSync.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sync Stellar identities across VS Code workspaces using native SecretStorage. Secret keys are never written to workspace settings or logs."
         }
       }
     }

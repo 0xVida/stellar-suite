@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { txLink, truncateHash } from "@/utils/explorerLinks";
 import { stringifyDecodedValue } from "@/utils/scValDecoder";
 import { type TransactionResultEntry } from "@/store/useTransactionResultsStore";
+import { SimulationComparison } from "@/components/ide/SimulationComparison";
 
 interface TransactionResultLogProps {
   entry: TransactionResultEntry;
@@ -81,6 +82,10 @@ export function TransactionResultLog({ entry }: TransactionResultLogProps) {
               <p className="text-[11px] text-destructive">{entry.errorMessage}</p>
             )}
           </div>
+
+          {entry.simulationComparison && (
+            <SimulationComparison comparison={entry.simulationComparison} />
+          )}
         </div>
       )}
     </div>

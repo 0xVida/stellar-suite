@@ -22,6 +22,8 @@ export interface OfflineStatus {
   pendingSyncCount: number;
   /** Current sync lifecycle state */
   syncState: SyncState;
+  /** Number of dependencies loaded from SW cache */
+  cacheHitCount: number;
 }
 
 export function useOfflineStatus(): OfflineStatus {
@@ -30,6 +32,7 @@ export function useOfflineStatus(): OfflineStatus {
   );
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [syncState, setSyncState] = useState<SyncState>("idle");
+  const [cacheHitCount, setCacheHitCount] = useState<number>(0);
 
   // Refresh queue count from IDB
   const refreshQueueCount = useCallback(async () => {
@@ -45,10 +48,22 @@ export function useOfflineStatus(): OfflineStatus {
       setIsOffline(false);
       setSyncState("syncing");
       // Trigger background sync if SW supports it
-      if ("serviceWorker" in navigator && "SyncManager" in window) {
-        navigator.serviceWorker.ready
-          .then((reg) => (reg as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("stellar-ide-sync"))
-          .catch(() => {/* sync not available, SW flushes on its own */});
+      if ("serviceWorker" in navigator) {
+        if ("SyncManager" in window) {
+          navigator.serviceWorker.ready
+            .then((reg) => (reg as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register("stellar-ide-sync"))
+            .catch(() => {
+              // fallback if registration failed
+              navigator.serviceWorker.ready.then((reg) => {
+                reg.active?.postMessage({ type: "REQUEST_SYNC" });
+              });
+            });
+        } else {
+          // Fallback: send message to SW to trigger manual sync
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.active?.postMessage({ type: "REQUEST_SYNC" });
+          }).catch(() => {});
+        }
       }
     };
 
@@ -72,6 +87,9 @@ export function useOfflineStatus(): OfflineStatus {
         // Reset to idle after 3 s so the "synced" indicator fades
         setTimeout(() => setSyncState("idle"), 3000);
       }
+      if (event.data?.type === "CACHE_HIT") {
+        setCacheHitCount((prev) => prev + 1);
+      }
     };
 
     if ("serviceWorker" in navigator) {
@@ -79,6 +97,10 @@ export function useOfflineStatus(): OfflineStatus {
       // Ask the SW for the current queue length on mount
       navigator.serviceWorker.ready.then((reg) => {
         reg.active?.postMessage({ type: "GET_QUEUE_LENGTH" });
+        // Trigger manual sync on mount if online
+        if (navigator.onLine) {
+          reg.active?.postMessage({ type: "REQUEST_SYNC" });
+        }
       }).catch(() => {});
     }
 
@@ -91,5 +113,5 @@ export function useOfflineStatus(): OfflineStatus {
     };
   }, [refreshQueueCount]);
 
-  return { isOffline, pendingSyncCount, syncState };
+  return { isOffline, pendingSyncCount, syncState, cacheHitCount };
 }

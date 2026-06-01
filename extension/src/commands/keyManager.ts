@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { execAsync } from '../services/sorobanCliService';
+import { SecretSyncService } from '../services/SecretSyncService';
 
-export async function keysGenerate() {
+export async function keysGenerate(secretSync?: SecretSyncService) {
     const name = await vscode.window.showInputBox({
         prompt: 'Enter a name for the new identity',
         placeHolder: 'e.g., alice, bob, dev'
@@ -17,6 +18,7 @@ export async function keysGenerate() {
         }, async () => {
             await execAsync(`stellar keys generate ${name}`);
         });
+        await syncIdentitySecret(secretSync, name);
         vscode.window.showInformationMessage(`Successfully generated identity: ${name}`);
     } catch (e: any) {
         vscode.window.showErrorMessage(`Failed to generate identity: ${e.message}`);
@@ -67,7 +69,7 @@ interface KeyIdentityItem extends vscode.QuickPickItem {
     rawPubKey: string;
 }
 
-export async function keysList() {
+export async function keysList(secretSync?: SecretSyncService) {
     try {
         const { stdout } = await execAsync('stellar keys ls');
         const lines = stdout.split('\n').map(l => l.trim()).filter(Boolean);
@@ -128,8 +130,50 @@ export async function keysList() {
             } else if (action?.id === 'fund_account') {
                 await fundIdentity(selected.rawName);
             }
+            await syncIdentitySecret(secretSync, selected.rawName, selected.rawPubKey);
         }
     } catch (e: any) {
         vscode.window.showErrorMessage(`Failed to list keys: ${e.message}`);
     }
+}
+
+async function syncIdentitySecret(secretSync: SecretSyncService | undefined, name: string, knownPublicKey?: string) {
+    if (!secretSync) {
+        return;
+    }
+
+    if (!secretSync.isEnabled()) {
+        return;
+    }
+
+    const publicKey = knownPublicKey || (await execAsync(`stellar keys address ${name}`)).stdout.trim();
+    const privateKey = await readPrivateKey(name);
+
+    if (publicKey && privateKey) {
+        await secretSync.storeIdentity({
+            name,
+            publicKey,
+            network: vscode.workspace.getConfiguration('stellarSuite').get<string>('network', 'testnet')
+        }, privateKey);
+    }
+}
+
+async function readPrivateKey(name: string): Promise<string | undefined> {
+    const commands = [
+        `stellar keys show ${name} --secret`,
+        `stellar keys secret ${name}`
+    ];
+
+    for (const command of commands) {
+        try {
+            const { stdout } = await execAsync(command);
+            const secret = stdout.trim().split(/\s+/).find(part => /^S[A-Z2-7]{55}$/.test(part));
+            if (secret) {
+                return secret;
+            }
+        } catch {
+        }
+    }
+
+    return undefined;
 }

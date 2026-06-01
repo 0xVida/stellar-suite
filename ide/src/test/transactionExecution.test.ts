@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  walletServiceSignTransaction,
+  adapterSignInvocation,
+  adapterSignDeployment,
+  adapterSignTransaction,
   transactionSign,
   toXdr,
   fromSecret,
@@ -11,7 +13,9 @@ const {
   const toXdr = vi.fn(() => "SIGNED_LOCAL_XDR");
 
   return {
-    walletServiceSignTransaction: vi.fn(),
+    adapterSignInvocation: vi.fn(),
+    adapterSignDeployment: vi.fn(),
+    adapterSignTransaction: vi.fn(),
     transactionSign,
     toXdr,
     fromSecret: vi.fn(() => ({ secret: "SLOCAL" })),
@@ -22,9 +26,11 @@ const {
   };
 });
 
-vi.mock("@/wallet/WalletService", () => ({
-  WalletService: {
-    signTransaction: walletServiceSignTransaction,
+vi.mock("@/lib/wallet/WalletAdapter", () => ({
+  WalletAdapter: {
+    signInvocation: adapterSignInvocation,
+    signDeployment: adapterSignDeployment,
+    signTransaction: adapterSignTransaction,
   },
 }));
 
@@ -53,6 +59,18 @@ vi.mock("@stellar/stellar-sdk/rpc", () => ({
   Server: vi.fn(),
 }));
 
+vi.mock("@/utils/XdrValidator", () => ({
+  assertValidTransactionEnvelopeXdr: vi.fn((xdr, passphrase) => {
+    fromXDR(xdr, passphrase);
+    return {
+      transaction: {
+        sign: transactionSign,
+        toXDR: toXdr,
+      },
+    };
+  }),
+}));
+
 import {
   createWalletSigningDelegator,
   DEFAULT_TRANSACTION_POLL_INTERVAL_MS,
@@ -75,6 +93,7 @@ describe("createWalletSigningDelegator", () => {
       webWalletPublicKey: null,
       walletType: null,
       networkPassphrase: "Test Network",
+      intent: { kind: "invoke" },
     });
 
     const result = await signTransaction("UNSIGNED_XDR");
@@ -85,8 +104,8 @@ describe("createWalletSigningDelegator", () => {
     expect(result).toBe("SIGNED_LOCAL_XDR");
   });
 
-  it("delegates browser wallet signing to WalletService", async () => {
-    walletServiceSignTransaction.mockResolvedValue("SIGNED_WALLET_XDR");
+  it("routes browser wallet invocations through WalletAdapter.signInvocation", async () => {
+    adapterSignInvocation.mockResolvedValue("SIGNED_WALLET_XDR");
 
     const signTransaction = createWalletSigningDelegator({
       activeContext: { type: "web-wallet" },
@@ -94,15 +113,43 @@ describe("createWalletSigningDelegator", () => {
       webWalletPublicKey: "GWALLET",
       walletType: "freighter",
       networkPassphrase: "Test Network",
+      intent: { kind: "invoke", contractId: "CABC", fnName: "transfer", network: "testnet" },
     });
 
     const result = await signTransaction("UNSIGNED_XDR");
 
-    expect(walletServiceSignTransaction).toHaveBeenCalledWith("freighter", "UNSIGNED_XDR", {
+    expect(adapterSignInvocation).toHaveBeenCalledWith("freighter", "UNSIGNED_XDR", {
       networkPassphrase: "Test Network",
       address: "GWALLET",
+      contractId: "CABC",
+      fnName: "transfer",
+      network: "testnet",
     });
     expect(result).toBe("SIGNED_WALLET_XDR");
+  });
+
+  it("routes deployment signing through WalletAdapter.signDeployment", async () => {
+    adapterSignDeployment.mockResolvedValue("SIGNED_DEPLOY_XDR");
+
+    const signTransaction = createWalletSigningDelegator({
+      activeContext: { type: "web-wallet" },
+      activeIdentity: null,
+      webWalletPublicKey: "GWALLET",
+      walletType: "freighter",
+      networkPassphrase: "Test Network",
+      intent: { kind: "deploy", step: "instantiate", wasmHash: "deadbeef" },
+    });
+
+    const result = await signTransaction("UNSIGNED_XDR");
+
+    expect(adapterSignDeployment).toHaveBeenCalledWith("freighter", "UNSIGNED_XDR", {
+      networkPassphrase: "Test Network",
+      address: "GWALLET",
+      step: "instantiate",
+      wasmHash: "deadbeef",
+      network: undefined,
+    });
+    expect(result).toBe("SIGNED_DEPLOY_XDR");
   });
 });
 

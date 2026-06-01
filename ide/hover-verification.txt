@@ -1,0 +1,1123 @@
+
+> vite_react_shadcn_ts@0.0.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /home/mceesquare/drips_issues/stellar-suite/ide
+
+ ❯ src/test/transactionExecution.test.ts (3 tests | 1 failed) 78ms
+   × createWalletSigningDelegator > signs locally with the active keypair identity 37ms
+     → XDR payload must be valid standard Base64.
+   ✓ createWalletSigningDelegator > delegates browser wallet signing to WalletService 15ms
+   ✓ pollTransactionStatus > polls until the transaction reaches SUCCESS 12ms
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "git" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "deployments" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+ ❯ src/utils/__tests__/XdrChecksum.test.ts (4 tests | 1 failed) 72ms
+   ✓ XdrChecksum > generates a deterministic checksum for normalized base64 XDR 15ms
+   ✓ XdrChecksum > verifies matching and mismatched checksums 13ms
+   ✓ XdrChecksum > rejects invalid checksum input 3ms
+   × XdrChecksum > rejects malformed base64 input 37ms
+     → promise resolved "{ normalizedXdr: 'notvalid', …(1) }" instead of rejecting
+ ❯ src/utils/tests/XdrUtils.test.ts (29 tests | 8 failed) 228ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > round-trips a string value 19ms
+   × XdrUtils > encodeToXdr / decodeFromXdr > round-trips an integer value 57ms
+     → expected 'scvU64' to be 'scvI32' // Object.is equality
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > round-trips a boolean true 2ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > round-trips a boolean false 1ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > round-trips a bigint value 7ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > returns the scvType from decodeFromXdr 1ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > throws on invalid base64 input to decodeFromXdr 7ms
+   ✓ XdrUtils > encodeToXdr / decodeFromXdr > encodeToXdr output is valid base64 21ms
+   ✓ XdrUtils > encodeMap / decodeMap > round-trips a simple string-keyed map 12ms
+   × XdrUtils > encodeMap / decodeMap > round-trips a map with numeric values 7ms
+     → expected 100n to be 100 // Object.is equality
+   ✓ XdrUtils > encodeMap / decodeMap > round-trips a map with boolean values 4ms
+   × XdrUtils > encodeMap / decodeMap > round-trips a map with mixed value types 6ms
+     → expected 30n to be 30 // Object.is equality
+   ✓ XdrUtils > encodeMap / decodeMap > encodes an empty map without throwing 2ms
+   ✓ XdrUtils > encodeMap / decodeMap > throws when decoding non-map XDR as map 2ms
+   ✓ XdrUtils > encodeMap / decodeMap > produces valid base64 XDR output 1ms
+   ✓ XdrUtils > encodeVec / decodeVec > round-trips a string array 2ms
+   × XdrUtils > encodeVec / decodeVec > round-trips a numeric array 16ms
+     → expected [ 1n, 2n, 3n, 4n, 5n ] to deeply equal [ 1, 2, 3, 4, 5 ]
+   ✓ XdrUtils > encodeVec / decodeVec > round-trips a boolean array 1ms
+   × XdrUtils > encodeVec / decodeVec > round-trips a mixed-type array 5ms
+     → expected [ 'hello', 42n, true ] to deeply equal [ 'hello', 42, true ]
+   ✓ XdrUtils > encodeVec / decodeVec > round-trips an empty array 1ms
+   × XdrUtils > encodeVec / decodeVec > round-trips a large array (100 elements) 16ms
+     → expected 0n to be +0 // Object.is equality
+   ✓ XdrUtils > encodeVec / decodeVec > throws when decoding non-vec XDR as vec 4ms
+   ✓ XdrUtils > encodeStruct / decodeStruct > round-trips a struct with symbol keys and string values 3ms
+   × XdrUtils > encodeStruct / decodeStruct > round-trips a struct with numeric field values 8ms
+     → expected { name: 'x', value: 10n } to deeply equal { name: 'x', value: 10 }
+   ✓ XdrUtils > encodeStruct / decodeStruct > round-trips a struct with boolean field values 1ms
+   ✓ XdrUtils > encodeStruct / decodeStruct > round-trips an empty struct 1ms
+   ✓ XdrUtils > encodeStruct / decodeStruct > preserves field order in struct 3ms
+   ✓ XdrUtils > encodeStruct / decodeStruct > throws when decoding non-map XDR as struct 1ms
+   × XdrUtils > encodeStruct / decodeStruct > round-trips a Soroban-like Token struct 9ms
+     → expected [ …(3) ] to deeply equal [ …(3) ]
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "identities" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "search" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "security" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at div
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "tests" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > non-essential tabs (lazy load) > renders the correct panel for "network" tab
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+stderr | src/components/layout/__tests__/LazySidebar.test.tsx > panel exclusivity > shows exactly one panel at a time
+Warning: An update to LazyStub inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at LazyStub (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/__tests__/LazySidebar.test.tsx:5:55)
+    at div
+    at Suspense
+    at div
+    at LazySidebar2 (/home/mceesquare/drips_issues/stellar-suite/ide/src/components/layout/LazySidebar.tsx:182:11)
+    at Suspense
+
+ ✓ src/components/layout/__tests__/LazySidebar.test.tsx (23 tests) 1339ms
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > renders all four step labels when open
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows a spinner (Loader2) on the active step
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > marks previous steps as done when step advances
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows Freighter signing hint only during signing step
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows success banner when step=success
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows error banner with message when step=error
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows all steps as done when step=success
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > Close button is disabled while deployment is in progress
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > Close button is enabled after success
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > Close button is enabled after error
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > shows RPC timeout warning after 20 seconds
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+stderr | src/test/DeploymentStepper.test.tsx > DeploymentStepper > clears timeout warning on success before 20 seconds
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+
+ ✓ src/test/DeploymentStepper.test.tsx (13 tests) 2459ms
+   ✓ DeploymentStepper > renders all four step labels when open  536ms
+ ✓ src/components/ide/__tests__/FileExplorer.test.tsx (2 tests) 1986ms
+   ✓ FileExplorer git integration > shows an explorer button to initialize a local git repository  1737ms
+ ✓ src/lib/__tests__/resourceTelemetry.test.ts (4 tests) 1022ms
+   ✓ ResourceTelemetryService > simulates fetching usage  1003ms
+ ✓ src/components/sidebar/__tests__/AssetManager.test.tsx (3 tests) 575ms
+   ✓ AssetManager > renders the asset library with filtered image/svg files  367ms
+ ✓ src/test/testResults.test.tsx (5 tests) 1497ms
+   ✓ TestResultsLog > renders failed test details, deep links, and rerun controls  1346ms
+ ✓ src/components/editor/__tests__/Breadcrumbs.test.tsx (8 tests) 712ms
+ ✓ src/components/ide/__tests__/MobileGatekeeper.test.tsx (5 tests) 624ms
+   ✓ MobileGatekeeper > should display modal on mobile viewports  314ms
+ ✓ src/lib/vcs/gitService.test.ts (2 tests) 469ms
+   ✓ gitService > initializes a local repository in IndexedDB and snapshots HEAD  360ms
+ ✓ src/lib/testing/__tests__/interactionRecorder.test.ts (13 tests) 226ms
+ ✓ src/lib/testing/__tests__/cliScriptGenerator.test.ts (20 tests) 137ms
+ ✓ src/components/sidebar/__tests__/OutlineView.test.tsx (12 tests) 643ms
+ ✓ src/lib/testing/__tests__/snapshotManager.test.ts (15 tests) 146ms
+stderr | src/lib/store/__tests__/VersionedPersistence.test.ts > createVersionedStorage > calls onCorrupt and returns null when migration is missing
+[VersionedPersistence] Migration failed: VersionedPersistenceError: Missing migration for version 2. Cannot migrate from v1 to v3.
+    at migrateState (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/store/VersionedPersistence.ts:155:13)
+    at Object.getItem (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/store/VersionedPersistence.ts:298:24)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at /home/mceesquare/drips_issues/stellar-suite/ide/src/lib/store/__tests__/VersionedPersistence.test.ts:225:20
+    at file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20 {
+  code: 'MISSING_MIGRATION'
+}
+
+ ✓ src/lib/store/__tests__/VersionedPersistence.test.ts (33 tests) 99ms
+ ✓ src/store/__tests__/useNetworkStore.test.ts (39 tests) 111ms
+ ✓ src/lib/error/__tests__/AppError.test.ts (20 tests) 57ms
+ ✓ src/test/cargoParser.test.ts (19 tests) 39ms
+ ✓ src/test/oracleSnippets.test.ts (31 tests) 46ms
+ ✓ src/test/compileStream.test.ts (4 tests) 28ms
+ ✓ src/lib/wallet/__tests__/BaseAdapter.test.ts (27 tests) 38ms
+ ✓ src/lib/audit/__tests__/exportAuditLog.test.ts (6 tests) 39ms
+ ✓ src/test/coverageParser.test.ts (20 tests) 91ms
+ ✓ src/test/build-contract.test.ts (3 tests) 47ms
+ ✓ tests/integration/wallet-flows.spec.ts (22 tests) 55ms
+ ✓ src/test/recorderIntegration.test.ts (1 test) 39ms
+ ✓ src/test/simulationDiff.test.ts (2 tests) 11ms
+ ✓ src/test/renameProvider.test.ts (16 tests) 30ms
+stderr | src/lib/api/__tests__/RateLimiter.test.ts > RateLimiter (leaky bucket) > treats failures from the store as an empty bucket (fail-open)
+[RateLimiter] store.get failed, treating bucket as empty Error: redis down
+    at Object.get (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/__tests__/RateLimiter.test.ts:80:15)
+    at RateLimiter.safeGet (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/RateLimiter.ts:195:31)
+    at RateLimiter.consume (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/RateLimiter.ts:162:33)
+    at /home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/__tests__/RateLimiter.test.ts:92:36
+    at file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11
+    at file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26
+    at file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)
+    at runTest (file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)
+
+stderr | src/lib/api/__tests__/RateLimiter.test.ts > RateLimiter (leaky bucket) > treats failures from the store as an empty bucket (fail-open)
+[RateLimiter] store.set failed, decision not persisted Error: redis down
+    at Object.set (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/__tests__/RateLimiter.test.ts:83:15)
+    at RateLimiter.safeSet (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/RateLimiter.ts:204:24)
+    at RateLimiter.consume (/home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/RateLimiter.ts:182:16)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at /home/mceesquare/drips_issues/stellar-suite/ide/src/lib/api/__tests__/RateLimiter.test.ts:92:22
+    at file:///home/mceesquare/drips_issues/stellar-suite/ide/node_modules/@vitest/runner/dist/chunk-hooks.js:752:20
+
+ ✓ src/lib/api/__tests__/RateLimiter.test.ts (6 tests) 54ms
+ ✓ src/test/contractAbiParser.test.ts (2 tests) 38ms
+stdout | src/test/sep41Detector.test.ts > detectSep41 > detects a fully compliant SEP-41 contract
+[SEP-41 Detector] isSep41=true confidence=100% found=[transfer,balance,allowance,approve,transfer_from,decimals,name,symbol] missing=[] optional=[]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > detects a full SAC with optional methods
+[SEP-41 Detector] isSep41=true confidence=100% found=[transfer,balance,allowance,approve,transfer_from,decimals,name,symbol] missing=[] optional=[mint,burn,burn_from,set_admin,admin,total_supply,clawback]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > returns isSep41=false when required methods are missing
+[SEP-41 Detector] isSep41=false confidence=25% found=[transfer,balance] missing=[allowance,approve,transfer_from,decimals,name,symbol] optional=[]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > calculates confidence proportionally
+[SEP-41 Detector] isSep41=false confidence=50% found=[transfer,balance,allowance,approve] missing=[transfer_from,decimals,name,symbol] optional=[]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > returns confidence=0 for an empty spec
+[SEP-41 Detector] isSep41=false confidence=0% found=[] missing=[transfer,balance,allowance,approve,transfer_from,decimals,name,symbol] optional=[]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > lists all missing required methods correctly
+[SEP-41 Detector] isSep41=false confidence=38% found=[transfer,balance,allowance] missing=[approve,transfer_from,decimals,name,symbol] optional=[]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > does not count optional methods as required
+[SEP-41 Detector] isSep41=true confidence=100% found=[transfer,balance,allowance,approve,transfer_from,decimals,name,symbol] missing=[] optional=[mint,burn]
+
+stdout | src/test/sep41Detector.test.ts > detectSep41 > handles contracts with extra non-SEP-41 methods gracefully
+[SEP-41 Detector] isSep41=true confidence=100% found=[transfer,balance,allowance,approve,transfer_from,decimals,name,symbol] missing=[] optional=[]
+
+ ✓ src/test/sep41Detector.test.ts (24 tests) 63ms
+ ✓ src/test/wasmParser.test.ts (4 tests) 20ms
+stdout | src/test/snapshotMismatch.test.ts > Snapshot Mismatch Detection > should detect changes and provide detailed diffs
+
+📸 Snapshot Mismatch Detected:
+Found 4 difference(s):
+
+  MODIFIED at version:
+    Expected: 1
+    Received: 2
+
+  MODIFIED at user.age:
+    Expected: 30
+    Received: 31
+
+  ADDED at user.email:
+    Received: "alice@example.com"
+
+  ADDED at features[2]:
+    Received: "feature3"
+
+
+ ✓ src/test/snapshotMismatch.test.ts (2 tests) 83ms
+ ✓ src/utils/__tests__/errorCodeExtractor.test.ts (17 tests) 27ms
+ ✓ src/test/compilationToasts.test.ts (2 tests) 20ms
+ ✓ src/test/rpcFailover.test.ts (3 tests) 57ms
+stderr | src/utils/__tests__/SecureFetcher.test.ts > SecureFetcher > bypasses verification when requested
+[SRI] Integrity verification BYPASSED for "/bypass.wasm". Do not use in production.
+
+stderr | src/utils/__tests__/SecureFetcher.test.ts > SecureFetcher > returns unverified if manifest fails to load
+[SRI] Could not load manifest from /sri-manifest.json (HTTP 404). Running without integrity verification.
+
+stderr | src/utils/__tests__/SecureFetcher.test.ts > SecureFetcher > returns unverified if manifest fails to load
+[SRI] No manifest available. Returning "/test.wasm" unverified. Run "npm run sri" to generate integrity hashes.
+
+ ✓ src/utils/__tests__/SecureFetcher.test.ts (5 tests) 34ms
+ ✓ src/test/multiRootTrashStore.test.ts (3 tests) 55ms
+ ✓ src/utils/__tests__/rustSymbolParser.test.ts (13 tests) 53ms
+ ✓ src/test/snapshotExample.test.ts (4 tests) 44ms
+stderr | src/utils/__tests__/WasmLoader.test.ts > WasmLoader > bypasses verification when requested
+[SRI] Integrity verification BYPASSED for "/bypass.wasm". Do not use in production.
+
+stderr | src/utils/__tests__/WasmLoader.test.ts > WasmLoader > returns unverified if manifest fails to load
+[SRI] Could not load manifest from /wasm-hashes.json (HTTP 404). Running without integrity verification.
+
+stderr | src/utils/__tests__/WasmLoader.test.ts > WasmLoader > returns unverified if manifest fails to load
+[SRI] No manifest available. Returning "/test.wasm" unverified. Run build hash generation to include integrity checks.
+
+ ✓ src/utils/__tests__/WasmLoader.test.ts (5 tests) 31ms
+ ✓ src/test/clippyParser.test.ts (4 tests) 23ms
+ ✓ src/test/exportZip.test.ts (4 tests) 32ms
+ ✓ src/test/snapshotIntegration.test.ts (5 tests) 36ms
+ ✓ src/lib/__tests__/errorTranslator.test.ts (5 tests) 41ms
+ ✓ src/test/rustFolding.test.ts (4 tests) 47ms
+ ✓ src/test/searchWalker.test.ts (5 tests) 41ms
+ ✓ src/lib/redaction/__tests__/redact.test.ts (15 tests) 45ms
+ ✓ src/test/searchWorkspace.test.ts (6 tests) 38ms
+ ✓ src/lib/fuzzing/templateGenerator.test.ts (3 tests) 17ms
+ ✓ src/test/ai-chat.test.ts (5 tests) 18ms
+ ✓ src/test/cargoAuditParser.test.ts (3 tests) 18ms
+ ✓ src/test/editorStore.test.ts (2 tests) 13ms
+ ✓ src/lib/ciTemplates.test.ts (5 tests) 24ms
+ ✓ src/test/brandThemeTokens.test.ts (1 test) 15ms
+ ✓ src/test/bindingsGenerator.test.ts (2 tests) 16ms
+ ✓ src/test/invokeResult.test.ts (1 test) 10ms
+ ✓ src/test/scValDecoder.test.ts (3 tests) 20ms
+ ✓ src/test/rustDocExtractor.test.ts (17 tests) 15ms
+ ✓ src/test/example.test.ts (1 test) 3ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ide/__tests__/Sidebar.test.tsx [ src/components/ide/__tests__/Sidebar.test.tsx ]
+Error: Transform failed with 1 error:
+/home/mceesquare/drips_issues/stellar-suite/ide/src/components/ide/__tests__/Sidebar.test.tsx:87:6: ERROR: "await" can only be used inside an "async" function
+  Plugin: vite:esbuild
+  File: /home/mceesquare/drips_issues/stellar-suite/ide/src/components/ide/__tests__/Sidebar.test.tsx:87:6
+  
+  "await" can only be used inside an "async" function
+  85 |    beforeEach(() => {
+  86 |      const { useWorkspaceStore } = vi.mocked(
+  87 |        await import("@/store/workspaceStore")
+     |        ^
+  88 |      );
+  89 |      (useWorkspaceStore as ReturnType<typeof vi.fn>).mockReturnValue(defaultWorkspaceStore);
+  
+ ❯ failureErrorWithLog node_modules/esbuild/lib/main.js:1472:15
+ ❯ node_modules/esbuild/lib/main.js:755:50
+ ❯ responseCallbacks.<computed> node_modules/esbuild/lib/main.js:622:9
+ ❯ handleIncomingPacket node_modules/esbuild/lib/main.js:677:12
+ ❯ Socket.readFromStdout node_modules/esbuild/lib/main.js:600:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/test/transactionExecution.test.ts > createWalletSigningDelegator > signs locally with the active keypair identity
+Error: XDR payload must be valid standard Base64.
+ ❯ Module.assertValidTransactionEnvelopeXdr src/utils/XdrValidator.ts:174:11
+    172|   if (!result.ok) {
+    173|     const detail = result.details?.length ? ` ${result.details.join(" …
+    174|     throw new Error(`${result.error}${detail}`);
+       |           ^
+    175|   }
+    176|   return result;
+ ❯ src/lib/transactionExecution.ts:119:27
+ ❯ src/test/transactionExecution.test.ts:80:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  src/utils/__tests__/XdrChecksum.test.ts > XdrChecksum > rejects malformed base64 input
+AssertionError: promise resolved "{ normalizedXdr: 'notvalid', …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "checksum": "10609717098b57f787c661218d60b032d91061b512cd52872a6ea8ee8fbc285f",
++   "normalizedXdr": "notvalid",
+  }
+
+ ❯ src/utils/__tests__/XdrChecksum.test.ts:51:49
+     49| 
+     50|   it("rejects malformed base64 input", async () => {
+     51|     await expect(checksumXdrPayload("not valid")).rejects.toThrow(
+       |                                                 ^
+     52|       "XDR payload must be valid standard Base64.",
+     53|     );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeToXdr / decodeFromXdr > round-trips an integer value
+AssertionError: expected 'scvU64' to be 'scvI32' // Object.is equality
+
+Expected: "scvI32"
+Received: "scvU64"
+
+ ❯ src/utils/tests/XdrUtils.test.ts:25:23
+     23|     it("round-trips an integer value", () => {
+     24|       const { xdrBase64, scvType } = encodeToXdr(42);
+     25|       expect(scvType).toBe("scvI32");
+       |                       ^
+     26|       const { value } = decodeFromXdr(xdrBase64);
+     27|       expect(value).toBe(42);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeMap / decodeMap > round-trips a map with numeric values
+AssertionError: expected 100n to be 100 // Object.is equality
+
+- Expected: 
+100
+
++ Received: 
+100n
+
+ ❯ src/utils/tests/XdrUtils.test.ts:79:28
+     77|       const xdrBase64 = encodeMap(input);
+     78|       const result = decodeMap(xdrBase64);
+     79|       expect(result.count).toBe(100);
+       |                            ^
+     80|       expect(result.offset).toBe(0);
+     81|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeMap / decodeMap > round-trips a map with mixed value types
+AssertionError: expected 30n to be 30 // Object.is equality
+
+- Expected: 
+30
+
++ Received: 
+30n
+
+ ❯ src/utils/tests/XdrUtils.test.ts:96:26
+     94|       const result = decodeMap(xdrBase64);
+     95|       expect(result.name).toBe("Alice");
+     96|       expect(result.age).toBe(30);
+       |                          ^
+     97|       expect(result.verified).toBe(true);
+     98|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeVec / decodeVec > round-trips a numeric array
+AssertionError: expected [ 1n, 2n, 3n, 4n, 5n ] to deeply equal [ 1, 2, 3, 4, 5 ]
+
+- Expected
++ Received
+
+  [
+-   1,
+-   2,
+-   3,
+-   4,
+-   5,
++   1n,
++   2n,
++   3n,
++   4n,
++   5n,
+  ]
+
+ ❯ src/utils/tests/XdrUtils.test.ts:130:22
+    128|       const xdrBase64 = encodeVec(input);
+    129|       const result = decodeVec(xdrBase64);
+    130|       expect(result).toEqual([1, 2, 3, 4, 5]);
+       |                      ^
+    131|     });
+    132| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeVec / decodeVec > round-trips a mixed-type array
+AssertionError: expected [ 'hello', 42n, true ] to deeply equal [ 'hello', 42, true ]
+
+- Expected
++ Received
+
+  [
+    "hello",
+-   42,
++   42n,
+    true,
+  ]
+
+ ❯ src/utils/tests/XdrUtils.test.ts:144:22
+    142|       const xdrBase64 = encodeVec(input);
+    143|       const result = decodeVec(xdrBase64);
+    144|       expect(result).toEqual(["hello", 42, true]);
+       |                      ^
+    145|     });
+    146| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeVec / decodeVec > round-trips a large array (100 elements)
+AssertionError: expected 0n to be +0 // Object.is equality
+
+- Expected: 
+0
+
++ Received: 
+0n
+
+ ❯ src/utils/tests/XdrUtils.test.ts:158:25
+    156|       const result = decodeVec(xdrBase64);
+    157|       expect(result).toHaveLength(100);
+    158|       expect(result[0]).toBe(0);
+       |                         ^
+    159|       expect(result[99]).toBe(99);
+    160|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeStruct / decodeStruct > round-trips a struct with numeric field values
+AssertionError: expected { name: 'x', value: 10n } to deeply equal { name: 'x', value: 10 }
+
+- Expected
++ Received
+
+  {
+    "name": "x",
+-   "value": 10,
++   "value": 10n,
+  }
+
+ ❯ src/utils/tests/XdrUtils.test.ts:189:25
+    187|       const xdrBase64 = encodeStruct(fields);
+    188|       const result = decodeStruct(xdrBase64);
+    189|       expect(result[0]).toEqual({ name: "x", value: 10 });
+       |                         ^
+    190|       expect(result[1]).toEqual({ name: "y", value: 20 });
+    191|       expect(result[2]).toEqual({ name: "z", value: 30 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  src/utils/tests/XdrUtils.test.ts > XdrUtils > encodeStruct / decodeStruct > round-trips a Soroban-like Token struct
+AssertionError: expected [ …(3) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+@@ -7,8 +7,8 @@
+      "name": "symbol",
+      "value": "MTK",
+    },
+    {
+      "name": "decimals",
+-     "value": 7,
++     "value": 7n,
+    },
+  ]
+
+ ❯ src/utils/tests/XdrUtils.test.ts:235:22
+    233|       const xdrBase64 = encodeStruct(fields);
+    234|       const result = decodeStruct(xdrBase64);
+    235|       expect(result).toEqual(fields);
+       |                      ^
+    236|     });
+    237|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  4 failed | 59 passed (63)
+      Tests  10 failed | 575 passed (585)
+   Start at  11:43:31
+   Duration  33.86s (transform 5.30s, setup 25.25s, collect 23.17s, tests 13.99s, environment 115.45s, prepare 21.40s)
+
+
+> vite_react_shadcn_ts@0.0.0 build
+> npm run sri && next build
+
+
+> vite_react_shadcn_ts@0.0.0 sri
+> node scripts/generate-sri.mjs
+
+[SRI] Scanning public/ for WASM and worker assets...
+[SRI] /workers/compile.worker.js                 → sha384-8lA/RqADmaMFkngx3RJMJ+R...
+[SRI] /workers/diagnostics.worker.js             → sha384-O654BHy16phojZIlWzu5mse...
+[SRI] /workers/local-compiler.worker.js          → sha384-hpZtvuYT4pmwLbuS/HIK3nv...
+[SRI] Manifest written to public/sri-manifest.json (3 entries)
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /home/mceesquare/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /home/mceesquare/drips_issues/stellar-suite/ide/package-lock.json
+   * /home/mceesquare/drips_issues/stellar-suite/pnpm-lock.yaml
+
+   ▲ Next.js 15.5.14
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 17.5s
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./app/rpc-health/page.tsx
+28:9  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/bridge/BridgeWizard.tsx
+49:48  Error: A record is preferred over an index signature.  @typescript-eslint/consistent-indexed-object-style
+
+./src/components/cloud/ConflictModal.tsx
+38:8  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/components/editor/CodeEditor.tsx
+135:47  Warning: The ref value 'disposablesRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'disposablesRef.current' to a variable inside the effect, and use that variable in the cleanup function.  react-hooks/exhaustive-deps
+139:60  Warning: The ref value 'managedModelPathsRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'managedModelPathsRef.current' to a variable inside the effect, and use that variable in the cleanup function.  react-hooks/exhaustive-deps
+496:28  Error: Unexpected empty method 'dispose'.  @typescript-eslint/no-empty-function
+
+./src/components/editor/ConflictResolver.tsx
+224:6  Warning: React Hook useEffect has a missing dependency: 'activeFile'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/explorer/LedgerEntryTable.tsx
+59:36  Error: Type number trivially inferred from a number literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+
+./src/components/ide/AuditLogView.tsx
+216:7  Error: Expected an assignment or function call and instead saw an expression.  @typescript-eslint/no-unused-expressions
+
+./src/components/ide/DeploymentPane.tsx
+26:41  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+32:48  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ide/FeeChart.tsx
+109:32  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ide/GitPane.tsx
+42:24  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+43:42  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/components/ide/InteractPane.tsx
+24:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ide/LogRedactor.tsx
+46:18  Error: Unexpected empty method 'setItem'.  @typescript-eslint/no-empty-function
+47:21  Error: Unexpected empty method 'removeItem'.  @typescript-eslint/no-empty-function
+
+./src/components/ide/MultiRootExplorer.tsx
+242:7  Error: Expected an assignment or function call and instead saw an expression.  @typescript-eslint/no-unused-expressions
+
+./src/components/ide/ProductTour.tsx
+8:44  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+10:6  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+25:40  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ide/QuickOpen.tsx
+18:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/ide/ReferencesPane.tsx
+28:1  Error: A record is preferred over an index signature.  @typescript-eslint/consistent-indexed-object-style
+39:34  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ide/StateExplorer.tsx
+78:14  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+132:23  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+144:23  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+442:20  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+
+./src/components/ide/TerminalPane.tsx
+67:6  Warning: React Hook useEffect has missing dependencies: 'terminalFontFamily', 'terminalFontSize', and 'terminalTheme'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/ide/__tests__/Sidebar.test.tsx
+49:34  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+93:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+103:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+128:32  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+133:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+144:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+155:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+182:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+201:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+220:35  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+232:32  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+
+./src/components/layout/LazySidebar.tsx
+195:17  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+199:28  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+200:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+251:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+252:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+259:51  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+273:49  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+274:53  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+275:49  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+276:49  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+277:59  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+278:53  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+279:51  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+280:47  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+281:47  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+282:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+283:55  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+298:33  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/layout/__tests__/LazySidebar.test.tsx
+163:21  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/components/projects/ImportWizard.tsx
+258:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/components/settings/Diagnostics.tsx
+31:11  Error: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+36:11  Error: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+
+./src/components/settings/RustfmtEditor.tsx
+21:17  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+214:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+218:55  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+234:6  Warning: React Hook useEffect has a missing dependency: 'files'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+241:37  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+247:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+257:55  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+301:26  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/settings/SnippetEditor.tsx
+734:99  Error: Unnecessary escape character: \$.  no-useless-escape
+
+./src/components/sidebar/EnhancedSearch.tsx
+58:15  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+64:19  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+124:44  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/components/sidebar/__tests__/AssetManager.test.tsx
+38:27  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+51:27  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+66:27  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/sidebar/__tests__/OutlineView.test.tsx
+32:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+49:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+68:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+88:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+110:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+133:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+155:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+178:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+203:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+226:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+260:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+292:10  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/theme-provider.tsx
+55:24  Error: A `require()` style import is forbidden.  @typescript-eslint/no-require-imports
+
+./src/components/tools/XdrInspector.tsx
+14:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/ui/carousel.tsx
+13:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/ui/chart.tsx
+9:27  Error: A record is preferred over an index signature.  @typescript-eslint/consistent-indexed-object-style
+16:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/ui/form.tsx
+11:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+56:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/ui/sidebar.tsx
+22:6  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/components/vcs/BranchModal.tsx
+167:5  Warning: React Hook useCallback has a missing dependency: 'handleProceedSwitch'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/vcs/GitIgnoreEditor.tsx
+198:9  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+198:9  Warning: The 'activeSet' object construction makes the dependencies of useCallback Hook (at line 207) change on every render. To fix this, wrap the initialization of 'activeSet' in its own useMemo() Hook.  react-hooks/exhaustive-deps
+198:9  Warning: The 'activeSet' object construction makes the dependencies of useCallback Hook (at line 223) change on every render. To fix this, wrap the initialization of 'activeSet' in its own useMemo() Hook.  react-hooks/exhaustive-deps
+
+./src/features/ide/BinaryDiffTool.tsx
+94:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/features/ide/Index.tsx
+245:61  Error: React Hook "useCompilationWorker" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+247:81  Error: React Hook "useIdentityStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+248:22  Error: React Hook "useWalletStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+249:32  Error: React Hook "useTransactionResultsStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+251:5  Error: React Hook "useVCSStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+252:27  Error: React Hook "useSharedEnvironmentStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+253:35  Error: React Hook "useAuditLogStore" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+254:37  Error: React Hook "useAuth" is called conditionally. React Hooks must be called in the exact same order in every component render.  react-hooks/rules-of-hooks
+256:48  Error: React Hook "useDiagnosticsStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+257:27  Error: React Hook "useDeployedContractsStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+262:7  Error: React Hook "useErrorHelpStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+263:75  Error: React Hook "useCloudSyncStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+275:7  Error: React Hook "useDeploymentStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+278:55  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+282:37  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+285:37  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+287:39  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+289:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+297:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+308:41  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+313:55  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+318:47  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+320:41  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+321:49  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+322:41  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+323:49  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+325:45  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+328:47  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+329:39  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+330:47  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+331:33  Error: React Hook "useState" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+333:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+337:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+346:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+350:6  Warning: React Hook useEffect has an unnecessary dependency: 'openTabs'. Either exclude it or remove the dependency array. Outer scope values like 'openTabs' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+362:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+366:6  Warning: React Hook useEffect has an unnecessary dependency: 'openTabs'. Either exclude it or remove the dependency array. Outer scope values like 'openTabs' aren't valid dependencies because mutating them doesn't re-render the component.  react-hooks/exhaustive-deps
+377:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+391:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+400:46  Error: React Hook "useLayoutStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+402:3  Error: React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+419:24  Error: React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+424:28  Error: React Hook "useEnvironmentSlotsStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+425:37  Error: React Hook "useEnvironmentSlotsStore" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+429:35  Error: React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+435:26  Error: React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+447:25  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+550:27  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+617:26  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+679:32  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+717:26  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+799:24  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+919:22  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1019:34  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1105:31  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1129:31  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1134:24  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1226:33  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1339:29  Error: React Hook "useCallback" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+1428:6  Warning: React Hook useCallback has a missing dependency: 'invokeState'. Either include it or remove the dependency array. You can also do a functional update 'setInvokeState(i => ...)' if you only need 'invokeState' in the 'setInvokeState' call.  react-hooks/exhaustive-deps
+1443:29  Error: React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+
+./src/hooks/use-toast.ts
+124:18  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/hooks/useCompilationWorker.ts
+62:21  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/hooks/useInteractionRecorder.ts
+24:6  Warning: React Hook useEffect has missing dependencies: 'loadSessions' and 'resumeRecording'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useLiveShare.ts
+81:9  Error: Unexpected lexical declaration in case block.  no-case-declarations
+
+./src/hooks/useOfflineStatus.ts
+88:22  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+
+./src/hooks/useTestGutter.ts
+128:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+
+./src/lib/audit/exportAuditLog.ts
+135:3  Error: Expected a `for-of` loop instead of a `for` loop with this simple iteration.  @typescript-eslint/prefer-for-of
+
+./src/lib/ciTemplates.ts
+159:79  Error: Unnecessary escape character: \$.  no-useless-escape
+207:75  Error: Unnecessary escape character: \$.  no-useless-escape
+268:81  Error: Unnecessary escape character: \$.  no-useless-escape
+
+./src/lib/cloud/fileHash.ts
+29:10  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+43:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+45:4  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+56:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/commands/CommandRegistry.ts
+15:3  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+
+./src/lib/compilationWorker.ts
+70:15  Error: Type boolean trivially inferred from a boolean literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+162:32  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+
+./src/lib/contractInstantiator.ts
+100:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/definitionProvider.ts
+1:1  Error: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+9:17  Error: Unexpected empty constructor.  @typescript-eslint/no-empty-function
+139:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/diagnostics/crashTracker.ts
+12:3  Error: Type boolean trivially inferred from a boolean literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+
+./src/lib/error/apiInterceptor.ts
+61:25  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/errorTranslator.ts
+482:5  Error: Type boolean trivially inferred from a boolean literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+
+./src/lib/feeDataService.ts
+59:3  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+80:44  Error: Type number trivially inferred from a number literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+98:59  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/gasProfiler.ts
+87:3  Error: Type boolean trivially inferred from a boolean literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+203:3  Error: Type string trivially inferred from a string literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+205:15  Error: Type string trivially inferred from a string literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+
+./src/lib/identity/DelegationStore.ts
+44:25  Error: Unexpected empty constructor.  @typescript-eslint/no-empty-function
+
+./src/lib/liveShareService.ts
+12:12  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/networkConfig.ts
+11:8  Error: A record is preferred over an index signature.  @typescript-eslint/consistent-indexed-object-style
+
+./src/lib/redaction/redact.ts
+26:9  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/referenceProvider.ts
+7:17  Error: Unexpected empty constructor.  @typescript-eslint/no-empty-function
+
+./src/lib/rpcService.ts
+19:8  Error: A record is preferred over an index signature.  @typescript-eslint/consistent-indexed-object-style
+
+./src/lib/rustTestParser.ts
+17:75  Error: Unnecessary escape character: \).  no-useless-escape
+
+./src/lib/simulationDiff.ts
+437:17  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/stellar/FeeEstimator.ts
+94:3  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+
+./src/lib/symbolIndexer.ts
+266:46  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+267:23  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+348:15  Error: 'signature' is never reassigned. Use 'const' instead.  prefer-const
+
+./src/lib/test/FuzzingEngine.ts
+190:22  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/lib/testing/vitest.d.ts
+9:13  Error: An interface declaring no members is equivalent to its supertype.  @typescript-eslint/no-empty-object-type
+10:13  Error: An interface declaring no members is equivalent to its supertype.  @typescript-eslint/no-empty-object-type
+
+./src/lib/transactionExecution.ts
+228:73  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+234:91  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+267:74  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/tutorials/tutorialEngine.ts
+183:9  Error: 'nextState' is never reassigned. Use 'const' instead.  prefer-const
+
+./src/lib/vcs/sshKeyManager.ts
+88:3  Error: Expected a `for-of` loop instead of a `for` loop with this simple iteration.  @typescript-eslint/prefer-for-of
+
+./src/store/snippetStore.ts
+165:5  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+166:5  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+
+./src/store/useEnvironmentSlotsStore.ts
+5:13  Error: Use an `interface` instead of a `type`.  @typescript-eslint/consistent-type-definitions
+
+./src/store/useMultisigStore.ts
+102:7  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+106:24  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/store/useUserSettingsStore.ts
+232:24  Error: Unexpected empty method 'setItem'.  @typescript-eslint/no-empty-function
+233:27  Error: Unexpected empty method 'removeItem'.  @typescript-eslint/no-empty-function
+
+./src/store/walletStore.ts
+34:21  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/test/sep41Detector.test.ts
+84:67  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+
+./src/test/setup.ts
+12:24  Error: Unexpected empty method 'addListener'.  @typescript-eslint/no-empty-function
+13:27  Error: Unexpected empty method 'removeListener'.  @typescript-eslint/no-empty-function
+14:29  Error: Unexpected empty method 'addEventListener'.  @typescript-eslint/no-empty-function
+15:32  Error: Unexpected empty method 'removeEventListener'.  @typescript-eslint/no-empty-function
+16:26  Error: Unexpected empty method 'dispatchEvent'.  @typescript-eslint/no-empty-function
+
+./src/utils/SecureFetcher.ts
+59:5  Error: Type string trivially inferred from a string literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+66:3  Error: Type string trivially inferred from a string literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+105:3  Error: Expected a `for-of` loop instead of a `for` loop with this simple iteration.  @typescript-eslint/prefer-for-of
+
+./src/utils/WasmLoader.ts
+43:3  Error: Type string trivially inferred from a string literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+79:3  Error: Expected a `for-of` loop instead of a `for` loop with this simple iteration.  @typescript-eslint/prefer-for-of
+
+./src/utils/cargoAuditParser.ts
+22:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+39:12  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/utils/freighter.ts
+4:51  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+13:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+29:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+44:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+65:19  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/utils/friendbot.ts
+25:46  Error: Array type using 'Array<T>' is forbidden. Use 'T[]' instead.  @typescript-eslint/array-type
+
+./src/utils/parseProptestOutput.ts
+114:9  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+115:9  Error: The generic type arguments should be specified as part of the constructor type arguments.  @typescript-eslint/consistent-generic-constructors
+
+./src/utils/proptestSnippets.ts
+105:9  Error: Unnecessary escape character: \$.  no-useless-escape
+132:9  Error: Unnecessary escape character: \$.  no-useless-escape
+163:9  Error: Unnecessary escape character: \$.  no-useless-escape
+192:9  Error: Unnecessary escape character: \$.  no-useless-escape
+232:9  Error: Unnecessary escape character: \$.  no-useless-escape
+261:9  Error: Unnecessary escape character: \$.  no-useless-escape
+309:9  Error: Unnecessary escape character: \$.  no-useless-escape
+339:9  Error: Unnecessary escape character: \$.  no-useless-escape
+372:9  Error: Unnecessary escape character: \$.  no-useless-escape
+404:9  Error: Unnecessary escape character: \$.  no-useless-escape
+439:9  Error: Unnecessary escape character: \$.  no-useless-escape
+492:9  Error: Unnecessary escape character: \$.  no-useless-escape
+526:9  Error: Unnecessary escape character: \$.  no-useless-escape
+574:13  Error: Unnecessary escape character: \$.  no-useless-escape
+
+./src/utils/registerServiceWorker.ts
+56:63  Error: Unexpected empty arrow function.  @typescript-eslint/no-empty-function
+
+./src/utils/wasmDiff.ts
+25:56  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:63  Error: Type number trivially inferred from a number literal, remove type annotation.  @typescript-eslint/no-inferrable-types
+
+./src/wallet/providers/AlbedoWallet.ts
+12:21  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+src/lib/rustHoverProvider.ts:  const hoverDisposable = monaco.languages.registerHoverProvider("rust", {
+
+ RUN  v3.2.4 /home/mceesquare/drips_issues/stellar-suite/ide
+
+ ✓ src/test/rustDocExtractor.test.ts (17 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  11:46:31
+   Duration  2.11s (transform 138ms, setup 246ms, collect 44ms, tests 15ms, environment 972ms, prepare 454ms)
+
+src/lib/rustHoverProvider.ts:  const hoverDisposable = monaco.languages.registerHoverProvider("rust", {
+src/components/editor/CodeEditor.tsx:        "editor.background": "#1e1e2e",
+src/components/editor/CodeEditor.tsx:        "editor.foreground": "#cdd6f4",
+src/components/editor/CodeEditor.tsx:        "editor.lineHighlightBackground": "#313244",
+src/components/editor/CodeEditor.tsx:        "editor.selectionBackground": "#45475a",
+src/components/editor/CodeEditor.tsx:        "editorCursor.foreground": "#f5e0dc",
+src/components/editor/CodeEditor.tsx:        "editorWhitespace.foreground": "#45475a",
+src/components/editor/CodeEditor.tsx:        "editorIndentGuide.background": "#313244",
+src/components/editor/CodeEditor.tsx:        "editorIndentGuide.activeBackground": "#45475a",
+src/components/editor/CodeEditor.tsx:      <div className="h-full flex items-center justify-center bg-[#1e1e2e] text-muted-foreground font-mono text-sm">
+src/components/editor/CodeEditor.tsx:            <div className="h-full flex items-center justify-center bg-[#1e1e2e] text-muted-foreground font-mono text-xs">

@@ -179,7 +179,7 @@ const parseJsonFunctionSpecs = (rawValue: unknown): FunctionSpec[] => {
     .filter((entry): entry is FunctionSpec => entry !== null);
 };
 
-const describeSpecType = (typeDef: xdr.ScSpecTypeDef): string => {
+export const describeSpecType = (typeDef: xdr.ScSpecTypeDef): string => {
   const typeSwitch = typeDef.switch();
 
   switch (typeSwitch.name) {

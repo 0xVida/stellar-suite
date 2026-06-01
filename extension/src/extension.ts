@@ -13,8 +13,18 @@ import { showNetworkHealth } from './commands/showNetworkHealth';
 import { initNetworkStatusBar, disposeNetworkStatusBar } from './ui/networkStatusBar';
 import { initIdentityStatusBar } from './ui/identityStatusBar';
 import { SidebarViewProvider } from './ui/sidebarView';
+import { ContractInvokeViewProvider } from './views/ContractInvokeView';
+import { AccountBalanceViewProvider } from './views/AccountBalanceView';
+import { registerOpenInWebIDECommand } from './commands/OpenInWebIDE';
 import { getSharedOutputChannel } from './utils/outputChannel';
 import { SorobanCliService } from './services/sorobanCliService';
+import { SorobanLinterService } from './services/LinterService';
+import { HealthAlertsService } from './services/HealthAlerts';
+import { getLatencyMonitor } from './ui/networkStatusBar';
+import { registerSorobanCompletionProvider } from './providers/SorobanCompletionProvider';
+import { SecretSyncService } from './services/SecretSyncService';
+import { AccountSyncService } from './services/AccountSync';
+import { QuickDeployCommand } from './commands/QuickDeploy';
 
 let sidebarProvider: SidebarViewProvider | undefined;
 
@@ -23,9 +33,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         sidebarProvider = new SidebarViewProvider(context.extensionUri, context);
+        const contractInvokeProvider = new ContractInvokeViewProvider(context.extensionUri);
+        const accountBalanceProvider = new AccountBalanceViewProvider(context.extensionUri);
+        
         context.subscriptions.push(
-            vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider)
+            vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewType, sidebarProvider),
+            vscode.window.registerWebviewViewProvider(ContractInvokeViewProvider.viewType, contractInvokeProvider),
+            vscode.window.registerWebviewViewProvider(AccountBalanceViewProvider.viewType, accountBalanceProvider)
         );
+        
+        registerOpenInWebIDECommand(context);
+        const secretSyncService = new SecretSyncService(context);
+        const accountSyncService = new AccountSyncService(context);
+        await QuickDeployCommand.register(context);
 
         outputChannel.appendLine('[Extension] Checking for Stellar CLI in PATH...');
         const cliPath = await SorobanCliService.findCliPath();
@@ -43,7 +63,19 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`[Extension] SUCCESS: Found Stellar CLI at: ${cliPath}`);
             await initNetworkStatusBar(context);
             await initIdentityStatusBar(context);
+
+            const monitor = getLatencyMonitor();
+            if (monitor) {
+                const healthAlerts = new HealthAlertsService(monitor);
+                context.subscriptions.push(healthAlerts);
+            }
         }
+
+        registerSorobanCompletionProvider(context);
+
+        const linter = new SorobanLinterService();
+        linter.register(context);
+        context.subscriptions.push(linter);
 
         const simulateCommand = vscode.commands.registerCommand(
             'stellarSuite.simulateTransaction',
@@ -103,9 +135,9 @@ export async function activate(context: vscode.ExtensionContext) {
             }
         );
 
-        const keysGenerateCommand = vscode.commands.registerCommand('stellarSuite.keysGenerate', () => keysGenerate());
+        const keysGenerateCommand = vscode.commands.registerCommand('stellarSuite.keysGenerate', () => keysGenerate(secretSyncService));
         const keysFundCommand = vscode.commands.registerCommand('stellarSuite.keysFund', () => keysFund());
-        const keysListCommand = vscode.commands.registerCommand('stellarSuite.keysList', () => keysList());
+        const keysListCommand = vscode.commands.registerCommand('stellarSuite.keysList', () => keysList(secretSyncService));
 
         const generateBindingsCommand = vscode.commands.registerCommand('stellarSuite.generateBindings', (item) => {
             return generateBindings(item);
@@ -125,6 +157,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const showNetworkHealthCommand = vscode.commands.registerCommand('stellarSuite.showNetworkHealth', () => {
             return showNetworkHealth();
+        });
+
+        // Account Sync: add a new account interactively via the command palette.
+        const syncAccountCommand = vscode.commands.registerCommand('stellar.syncAccount', async () => {
+            const name = await vscode.window.showInputBox({ prompt: 'Account name', placeHolder: 'e.g. dev-wallet' });
+            if (!name) { return; }
+            const publicKey = await vscode.window.showInputBox({ prompt: 'Public key (G…)', placeHolder: 'GABC…' });
+            if (!publicKey) { return; }
+            const privateKey = await vscode.window.showInputBox({ prompt: 'Private key (S…)', placeHolder: 'SABC…', password: true });
+            if (!privateKey) { return; }
+            const network = await vscode.window.showQuickPick(['testnet', 'futurenet', 'mainnet'], { placeHolder: 'Select network' });
+            if (!network) { return; }
+            await accountSyncService.addAccount(name, publicKey, privateKey, network);
         });
 
         const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
@@ -161,6 +206,7 @@ export async function activate(context: vscode.ExtensionContext) {
             contractInfoCommand,
             analyzeSecurityCommand,
             showNetworkHealthCommand,
+            syncAccountCommand,
             watcher
         );
     } catch (error) {

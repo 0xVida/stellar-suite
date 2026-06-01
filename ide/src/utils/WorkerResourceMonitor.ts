@@ -1,7 +1,6 @@
 export interface WorkerResourceLimits {
   timeoutMs: number;
   maxMemoryMb: number;
-  sampleIntervalMs: number;
 }
 
 export interface WorkerResourceMonitorOptions {
@@ -13,18 +12,10 @@ export interface WorkerResourceMonitorOptions {
 const DEFAULT_LIMITS: WorkerResourceLimits = {
   timeoutMs: 120_000,
   maxMemoryMb: 512,
-  sampleIntervalMs: 1_000,
-};
-
-type PerformanceWithMemory = Performance & {
-  memory?: {
-    usedJSHeapSize: number;
-  };
 };
 
 interface MonitoredJob {
   timeoutId: ReturnType<typeof setTimeout>;
-  sampleId: ReturnType<typeof setInterval> | null;
   tripped: boolean;
 }
 
@@ -51,15 +42,7 @@ export class WorkerResourceMonitor {
       this.onTimeout(jobId, this.limits.timeoutMs);
     }, this.limits.timeoutMs);
 
-    const sampleId =
-      typeof performance !== "undefined" &&
-      Boolean((performance as PerformanceWithMemory).memory)
-        ? setInterval(() => {
-            this.recordMemorySample(jobId, this.readMemoryMb());
-          }, this.limits.sampleIntervalMs)
-        : null;
-
-    this.jobs.set(jobId, { timeoutId, sampleId, tripped: false });
+    this.jobs.set(jobId, { timeoutId, tripped: false });
   }
 
   stop(jobId: string): void {
@@ -67,7 +50,6 @@ export class WorkerResourceMonitor {
     if (!job) return;
 
     clearTimeout(job.timeoutId);
-    if (job.sampleId) clearInterval(job.sampleId);
     this.jobs.delete(jobId);
   }
 
@@ -85,12 +67,6 @@ export class WorkerResourceMonitor {
 
     job.tripped = true;
     this.onMemoryExceeded(jobId, memoryMb, this.limits.maxMemoryMb);
-  }
-
-  private readMemoryMb(): number | null {
-    const memory = (performance as PerformanceWithMemory).memory;
-    if (!memory) return null;
-    return Math.round(memory.usedJSHeapSize / (1024 * 1024));
   }
 }
 

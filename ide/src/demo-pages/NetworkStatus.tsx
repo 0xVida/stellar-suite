@@ -17,113 +17,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Activity, Network, Server, TrendingUp } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface NetworkInfo {
-  name: string;
-  horizonUrl: string;
-  passphrase: string;
-  status: "online" | "offline" | "error";
-  ledgerHeight: number;
-  protocolVersion: number;
-  latestVersion?: string;
-  baseReserve?: number;
-  feeStats?: {
-    min: number;
-    max: number;
-    avg: number;
-  };
-  color?: string;
-}
-
-const NETWORK_CONFIGS = [
-  {
-    name: "Mainnet",
-    horizonUrl: "https://horizon.stellar.org",
-    passphrase: "Public Global Stellar Network ; September 2015",
-    color: "bg-green-500",
-  },
-  {
-    name: "Testnet",
-    horizonUrl: "https://horizon-testnet.stellar.org",
-    passphrase: "Test SDF Network ; September 2015",
-    color: "bg-blue-500",
-  },
-  {
-    name: "Futurenet",
-    horizonUrl: "https://horizon-futurenet.stellar.org",
-    passphrase: "Test SDF Future Network ; October 2022",
-    color: "bg-purple-500",
-  },
-];
+import {
+  useNetworkOverview,
+  type NetworkOverviewInfo,
+} from "@/hooks/queries";
 
 export default function NetworkStatus() {
-  const [networks, setNetworks] = useState<NetworkInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const {
+    data: networks = [],
+    isLoading: loading,
+    error: queryError,
+    dataUpdatedAt,
+  } = useNetworkOverview();
 
-  const fetchNetworkData = async () => {
-    try {
-      const networkPromises = NETWORK_CONFIGS.map(async (config) => {
-        try {
-          const response = await fetch(`${config.horizonUrl}/`);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+  const error = queryError ? "Failed to fetch network data" : null;
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : new Date();
 
-          const data = await response.json();
-          const feeResponse = await fetch(
-            `${config.horizonUrl}/fee_stats`,
-          ).catch(() => null);
-          const feeData = feeResponse?.ok ? await feeResponse.json() : null;
-
-          return {
-            ...config,
-            status: "online" as const,
-            ledgerHeight: data.ledger_sequence || 0,
-            protocolVersion: data.protocol_version || 0,
-            latestVersion: data.stellar_core_version || "Unknown",
-            baseReserve: data.base_reserve_stroops || 0,
-            feeStats: feeData
-              ? {
-                  min: feeData.min_fee?.p50 || 0,
-                  max: feeData.max_fee?.p50 || 0,
-                  avg: feeData.fee_charged?.p50 || 0,
-                }
-              : undefined,
-          };
-        } catch (err) {
-          return {
-            ...config,
-            status: "offline" as const,
-            ledgerHeight: 0,
-            protocolVersion: 0,
-            latestVersion: "Unknown",
-            baseReserve: 0,
-            feeStats: undefined,
-          };
-        }
-      });
-
-      const results = await Promise.all(networkPromises);
-      setNetworks(results);
-      setError(null);
-    } catch (err) {
-      setError("Failed to fetch network data");
-    } finally {
-      setLoading(false);
-      setLastUpdated(new Date());
-    }
-  };
-
-  useEffect(() => {
-    fetchNetworkData();
-    const interval = setInterval(fetchNetworkData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const getStatusBadge = (status: NetworkInfo["status"]) => {
+  const getStatusBadge = (status: NetworkOverviewInfo["status"]) => {
     switch (status) {
       case "online":
         return (

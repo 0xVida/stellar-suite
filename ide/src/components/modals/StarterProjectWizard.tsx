@@ -3,6 +3,7 @@ import { Code2, Coins, Hash, Rocket } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -113,9 +114,9 @@ function TemplateCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex items-start gap-4 rounded-lg border p-4 text-left transition-colors ${
+      className={`flex items-start gap-4 rounded-lg border p-4 text-left transition-all ${
         isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary"
+          ? "border-primary bg-primary/10 ring-1 ring-primary"
           : "border-border hover:border-muted-foreground/40 hover:bg-muted/50"
       }`}
     >
@@ -124,17 +125,14 @@ function TemplateCard({
       </div>
       <div className="min-w-0">
         <p className="font-medium leading-none">{template.name}</p>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-sm text-muted-foreground leading-snug">
           {template.description}
         </p>
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {template.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-            >
+            <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px]">
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
       </div>

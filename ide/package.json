@@ -10,10 +10,18 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:bench": "vitest bench src/test/benchmarks/*.bench.ts",
+    "test:e2e": "playwright test tests/e2e/deployment.spec.ts",
+    "test:vrt": "playwright test tests/e2e/vrt.spec.ts",
+    "test:a11y": "playwright test tests/e2e/accessibility.spec.ts",
+    "test:e2e:all": "playwright test tests/e2e"
   },
   "dependencies": {
     "@albedo-link/intent": "^0.13.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.10.0",
     "@isomorphic-git/lightning-fs": "^4.6.2",
     "@monaco-editor/react": "^4.7.0",
@@ -44,6 +52,7 @@
     "@radix-ui/react-toggle": "^1.1.9",
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@sentry/nextjs": "^10.55.0",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^14.6.1",
     "@supabase/supabase-js": "^2.100.1",
@@ -94,7 +103,9 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.54.2",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.0",
@@ -102,6 +113,7 @@
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@vitest/coverage-v8": "^3.2.4",
     "autoprefixer": "^10.4.21",
     "cssom": "^0.5.0",
     "eslint": "^9.32.0",

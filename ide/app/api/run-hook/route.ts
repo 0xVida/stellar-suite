@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import { withCorsProtection } from "../_lib/corsMiddleware";
+import { csrfGuard } from "@/lib/csrf";
 
 interface RunHookRequest {
   command: string;
@@ -49,7 +51,10 @@ function runShellCommand(command: string): Promise<RunHookResponse> {
   });
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+async function handleRunHookRequest(req: NextRequest): Promise<NextResponse> {
+  const csrfError = csrfGuard(req);
+  if (csrfError) return csrfError;
+
   let body: RunHookRequest;
 
   try {
@@ -68,3 +73,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const status = result.exitCode === 0 ? 200 : 500;
   return NextResponse.json(result, { status });
 }
+
+const handlers = {
+  POST: handleRunHookRequest,
+};
+
+export const POST = withCorsProtection(handlers.POST as (req: NextRequest) => Promise<NextResponse>);

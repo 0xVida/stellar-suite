@@ -5,10 +5,15 @@ import {
   runCommand,
   type RustWorkspacePayload,
 } from "../_lib/rustTooling";
+import { withCorsProtection } from "../_lib/corsMiddleware";
+import { csrfGuard } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
-export async function POST(request: NextRequest) {
+async function handleClippyRequest(request: NextRequest): Promise<NextResponse> {
+  const csrfError = csrfGuard(request);
+  if (csrfError) return csrfError;
+
   let payload: RustWorkspacePayload;
 
   try {
@@ -50,3 +55,9 @@ export async function POST(request: NextRequest) {
     await workspace.cleanup();
   }
 }
+
+const handlers = {
+  POST: handleClippyRequest,
+};
+
+export const POST = withCorsProtection(handlers.POST as (req: NextRequest) => Promise<NextResponse>);

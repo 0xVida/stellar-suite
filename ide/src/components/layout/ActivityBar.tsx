@@ -1,29 +1,16 @@
-"use client";
-
 import {
   FolderTree,
   Users,
   History,
   Search,
   Beaker,
-  Bug,
   ShieldAlert,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  ListTree,
-  Library,
-  FileSearch,
-  Binary,
-  BarChart2,
-  GitMerge,
-  TrendingUp,
-  ClipboardList,
-  MessageSquare,
-  GraduationCap,
-  Globe,
 } from "lucide-react";
 import { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 export type ActivityTab =
   | "explorer"
@@ -110,27 +97,31 @@ export function ActivityBar({
     <div className="hidden md:flex flex-col bg-sidebar border-r border-border shrink-0 w-12 items-center py-4 gap-4">
       <div className="flex flex-col gap-2">
         {tabs.map((tab) => (
-          <button
+          <Button
             key={tab.id}
+            variant={activeTab === tab.id ? "secondary" : "ghost"}
+            size="icon"
             onClick={() => onTabChange(tab.id)}
-            className={`p-2 rounded-md transition-all ${
+            className={`h-9 w-9 ${
               activeTab === tab.id
-                ? "bg-primary/20 text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-primary/20 text-primary hover:bg-primary/30"
+                : "text-muted-foreground hover:text-foreground"
             }`}
             title={tab.title}
             aria-label={tab.label}
             aria-pressed={activeTab === tab.id}
           >
             {tab.icon}
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="mt-auto border-t border-border w-full pt-4 flex flex-col items-center gap-2">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={onToggleSidebar}
-          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground"
           title={sidebarVisible ? "Collapse Sidebar" : "Expand Sidebar"}
           aria-label={sidebarVisible ? "Collapse Sidebar" : "Expand Sidebar"}
         >
@@ -139,15 +130,17 @@ export function ActivityBar({
           ) : (
             <PanelLeftOpen className="h-4 w-4" />
           )}
-        </button>
+        </Button>
 
-        <button
-          className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 text-muted-foreground hover:text-foreground"
           title="Settings"
           aria-label="Settings"
         >
           <Settings className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

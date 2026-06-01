@@ -164,14 +164,18 @@ export function validateTransactionEnvelopeXdr(
   };
 }
 
+export function formatXdrValidationError(result: XdrValidationFailure): string {
+  const details = result.details?.length ? ` ${result.details.join(" ")}` : "";
+  return `${result.error}${details}`;
+}
+
 export function assertValidTransactionEnvelopeXdr(
   input: string,
   networkPassphrase: string,
 ): XdrValidationSuccess {
   const result = validateTransactionEnvelopeXdr(input, networkPassphrase);
   if (!result.ok) {
-    const detail = result.details?.length ? ` ${result.details.join(" ")}` : "";
-    throw new Error(`${result.error}${detail}`);
+    throw new Error(formatXdrValidationError(result));
   }
   return result;
 }

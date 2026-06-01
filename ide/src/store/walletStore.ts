@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { WalletService, WalletProviderType } from "../wallet/WalletService";
-import { checkFreighterInstalled, connectFreighterWallet, getFreighterPublicKey } from "../utils/freighter";
+import type { WalletProviderType } from "../wallet/WalletService";
+import { WalletAdapter, WalletConsentDeniedError } from "../lib/wallet/WalletAdapter";
 
 interface WalletState {
   isConnected: boolean;
@@ -13,7 +13,7 @@ interface WalletState {
   checkConnection: () => Promise<void>;
 }
 
-export const useWalletStore = create<WalletState>((set, get) => ({
+export const useWalletStore = create<WalletState>((set) => ({
   isConnected: false,
   publicKey: null,
   walletType: null,
@@ -23,7 +23,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   connectWallet: async (walletType: WalletProviderType) => {
     set({ isLoading: true, error: null });
     try {
-      const publicKey = await WalletService.connect(walletType);
+      const publicKey = await WalletAdapter.connect(walletType);
       console.log(`Connected wallet: ${publicKey}`);
       console.log(`Wallet type: ${walletType}`);
       // Save to localStorage so we can try reconnecting
@@ -31,9 +31,14 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         localStorage.setItem("connectedWalletType", walletType);
       }
       set({ isConnected: true, publicKey, walletType, isLoading: false, error: null });
-    } catch (error: any) {
-      console.log(`Wallet connection failed: ${error.message}`);
-      set({ error: error.message, isLoading: false });
+    } catch (error: unknown) {
+      const fallback = error instanceof Error ? error.message : "Failed to connect wallet.";
+      const message =
+        error instanceof WalletConsentDeniedError
+          ? "Wallet connection request was declined."
+          : fallback;
+      console.log(`Wallet connection failed: ${message}`);
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -41,6 +46,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.removeItem("connectedWalletType");
     }
+    WalletAdapter.revokeAll();
     set({ isConnected: false, publicKey: null, walletType: null, error: null });
   },
 
@@ -49,7 +55,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const storedWalletType = localStorage.getItem("connectedWalletType") as WalletProviderType | null;
     if (storedWalletType) {
       try {
-        const publicKey = await WalletService.checkConnection(storedWalletType);
+        const publicKey = await WalletAdapter.checkConnection(storedWalletType);
         if (publicKey) {
           console.log(`Connected wallet: ${publicKey}`);
           console.log(`Wallet type: ${storedWalletType}`);

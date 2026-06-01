@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Activity, RefreshCw, Search, ChevronRight, ChevronDown,
   AlertCircle, Loader2, X, Play, Pause, Clock, Info,
@@ -9,6 +9,7 @@ import {
   clearRpcCache,
   type LedgerEntry,
 } from "@/lib/sorobanRpc";
+import { useTransactionResultsStore } from "@/store/useTransactionResultsStore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lightweight XDR / ScVal decoder
@@ -68,6 +69,17 @@ function xdrBytes(buf: Uint8Array, off: number): [string, number] {
   const bytes = buf.slice(off, off + len);
   const pad = (4 - (len % 4)) % 4;
   return [hex(bytes), off + len + pad];
+}
+
+function normalizeKeyLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }
 
 // ── ScVal ─────────────────────────────────────────────────────────────────────
@@ -251,6 +263,28 @@ function parseLedgerEntry(entry: LedgerEntry): ParsedEntry {
   }
 }
 
+function useSuggestedStorageKeys(network: string, contractId?: string | null): string[] {
+  const logs = useTransactionResultsStore((state) => state.logs);
+
+  return useMemo(() => {
+    if (!contractId) {
+      return [];
+    }
+
+    const matchingLogs = [...logs].reverse().filter((log) => {
+      return log.network === network && log.contractId === contractId && Boolean(log.simulationComparison);
+    });
+
+    const latestComparison = matchingLogs[0]?.simulationComparison;
+    if (!latestComparison) {
+      return [];
+    }
+
+    const keys = latestComparison.stateChanges.map((change) => change.key);
+    return dedupeStrings(keys);
+  }, [contractId, logs, network]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Type-colour map
 // ─────────────────────────────────────────────────────────────────────────────
@@ -423,6 +457,13 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const suggestedKeys = useSuggestedStorageKeys(network, propContractId);
+  const manualKeys = useMemo(() => normalizeKeyLines(xdrKeys), [xdrKeys]);
+  const activeKeys = useMemo(
+    () => dedupeStrings([...suggestedKeys, ...manualKeys]),
+    [manualKeys, suggestedKeys],
+  );
+
   // Seed XDR key area when a contract is deployed
   useEffect(() => {
     if (propContractId && !xdrKeys) {
@@ -442,25 +483,35 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
       .catch(() => {});
   }, [network]);
 
+  useEffect(() => {
+    setEntries([]);
+    setPrevRawMap(new Map());
+    setError(null);
+  }, [propContractId]);
+
   const fetchState = useCallback(async () => {
-    const keys = xdrKeys
-      .split("\n")
-      .map((k) => k.trim())
-      .filter(Boolean);
+    const keys = activeKeys;
 
     setLoading(true);
     setError(null);
 
     try {
+      if (keys.length === 0) {
+        setEntries([]);
+        setPrevRawMap(new Map());
+        setError(
+          propContractId
+            ? "No storage keys available yet. Run a simulation for this contract or paste LedgerKey XDR values to inspect live state."
+            : "Paste one or more LedgerKey XDR values to fetch contract storage."
+        );
+        return;
+      }
+
       const { entries: raw, latestLedger: seq } = await fetchLedgerEntries(network, keys);
       if (seq) setLatestLedger(seq);
 
       // Build prev→raw map before overwriting entries
-      setPrevRawMap((prev) => {
-        const next = new Map(prev);
-        // snapshot current entries for change detection on next fetch
-        return next;
-      });
+      setPrevRawMap((prev) => new Map(prev));
 
       const parsed = raw.map(parseLedgerEntry);
 
@@ -484,7 +535,13 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
     } catch {
       // silently ignore
     }
-  }, [network, xdrKeys]);
+  }, [activeKeys, network, propContractId]);
+
+  useEffect(() => {
+    if (propContractId && suggestedKeys.length > 0 && entries.length === 0 && !loading) {
+      void fetchState();
+    }
+  }, [entries.length, fetchState, loading, propContractId, suggestedKeys.length]);
 
   // Auto-refresh countdown + trigger
   useEffect(() => {
@@ -578,7 +635,7 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
         <div className="px-3 py-2 border-b border-sidebar-border space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-              XDR Ledger Keys
+              Contract State Keys
             </span>
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50 font-mono">
               <Info className="h-2.5 w-2.5" />
@@ -588,10 +645,19 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
           <textarea
             value={xdrKeys}
             onChange={(e) => setXdrKeys(e.target.value)}
-            rows={3}
-            placeholder={"AAAA…base64-encoded LedgerKey XDR\nAAAA…another key"}
+            rows={4}
+            placeholder={
+              suggestedKeys.length > 0
+                ? "Add extra LedgerKey XDR values here; the explorer already includes live keys from the latest simulation."
+                : "AAAA…base64-encoded LedgerKey XDR\nAAAA…another key"
+            }
             className="w-full bg-muted border border-border rounded px-2 py-1.5 text-[10px] font-mono text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
           />
+          {suggestedKeys.length > 0 && (
+            <div className="rounded border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-mono text-muted-foreground">
+              Using {suggestedKeys.length} live key{suggestedKeys.length === 1 ? "" : "s"} from the latest simulation for {propContractId ?? "the active contract"}.
+            </div>
+          )}
           {propContractId && (
             <p className="text-[10px] font-mono text-muted-foreground/60">
               Active contract: <span className="text-primary">{propContractId}</span>
@@ -700,16 +766,16 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
         )}
 
         {/* ── Empty state ────────────────────────────────────────────── */}
-        {!loading && entries.length === 0 && (
+          {!loading && entries.length === 0 && (
           <div className="px-4 py-6 text-center space-y-2">
             <Activity className="h-8 w-8 text-muted-foreground/20 mx-auto" />
             <p className="text-[11px] text-muted-foreground font-mono leading-relaxed">
-              Paste base64-encoded{" "}
-              <span className="text-foreground">LedgerKey</span> XDR above, then click{" "}
-              <span className="text-primary font-semibold">Fetch State</span>.
+              {propContractId
+                ? "Run a simulation for this contract or paste LedgerKey XDR values to browse current on-chain storage."
+                : <>Paste base64-encoded <span className="text-foreground">LedgerKey</span> XDR above, then click <span className="text-primary font-semibold">Fetch State</span>.</>}
             </p>
             <p className="text-[10px] text-muted-foreground/50 font-mono leading-relaxed">
-              Keys can be obtained via the Stellar CLI:<br />
+              Keys can be obtained from simulation state changes or via the Stellar CLI:<br />
               <code className="text-muted-foreground">stellar contract read --id &lt;ID&gt;</code>
             </p>
           </div>

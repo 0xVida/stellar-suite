@@ -1,8 +1,9 @@
 {
-  "generated": "2026-04-23T10:16:18.069Z",
+  "generated": "2026-05-28T19:38:03.124Z",
   "algorithm": "sha384",
   "assets": {
     "/workers/compile.worker.js": "sha384-8lA/RqADmaMFkngx3RJMJ+RplYG61czHHiKr4RL8pXEq0jot7Z7gnJTpPG+RG+/t",
-    "/workers/local-compiler.worker.js": "sha384-kjOvRmxz3OfwJur16sOtpaPDSRmYJDTqI2I32Hex0DX2ClEs/xUYcB6qFUcSiyi+"
+    "/workers/diagnostics.worker.js": "sha384-O654BHy16phojZIlWzu5msexVISbLn/5fIUy0fPeu9oCBu8Kx1jnTo9C9SMpmsZB",
+    "/workers/local-compiler.worker.js": "sha384-hpZtvuYT4pmwLbuS/HIK3nvHVWh+4TSIZQcs6+/bQrI9j5ZA0/0Y/ae8rU/AM0o6"
   }
 }

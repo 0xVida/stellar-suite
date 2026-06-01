@@ -7,6 +7,7 @@ import {
   resolveProviderConfig,
   type ChatRequestPayload,
 } from "@/lib/ai-chat";
+import { csrfGuard } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
@@ -121,6 +122,9 @@ const streamUpstreamSse = async (
 };
 
 export async function POST(request: NextRequest) {
+  const csrfError = csrfGuard(request);
+  if (csrfError) return csrfError;
+
   let payload: ChatRequestPayload;
 
   try {

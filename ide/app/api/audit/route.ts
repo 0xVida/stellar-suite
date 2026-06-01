@@ -8,6 +8,7 @@ import {
   runCommand,
   type RustWorkspacePayload,
 } from "../_lib/rustTooling";
+import { csrfGuard } from "@/lib/csrf";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,9 @@ const lockfileExists = async (contractDir: string) => {
 };
 
 export async function POST(request: NextRequest) {
+  const csrfError = csrfGuard(request);
+  if (csrfError) return csrfError;
+
   let payload: RustWorkspacePayload;
 
   try {

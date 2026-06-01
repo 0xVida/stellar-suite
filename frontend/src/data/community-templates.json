@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "name": "Liquidity Pool",
+    "description": "A standard Constant Product Market Maker (CPMM) implementation for Soroban.",
+    "author": "StellarDev",
+    "stars": 128,
+    "tags": ["DeFi", "AMM"],
+    "category": "DeFi",
+    "version": "1.0.2"
+  },
+  {
+    "id": "2",
+    "name": "NFT Marketplace",
+    "description": "Complete marketplace contract with minting, listing, and royalty support.",
+    "author": "OrbitalLabs",
+    "stars": 85,
+    "tags": ["NFT", "Assets"],
+    "category": "DeFi",
+    "version": "0.9.5"
+  },
+  {
+    "id": "3",
+    "name": "DAO Governance",
+    "description": "On-chain voting and proposal management system for decentralized organizations.",
+    "author": "AstroChain",
+    "stars": 210,
+    "tags": ["DAO", "Governance"],
+    "category": "DAO",
+    "version": "2.1.0"
+  },
+  {
+    "id": "4",
+    "name": "Token Bridge",
+    "description": "Cross-chain token transfer bridge logic with multisig verification.",
+    "author": "QuantumBridge",
+    "stars": 56,
+    "tags": ["Bridge", "Security"],
+    "category": "Utility",
+    "version": "1.2.0"
+  },
+  {
+    "id": "5",
+    "name": "Stablecoin Vault",
+    "description": "Collateralized debt position (CDP) contract for minting stablecoins.",
+    "author": "NovaFinance",
+    "stars": 94,
+    "tags": ["Stablecoin", "Finance"],
+    "category": "DeFi",
+    "version": "1.1.0"
+  },
+  {
+    "id": "6",
+    "name": "Subscription Engine",
+    "description": "Recurring payment logic for SaaS products on the Stellar network.",
+    "author": "StellarPay",
+    "stars": 42,
+    "tags": ["Payments", "SaaS"],
+    "category": "Utility",
+    "version": "0.8.0"
+  }
+]

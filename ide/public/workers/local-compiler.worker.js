@@ -242,13 +242,13 @@ let realCompilerModule = null;
 // --- SRI Verifier inside worker ---
 let _workerManifest = null;
 async function fetchWithWorkerSRI(url) {
-  const resp = await fetch(url, { cache: 'no-store' });
+  const resp = await fetch(url);
   if (!resp.ok) throw new Error('Fetch failed');
   const buf = await resp.arrayBuffer();
   
   if (!_workerManifest) {
     try {
-      const mResp = await fetch('/sri-manifest.json', { cache: 'no-store' });
+      const mResp = await fetch('/sri-manifest.json');
       if (mResp.ok) _workerManifest = await mResp.json();
     } catch {
       // Ignore

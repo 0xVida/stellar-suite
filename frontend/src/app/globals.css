@@ -116,6 +116,14 @@
     @apply border-border;
   }
 
+  /* Smooth in-page scrolling for anchor navigation, disabled for users who
+     prefer reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
   }

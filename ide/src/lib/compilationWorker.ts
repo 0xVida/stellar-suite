@@ -11,6 +11,7 @@
  */
 
 import { WorkerResourceMonitor } from "@/utils/WorkerResourceMonitor";
+import { secureLoadWorker } from '@/utils/WasmLoader';
 
 /** Messages sent from the main thread to the worker. */
 type WorkerInbound =
@@ -30,6 +31,7 @@ export interface CompileResult {
   ok: boolean;
   status: number;
   output: string;
+  wasmBase64?: string;
 }
 
 interface PendingJob {
@@ -53,6 +55,7 @@ export class CompilationWorker {
       this.cancelAndReject(
         id,
         `Build cancelled after exceeding the ${Math.round(timeoutMs / 1000)}s time limit.`,
+        true,
       );
     },
     onMemoryExceeded: (id, memoryMb, limitMb) => {
@@ -64,15 +67,31 @@ export class CompilationWorker {
     },
   });
 
+  private spawnPromise: Promise<void> | null = null;
+
   constructor(useLocalCompiler: boolean = false) {
     this.workerPath = useLocalCompiler ? LOCAL_WORKER_PATH : WORKER_PATH;
   }
 
-  private spawn(): void {
-    this.worker = new Worker(this.workerPath);
-    this.worker.onmessage = (e: MessageEvent<WorkerOutbound>) =>
-      this.handleMessage(e.data);
-    this.worker.onerror = (e: ErrorEvent) => this.handleCrash(e);
+  private async spawn(): Promise<void> {
+    if (this.spawnPromise) return this.spawnPromise;
+
+    this.spawnPromise = (async () => {
+      try {
+        const objectUrl = await secureLoadWorker(this.workerPath);
+        this.worker = new Worker(objectUrl);
+        this.worker.onmessage = (e: MessageEvent<WorkerOutbound>) =>
+          this.handleMessage(e.data);
+        this.worker.onerror = (e: ErrorEvent) => this.handleCrash(e);
+      } catch (err) {
+        console.error("Failed to spawn worker securely:", err);
+        // Clean up the promise so we can retry on next compile
+        this.spawnPromise = null;
+        throw err;
+      }
+    })();
+
+    return this.spawnPromise;
   }
 
   private handleMessage(msg: WorkerOutbound): void {
@@ -89,7 +108,7 @@ export class CompilationWorker {
       case 'done':
         this.resourceMonitor.stop(msg.id);
         this.jobs.delete(msg.id);
-        job!.resolve({ ok: msg.ok, status: msg.status ?? 0, output: msg.output });
+        job!.resolve({ ok: msg.ok, status: msg.status ?? 0, output: msg.output, wasmBase64: msg.wasmBase64 });
         break;
 
       case 'error':
@@ -124,17 +143,6 @@ export class CompilationWorker {
         this.worker?.terminate();
         this.worker = null;
         break;
-
-      case 'sri-error': {
-        const sriErr = new Error(`[security] WASM integrity check failed for: ${msg.url}\n[security] Expected: ${msg.expected} | Got: ${msg.actual}\n[security] Build aborted to prevent execution of potentially tampered code.`);
-        sriErr.name = "SRIIntegrityError";
-        for (const job of this.jobs.values()) {
-          job.reject(sriErr);
-        }
-        this.jobs.clear();
-        this.worker?.terminate();
-        this.worker = null;
-        break;
       }
     }
   }
@@ -153,7 +161,7 @@ export class CompilationWorker {
     // Attempt automatic restart
     if (this.restartCount < MAX_RESTARTS) {
       this.restartCount++;
-      this.spawn();
+      this.spawn().catch(() => {});
     }
   }
 
@@ -172,6 +180,7 @@ export class CompilationWorker {
     if (!job) return;
 
     const error = new Error(message);
+    error.name = terminateWorker ? 'ResourceLimitError' : 'CancelError';
     this.resourceMonitor.stop(id);
     this.jobs.delete(id);
 
@@ -195,7 +204,7 @@ export class CompilationWorker {
   }
 
   /** Post a compile request to the worker and stream results back. */
-  compile(
+  async compile(
     id: string,
     url: string,
     payload: unknown,
@@ -204,7 +213,12 @@ export class CompilationWorker {
     if (typeof window === 'undefined') {
       return Promise.reject(new Error('Workers are not available in SSR'));
     }
-    if (!this.worker) this.spawn();
+    
+    try {
+      if (!this.worker) await this.spawn();
+    } catch (err) {
+      return Promise.reject(err);
+    }
 
     return new Promise<CompileResult>((resolve, reject) => {
       this.jobs.set(id, { id, onChunk, resolve, reject });

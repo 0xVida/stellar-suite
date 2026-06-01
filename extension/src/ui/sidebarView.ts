@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { SidebarWebView } from './sidebarWebView';
-import { WasmDetector } from '../utils/wasmDetector';
 import { ContractInspector, ContractFunction } from '../services/contractInspector';
 import { SorobanCliService } from '../services/sorobanCliService';
+import { WasmDetector } from '../utils/wasmDetector';
+import { WorkspaceScanner } from '../services/WorkspaceScanner';
 
 export interface ContractInfo {
     name: string;
@@ -160,10 +161,11 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private async getContracts(): Promise<ContractInfo[]> {
         const contracts: ContractInfo[] = [];
 
-        const contractDirs = await WasmDetector.findContractDirectories();
+        const manifests = await WorkspaceScanner.findSorobanManifests();
 
-        for (const dir of contractDirs) {
-            const contractName = require('path').basename(dir);
+        for (const manifest of manifests) {
+            const dir = manifest.directory;
+            const contractName = manifest.name;
             const wasmPath = WasmDetector.getExpectedWasmPath(dir);
             const fs = require('fs');
             const hasWasm = wasmPath && fs.existsSync(wasmPath);

@@ -54,6 +54,11 @@ export interface FeeRecommendation {
   high: number;
 }
 
+export interface FeeHistoryResult {
+  history: LedgerFeeData[];
+  stats: FeeStats;
+}
+
 export class FeeDataService {
   private static instance: FeeDataService;
   private cache: Map<string, { data: LedgerFeeData[]; timestamp: number }> = new Map();
@@ -107,6 +112,15 @@ export class FeeDataService {
 
     this.cache.set(cacheKey, { data: feeData, timestamp: Date.now() });
     return feeData;
+  }
+
+  async getHistoricalFeeStats(network: NetworkKey, limit: number = 100): Promise<FeeHistoryResult> {
+    const [history, stats] = await Promise.all([
+      this.getFeeHistory(network, limit),
+      this.getCurrentFeeStats(network)
+    ]);
+
+    return { history, stats };
   }
 
   calculateFeeRecommendations(feeHistory: LedgerFeeData[]): FeeRecommendation {

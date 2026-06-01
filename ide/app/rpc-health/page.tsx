@@ -21,23 +21,8 @@ import {
   Server,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface HealthResponse {
-  status?: string;
-  latest_ledger?: number;
-  core_version?: string;
-  ingest_latest_ledger?: number;
-  oldest_ledger?: number;
-  oldest_ledger_header?: string;
-  latest_ledger_close_time?: number;
-  network_ledger_version?: number;
-  protocol_version?: number;
-  queue_size?: number;
-  current_ledger_protocol_version?: number;
-  core_supported_protocol_version?: number;
-  [key: string]: any;
-}
+import { useState } from "react";
+import { useRpcHealth } from "@/hooks/queries";
 
 interface JsonTreeNodeProps {
   data: any;
@@ -148,43 +133,24 @@ const JsonTreeNode: React.FC<JsonTreeNodeProps> = ({
 
 export default function RpcHealthPage() {
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkKey>("testnet");
-  const [healthData, setHealthData] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const {
+    data: healthData,
+    isFetching: loading,
+    error: queryError,
+    refetch,
+    dataUpdatedAt,
+  } = useRpcHealth(selectedNetwork);
 
-  const fetchHealthData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const rpcUrl =
-        selectedNetwork === "local"
-          ? "http://localhost:8000"
-          : NETWORK_CONFIG[selectedNetwork].horizon;
-
-      const response = await fetch(`${rpcUrl}/health`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setHealthData(data);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch health data",
-      );
-      setHealthData(null);
-    } finally {
-      setLoading(false);
-    }
+  const error =
+    queryError instanceof Error
+      ? queryError.message
+      : queryError
+        ? "Failed to fetch health data"
+        : null;
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const fetchHealthData = () => {
+    void refetch();
   };
-
-  useEffect(() => {
-    fetchHealthData();
-  }, [selectedNetwork]);
 
   const getSyncStatus = () => {
     if (!healthData) return "unknown";

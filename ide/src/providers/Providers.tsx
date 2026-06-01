@@ -1,15 +1,14 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useEffect } from "react";
 import { registerServiceWorker } from "@/utils/registerServiceWorker";
+import { QueryProvider } from "@/providers/QueryProvider";
+import { WalletPermissionPrompt } from "@/components/wallet/WalletPermissionPrompt";
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
-
   // Register the service worker once on first client-side mount.
   // This must run here (inside a "use client" component) rather than in the
   // Server Component layout.tsx.
@@ -19,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <SessionProvider>
-      <QueryClientProvider client={queryClient}>
+      <QueryProvider>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -28,9 +27,10 @@ export function Providers({ children }: { children: ReactNode }) {
         >
           <TooltipProvider>
             {children}
+            <WalletPermissionPrompt />
           </TooltipProvider>
         </ThemeProvider>
-      </QueryClientProvider>
+      </QueryProvider>
     </SessionProvider>
   );
 }

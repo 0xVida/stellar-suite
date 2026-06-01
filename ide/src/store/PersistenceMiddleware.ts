@@ -1,11 +1,22 @@
+/**
+ * PersistenceMiddleware — safe state serialization for workspace hydration.
+ *
+ * Protects against 'white screen' failures caused by corrupted localStorage /
+ * IndexedDB entries. Uses Zod for schema validation and falls back to a clean
+ * default state whenever the persisted payload fails to parse or validate.
+ *
+ * hardening: safe-state-hydration  (#807)
+ */
+
 import { z } from "zod";
 import { idbStorage } from "@/utils/idbStorage";
 
-const STORAGE_RECOVERY_EVENT = "stellar-suite:workspace-storage-recovered";
+/** Dispatched on window when a recovery from corrupt state occurs. */
+export const STORAGE_RECOVERY_EVENT = "stellar-suite:workspace-storage-recovered";
 
 const tabInfoSchema = z.object({
-  path: z.array(z.string()),
-  name: z.string(),
+  path: z.array(z.string().max(1024)),
+  name: z.string().max(256),
 });
 
 interface PersistedFileNode {
@@ -18,11 +29,12 @@ interface PersistedFileNode {
 
 const fileNodeSchema: z.ZodType<PersistedFileNode> = z.lazy(() =>
   z.object({
-    name: z.string().min(1),
+    name: z.string().min(1).max(512),
     type: z.enum(["file", "folder"]),
     children: z.array(fileNodeSchema).optional(),
+    // Content is intentionally unbounded — contract files can be large.
     content: z.string().optional(),
-    language: z.string().optional(),
+    language: z.string().max(64).optional(),
   }),
 );
 
@@ -125,3 +137,15 @@ export const safeWorkspaceStorage = {
     await idbStorage.removeItem(name);
   },
 };
+
+/**
+ * Attempt to load and validate workspace state from IDB.
+ * Returns the validated state on success, or `null` (and dispatches a
+ * `STORAGE_RECOVERY_EVENT`) on any failure — callers should fall back to
+ * their default initial state.
+ */
+export async function safeLoadWorkspaceState(
+  name: string,
+): Promise<z.infer<typeof persistedEnvelopeSchema> | null> {
+  return safeWorkspaceStorage.getItem(name);
+}

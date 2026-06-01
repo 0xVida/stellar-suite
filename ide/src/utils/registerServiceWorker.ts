@@ -54,6 +54,8 @@ export async function registerServiceWorker(): Promise<void> {
     };
     if (reg.sync) {
       await reg.sync.register("stellar-ide-sync").catch(() => {});
+    } else if (navigator.onLine) {
+      reg.active?.postMessage({ type: "REQUEST_SYNC" });
     }
   } catch (err) {
     console.error("[SW] Registration failed:", err);

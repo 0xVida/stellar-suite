@@ -10,6 +10,7 @@ import {
   type LedgerEntry,
 } from "@/lib/sorobanRpc";
 import { useTransactionResultsStore } from "@/store/useTransactionResultsStore";
+import { LedgerBackup } from "@/components/ide/LedgerBackup";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lightweight XDR / ScVal decoder
@@ -631,6 +632,10 @@ export function StateExplorer({ network, contractId: propContractId }: StateExpl
       )}
 
       <div className="flex-1 overflow-y-auto">
+        <div className="px-3 py-2 border-b border-sidebar-border">
+          <LedgerBackup />
+        </div>
+
         {/* ── XDR key input ──────────────────────────────────────────── */}
         <div className="px-3 py-2 border-b border-sidebar-border space-y-1.5">
           <div className="flex items-center justify-between">

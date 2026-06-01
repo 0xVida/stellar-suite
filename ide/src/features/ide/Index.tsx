@@ -89,6 +89,8 @@ import { SimulationDiff } from "@/components/ide/SimulationDiff";
 import { InteractiveTour } from "@/components/ide/InteractiveTour";
 import { useNetworkStore } from "@/store/useNetworkStore";
 import { buildProtocolCompatibilityReport } from "@/lib/protocolUpgrade";
+import { resolveWorkspaceCompileFiles } from "@/lib/fs/UniversalResolver";
+import { recordSimulationTelemetry } from "@/lib/simulationTelemetry";
 
 const COMPILE_API_URL =
   process.env.NEXT_PUBLIC_COMPILE_API_URL ?? "/api/compile";
@@ -494,6 +496,11 @@ export default function Index() {
     [activeTabPath, contractName, files, network, selectedEnvironmentSlot],
   );
 
+  const resolveCompilePayloadFiles = useCallback(
+    () => resolveWorkspaceCompileFiles(flattenProjectFiles(files)),
+    [files],
+  );
+
   const handleCompile = useCallback(async () => {
     recordMonitoringBreadcrumb("ide.build", "Build started", {
       network,
@@ -529,9 +536,10 @@ export default function Index() {
     let wasCancelled = false;
 
     try {
+      const resolvedFiles = await resolveCompilePayloadFiles();
       const result = await workerCompile({
         url: COMPILE_API_URL,
-        payload: compilePayload,
+        payload: { ...compilePayload, files: resolvedFiles },
         onChunk: appendTerminalOutput,
         contractName,
         // Stream-parse diagnostics as chunks arrive so Monaco markers light up
@@ -615,7 +623,9 @@ export default function Index() {
     clearDiagnostics,
     compilePayload,
     contractName,
+    files,
     network,
+    resolveCompilePayloadFiles,
     selectedEnvironmentSlot,
     setBuildState,
     setDiagnostics,
@@ -630,15 +640,16 @@ export default function Index() {
     setTerminalExpanded(true);
     appendTerminalOutput("> Running cargo clippy --message-format=json\r\n");
 
-    try {
-      const response = await fetch("/api/clippy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contractName,
-          files: compilePayload.files,
-        }),
-      });
+      try {
+        const resolvedFiles = await resolveCompilePayloadFiles();
+        const response = await fetch("/api/clippy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contractName,
+            files: resolvedFiles,
+          }),
+        });
 
       const payload = (await response.json()) as {
         success?: boolean;
@@ -685,8 +696,8 @@ export default function Index() {
     }
   }, [
     appendTerminalOutput,
-    compilePayload.files,
     contractName,
+    resolveCompilePayloadFiles,
     setDiagnostics,
     setTerminalExpanded,
   ]);
@@ -697,15 +708,16 @@ export default function Index() {
     setTerminalExpanded(true);
     appendTerminalOutput("> Running cargo audit --json\r\n");
 
-    try {
-      const response = await fetch("/api/audit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contractName,
-          files: compilePayload.files,
-        }),
-      });
+      try {
+        const resolvedFiles = await resolveCompilePayloadFiles();
+        const response = await fetch("/api/audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contractName,
+            files: resolvedFiles,
+          }),
+        });
 
       const payload = (await response.json()) as {
         success?: boolean;
@@ -748,8 +760,8 @@ export default function Index() {
     }
   }, [
     appendTerminalOutput,
-    compilePayload.files,
     contractName,
+    resolveCompilePayloadFiles,
     setTerminalExpanded,
   ]);
 
@@ -1105,12 +1117,13 @@ export default function Index() {
       }
 
       try {
+        const resolvedFiles = await resolveCompilePayloadFiles();
         const response = await fetch("/api/run-test", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contractName,
-            files: compilePayload.files,
+            files: resolvedFiles,
             mode: "full",
             integrationTargets,
           }),
@@ -1163,10 +1176,10 @@ export default function Index() {
   }, [
     activeTabPath,
     appendTerminalOutput,
-    compilePayload.files,
     contractName,
     files,
     mockLedgerState,
+    resolveCompilePayloadFiles,
     setTerminalExpanded,
     setTerminalOutput,
   ]);
@@ -1186,12 +1199,13 @@ export default function Index() {
       const integrationTargets = listIntegrationTargets(discoveredTests);
 
       try {
+        const resolvedFiles = await resolveCompilePayloadFiles();
         const response = await fetch("/api/run-test", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contractName,
-            files: compilePayload.files,
+            files: resolvedFiles,
             mode: "failed-only",
             failedTestNames,
             integrationTargets,
@@ -1249,9 +1263,9 @@ export default function Index() {
     })();
   }, [
     activeTabPath,
-    compilePayload.files,
     contractName,
     files,
+    resolveCompilePayloadFiles,
     setTerminalExpanded,
     setTerminalOutput,
     testRun,
@@ -1411,11 +1425,22 @@ export default function Index() {
             })
           : null;
 
+        const simulationTxId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${fn}`;
+
+        recordSimulationTelemetry({
+          transactionId: simulationTxId,
+          contractId,
+          functionName: fn,
+          durationMs: Date.now() - startedAt,
+          success: true,
+          ledgerKeyCount: simulationComparison?.summary.total,
+        });
+
         appendTransactionLog({
-          id:
-            typeof crypto !== "undefined" && "randomUUID" in crypto
-              ? crypto.randomUUID()
-              : `${Date.now()}-${fn}`,
+          id: simulationTxId,
           timestamp: new Date().toISOString(),
           network,
           contractId,

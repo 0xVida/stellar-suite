@@ -1,4 +1,4 @@
-import { describe, bench } from "vitest";
+import { describe, bench, expect } from "vitest";
 import { xdr } from "@stellar/stellar-sdk";
 import {
   filterByKeyType,
@@ -7,6 +7,15 @@ import {
   transformLedgerEntry,
   type DecodedLedgerEntry,
 } from "@/lib/scvalTransformer";
+import {
+  decodeFromXdr,
+  decodeMap,
+  decodeVec,
+  encodeMap,
+  encodeToXdr,
+  encodeVec,
+} from "@/utils/XdrUtils";
+import { buildSimulationComparison } from "@/lib/simulationDiff";
 
 // Pre-built XDR fixtures — constructed once so construction cost is excluded from bench loops
 const XDR_VOID = xdr.ScVal.scvVoid().toXDR("base64");
@@ -202,17 +211,7 @@ describe("state diff — 1 000 entries (10 % mutation)", () => {
   bench("diffEntries identical snapshots", () => {
     diffEntries(ENTRIES_1000, ENTRIES_1000);
   });
-import { bench, describe, expect } from "vitest";
-
-import {
-  decodeFromXdr,
-  decodeMap,
-  decodeVec,
-  encodeMap,
-  encodeToXdr,
-  encodeVec,
-} from "@/utils/XdrUtils";
-import { buildSimulationComparison } from "@/lib/simulationDiff";
+});
 
 const createLargeMapPayload = (size: number) => {
   const payload: Record<string, unknown> = {};

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   FolderTree,
   Users,
@@ -8,9 +10,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Globe,
 } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSidebarOrderStore } from "@/store/useSidebarOrderStore";
 
 export type ActivityTab =
   | "explorer"
@@ -36,7 +40,7 @@ interface ActivityBarTab {
   title: string;
 }
 
-const tabs: ActivityBarTab[] = [
+const TAB_DEFINITIONS: ActivityBarTab[] = [
   {
     id: "explorer",
     icon: <FolderTree className="h-5 w-5" />,
@@ -87,32 +91,82 @@ const tabs: ActivityBarTab[] = [
   },
 ];
 
+const TAB_MAP = Object.fromEntries(
+  TAB_DEFINITIONS.map((t) => [t.id, t])
+) as Record<ActivityTab, ActivityBarTab>;
+
 export function ActivityBar({
   activeTab,
   onTabChange,
   sidebarVisible,
   onToggleSidebar,
 }: ActivityBarProps) {
+  const { order, moveTab } = useSidebarOrderStore();
+  const dragIndex = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const orderedTabs = order
+    .map((id) => TAB_MAP[id])
+    .filter(Boolean) as ActivityBarTab[];
+
+  const handleDragStart = (index: number) => {
+    dragIndex.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (toIndex: number) => {
+    if (dragIndex.current !== null && dragIndex.current !== toIndex) {
+      moveTab(dragIndex.current, toIndex);
+    }
+    dragIndex.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndex.current = null;
+    setDragOverIndex(null);
+  };
+
   return (
-    <div className="hidden md:flex flex-col bg-sidebar border-r border-border shrink-0 w-12 items-center py-4 gap-4">
+    <div
+      className="hidden md:flex flex-col bg-sidebar border-r border-border shrink-0 w-12 items-center py-4 gap-4 ide-activity-bar"
+      role="navigation"
+      aria-label="Activity bar"
+    >
       <div className="flex flex-col gap-2">
-        {tabs.map((tab) => (
-          <Button
+        {orderedTabs.map((tab, index) => (
+          <div
             key={tab.id}
-            variant={activeTab === tab.id ? "secondary" : "ghost"}
-            size="icon"
-            onClick={() => onTabChange(tab.id)}
-            className={`h-9 w-9 ${
-              activeTab === tab.id
-                ? "bg-primary/20 text-primary hover:bg-primary/30"
-                : "text-muted-foreground hover:text-foreground"
+            draggable
+            onDragStart={() => handleDragStart(index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDrop={() => handleDrop(index)}
+            onDragEnd={handleDragEnd}
+            className={`rounded transition-all ${
+              dragOverIndex === index ? "ring-1 ring-primary/60 scale-105" : ""
             }`}
-            title={tab.title}
-            aria-label={tab.label}
-            aria-pressed={activeTab === tab.id}
+            title="Drag to reorder"
           >
-            {tab.icon}
-          </Button>
+            <Button
+              variant={activeTab === tab.id ? "secondary" : "ghost"}
+              size="icon"
+              onClick={() => onTabChange(tab.id)}
+              className={`h-9 w-9 cursor-grab active:cursor-grabbing ${
+                activeTab === tab.id
+                  ? "bg-primary/20 text-primary hover:bg-primary/30"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              title={tab.title}
+              aria-label={tab.label}
+              aria-pressed={activeTab === tab.id}
+            >
+              {tab.icon}
+            </Button>
+          </div>
         ))}
       </div>
 

@@ -13,6 +13,9 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    benchmark: {
+      include: ["src/**/*.bench.ts"],
+    },
   },
   resolve: {
     alias: { "@": path.join(configDir, "src") },

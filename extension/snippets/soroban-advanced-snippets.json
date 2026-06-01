@@ -1,0 +1,704 @@
+{
+  "Soroban SEP-41 allowance get": {
+    "prefix": "sba-allowance-get",
+    "body": [
+      "pub fn allowance(env: Env, from: Address, spender: Address) -> i128 {",
+      "    let key = DataKey::Allowance(from, spender);",
+      "    env.storage().temporary().get(&key).unwrap_or(0)",
+      "}$0"
+    ],
+    "description": "SEP-41 allowance read. Allowances live in temporary storage because they are short-lived and expirable by design."
+  },
+  "Soroban SEP-41 approve": {
+    "prefix": "sba-allowance-approve",
+    "body": [
+      "pub fn approve(env: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32) {",
+      "    from.require_auth();",
+      "    if amount < 0 {",
+      "        panic_with_error!(&env, Error::InvalidAmount);",
+      "    }",
+      "    let key = DataKey::Allowance(from, spender);",
+      "    env.storage().temporary().set(&key, &amount);",
+      "    if amount > 0 {",
+      "        let live_for = expiration_ledger.checked_sub(env.ledger().sequence()).unwrap();",
+      "        env.storage().temporary().extend_ttl(&key, live_for, live_for);",
+      "    }",
+      "    $0",
+      "}"
+    ],
+    "description": "SEP-41 approve: authorises a spender for an amount until an expiration ledger, bumping the entry TTL to match."
+  },
+  "Soroban SEP-41 spend_allowance helper": {
+    "prefix": "sba-allowance-spend",
+    "body": [
+      "fn spend_allowance(env: &Env, from: &Address, spender: &Address, amount: i128) {",
+      "    let key = DataKey::Allowance(from.clone(), spender.clone());",
+      "    let current: i128 = env.storage().temporary().get(&key).unwrap_or(0);",
+      "    if current < amount {",
+      "        panic_with_error!(env, Error::InsufficientAllowance);",
+      "    }",
+      "    env.storage().temporary().set(&key, &(current - amount));",
+      "}$0"
+    ],
+    "description": "Decrements an allowance during transfer_from. Reverts when the spender tries to exceed the approved amount."
+  },
+  "Soroban SEP-41 transfer_from": {
+    "prefix": "sba-transfer-from",
+    "body": [
+      "pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) {",
+      "    spender.require_auth();",
+      "    spend_allowance(&env, &from, &spender, amount);",
+      "    do_transfer(&env, &from, &to, amount);",
+      "    env.events().publish((symbol_short!(\"transfer\"), from, to), amount);",
+      "    $0",
+      "}"
+    ],
+    "description": "SEP-41 delegated transfer. The spender (not the owner) authorises, and the allowance is decremented first."
+  },
+  "Soroban balance helper (read/write)": {
+    "prefix": "sba-balance-helpers",
+    "body": [
+      "fn read_balance(env: &Env, addr: &Address) -> i128 {",
+      "    env.storage().persistent().get(&DataKey::Balance(addr.clone())).unwrap_or(0)",
+      "}",
+      "",
+      "fn write_balance(env: &Env, addr: &Address, amount: i128) {",
+      "    let key = DataKey::Balance(addr.clone());",
+      "    env.storage().persistent().set(&key, &amount);",
+      "    env.storage().persistent().extend_ttl(&key, ${1:50}, ${2:100});",
+      "}$0"
+    ],
+    "description": "Reusable balance read/write helpers with TTL bumping on write — the backbone of any token contract."
+  },
+  "Soroban internal do_transfer": {
+    "prefix": "sba-do-transfer",
+    "body": [
+      "fn do_transfer(env: &Env, from: &Address, to: &Address, amount: i128) {",
+      "    if amount < 0 {",
+      "        panic_with_error!(env, Error::InvalidAmount);",
+      "    }",
+      "    let from_balance = read_balance(env, from);",
+      "    if from_balance < amount {",
+      "        panic_with_error!(env, Error::InsufficientBalance);",
+      "    }",
+      "    write_balance(env, from, from_balance - amount);",
+      "    write_balance(env, to, read_balance(env, to) + amount);",
+      "}$0"
+    ],
+    "description": "Internal balance-moving primitive with overflow/underflow guards. Keep auth and events in the public wrapper."
+  },
+  "Soroban role-based access control": {
+    "prefix": "sba-rbac",
+    "body": [
+      "#[contracttype]",
+      "#[derive(Clone)]",
+      "pub enum Role {",
+      "    Admin,",
+      "    Minter,",
+      "    Pauser,",
+      "}",
+      "",
+      "fn has_role(env: &Env, who: &Address, role: &Role) -> bool {",
+      "    env.storage().persistent().get(&DataKey::Role(who.clone(), role.clone())).unwrap_or(false)",
+      "}",
+      "",
+      "fn require_role(env: &Env, who: &Address, role: Role) {",
+      "    who.require_auth();",
+      "    if !has_role(env, who, &role) {",
+      "        panic_with_error!(env, Error::Unauthorized);",
+      "    }",
+      "}$0"
+    ],
+    "description": "Role-based access control: a Role enum plus has_role / require_role helpers for fine-grained permissioning."
+  },
+  "Soroban grant role": {
+    "prefix": "sba-role-grant",
+    "body": [
+      "pub fn grant_role(env: Env, caller: Address, account: Address, role: Role) {",
+      "    require_role(&env, &caller, Role::Admin);",
+      "    env.storage().persistent().set(&DataKey::Role(account, role), &true);",
+      "    $0",
+      "}"
+    ],
+    "description": "Admin-gated role grant. Writes a (account, role) -> true marker into persistent storage."
+  },
+  "Soroban revoke role": {
+    "prefix": "sba-role-revoke",
+    "body": [
+      "pub fn revoke_role(env: Env, caller: Address, account: Address, role: Role) {",
+      "    require_role(&env, &caller, Role::Admin);",
+      "    env.storage().persistent().remove(&DataKey::Role(account, role));",
+      "    $0",
+      "}"
+    ],
+    "description": "Admin-gated role revocation. Removes the marker entry so has_role falls back to false."
+  },
+  "Soroban reentrancy guard": {
+    "prefix": "sba-reentrancy-guard",
+    "body": [
+      "fn lock(env: &Env) {",
+      "    if env.storage().temporary().get(&DataKey::Lock).unwrap_or(false) {",
+      "        panic_with_error!(env, Error::Reentrancy);",
+      "    }",
+      "    env.storage().temporary().set(&DataKey::Lock, &true);",
+      "}",
+      "",
+      "fn unlock(env: &Env) {",
+      "    env.storage().temporary().set(&DataKey::Lock, &false);",
+      "}$0"
+    ],
+    "description": "Simple reentrancy guard using a temporary boolean lock. Call lock() at entry and unlock() before returning."
+  },
+  "Soroban nonce / replay protection": {
+    "prefix": "sba-nonce",
+    "body": [
+      "fn consume_nonce(env: &Env, account: &Address, nonce: u64) {",
+      "    let key = DataKey::Nonce(account.clone());",
+      "    let current: u64 = env.storage().persistent().get(&key).unwrap_or(0);",
+      "    if nonce != current {",
+      "        panic_with_error!(env, Error::BadNonce);",
+      "    }",
+      "    env.storage().persistent().set(&key, &(current + 1));",
+      "}$0"
+    ],
+    "description": "Monotonic per-account nonce to prevent replay of signed messages. Reverts unless the supplied nonce is current."
+  },
+  "Soroban timelock check": {
+    "prefix": "sba-timelock",
+    "body": [
+      "fn require_after(env: &Env, unlock_ts: u64) {",
+      "    if env.ledger().timestamp() < unlock_ts {",
+      "        panic_with_error!(env, Error::TimeLocked);",
+      "    }",
+      "}$0"
+    ],
+    "description": "Time-lock guard: reverts until the ledger timestamp passes the configured unlock time."
+  },
+  "Soroban deadline / expiry guard": {
+    "prefix": "sba-deadline",
+    "body": [
+      "fn require_before(env: &Env, deadline: u64) {",
+      "    if env.ledger().timestamp() > deadline {",
+      "        panic_with_error!(env, Error::Expired);",
+      "    }",
+      "}$0"
+    ],
+    "description": "Deadline guard: reverts once the ledger timestamp passes the deadline (e.g. for offers, auctions, swaps)."
+  },
+  "Soroban checked arithmetic": {
+    "prefix": "sba-checked-math",
+    "body": [
+      "let ${1:result} = ${2:a}.checked_${3|add,sub,mul,div|}(${4:b})",
+      "    .unwrap_or_else(|| panic_with_error!(&env, Error::Overflow));$0"
+    ],
+    "description": "Overflow-safe arithmetic. Soroban i128 ops can overflow — always use checked_* and convert to a typed error."
+  },
+  "Soroban safe i128 mul-div (proportional)": {
+    "prefix": "sba-muldiv",
+    "body": [
+      "fn mul_div(env: &Env, a: i128, b: i128, denom: i128) -> i128 {",
+      "    a.checked_mul(b)",
+      "        .and_then(|v| v.checked_div(denom))",
+      "        .unwrap_or_else(|| panic_with_error!(env, Error::Overflow))",
+      "}$0"
+    ],
+    "description": "Proportional (a * b / denom) calculation with overflow protection — common for fees, shares, and pricing."
+  },
+  "Soroban admin storage helpers": {
+    "prefix": "sba-admin-helpers",
+    "body": [
+      "fn read_admin(env: &Env) -> Address {",
+      "    env.storage().instance().get(&DataKey::Admin).expect(\"not initialized\")",
+      "}",
+      "",
+      "fn write_admin(env: &Env, admin: &Address) {",
+      "    env.storage().instance().set(&DataKey::Admin, admin);",
+      "}$0"
+    ],
+    "description": "Admin read/write helpers backed by instance storage. read_admin panics if the contract was never initialized."
+  },
+  "Soroban two-step ownership transfer": {
+    "prefix": "sba-ownership-2step",
+    "body": [
+      "pub fn transfer_ownership(env: Env, new_owner: Address) {",
+      "    let admin = read_admin(&env);",
+      "    admin.require_auth();",
+      "    env.storage().instance().set(&DataKey::PendingAdmin, &new_owner);",
+      "}",
+      "",
+      "pub fn accept_ownership(env: Env) {",
+      "    let pending: Address = env.storage().instance().get(&DataKey::PendingAdmin).expect(\"no pending admin\");",
+      "    pending.require_auth();",
+      "    env.storage().instance().set(&DataKey::Admin, &pending);",
+      "    env.storage().instance().remove(&DataKey::PendingAdmin);",
+      "}$0"
+    ],
+    "description": "Safer two-step ownership handover: the current admin nominates, and the nominee must accept — avoids fat-finger loss."
+  },
+  "Soroban token total supply": {
+    "prefix": "sba-total-supply",
+    "body": [
+      "fn read_supply(env: &Env) -> i128 {",
+      "    env.storage().instance().get(&DataKey::TotalSupply).unwrap_or(0)",
+      "}",
+      "",
+      "fn adjust_supply(env: &Env, delta: i128) {",
+      "    let supply = read_supply(env).checked_add(delta).unwrap_or_else(|| panic_with_error!(env, Error::Overflow));",
+      "    env.storage().instance().set(&DataKey::TotalSupply, &supply);",
+      "}$0"
+    ],
+    "description": "Total-supply tracking with checked adjustment. Call adjust_supply(+amount) on mint and (-amount) on burn."
+  },
+  "Soroban mint with supply + event": {
+    "prefix": "sba-mint",
+    "body": [
+      "pub fn mint(env: Env, to: Address, amount: i128) {",
+      "    let admin = read_admin(&env);",
+      "    admin.require_auth();",
+      "    if amount < 0 {",
+      "        panic_with_error!(&env, Error::InvalidAmount);",
+      "    }",
+      "    write_balance(&env, &to, read_balance(&env, &to) + amount);",
+      "    adjust_supply(&env, amount);",
+      "    env.events().publish((symbol_short!(\"mint\"), to), amount);",
+      "    $0",
+      "}"
+    ],
+    "description": "Admin mint that updates the recipient balance, bumps total supply, and emits a mint event."
+  },
+  "Soroban burn with supply + event": {
+    "prefix": "sba-burn",
+    "body": [
+      "pub fn burn(env: Env, from: Address, amount: i128) {",
+      "    from.require_auth();",
+      "    let balance = read_balance(&env, &from);",
+      "    if balance < amount {",
+      "        panic_with_error!(&env, Error::InsufficientBalance);",
+      "    }",
+      "    write_balance(&env, &from, balance - amount);",
+      "    adjust_supply(&env, -amount);",
+      "    env.events().publish((symbol_short!(\"burn\"), from), amount);",
+      "    $0",
+      "}"
+    ],
+    "description": "Owner-authorised burn that reduces balance and total supply, then emits a burn event."
+  },
+  "Soroban cross-contract typed client call": {
+    "prefix": "sba-xcall-client",
+    "body": [
+      "let client = ${1:OtherContract}Client::new(&env, &${2:contract_id});",
+      "let ${3:result} = client.${4:method}(&${5:arg});$0"
+    ],
+    "description": "Preferred cross-contract call via a generated typed client — type-safe and cheaper to write than invoke_contract."
+  },
+  "Soroban try_ cross-contract call": {
+    "prefix": "sba-xcall-try",
+    "body": [
+      "let client = ${1:OtherContract}Client::new(&env, &${2:contract_id});",
+      "match client.try_${3:method}(&${4:arg}) {",
+      "    Ok(Ok(${5:value})) => { $0 },",
+      "    _ => panic_with_error!(&env, Error::CrossCallFailed),",
+      "}"
+    ],
+    "description": "Fallible cross-contract call using the generated try_* client method, so a callee failure does not auto-revert."
+  },
+  "Soroban deployer factory function": {
+    "prefix": "sba-factory-deploy",
+    "body": [
+      "pub fn deploy(env: Env, wasm_hash: BytesN<32>, salt: BytesN<32>, init_args: Vec<Val>) -> Address {",
+      "    let deployed = env.deployer().with_current_contract(salt).deploy(wasm_hash);",
+      "    env.invoke_contract::<()>(&deployed, &symbol_short!(\"init\"), init_args);",
+      "    deployed",
+      "}$0"
+    ],
+    "description": "Factory deploy: deterministically deploys a child contract from a WASM hash + salt and immediately initializes it."
+  },
+  "Soroban upload + deploy in test": {
+    "prefix": "sba-test-deploy-wasm",
+    "body": [
+      "let wasm_hash = env.deployer().upload_contract_wasm(${1:CONTRACT_WASM});",
+      "let salt = BytesN::from_array(&env, &[0u8; 32]);",
+      "let contract_id = env.deployer().with_current_contract(salt).deploy(wasm_hash);$0"
+    ],
+    "description": "Test-side WASM upload and deterministic deploy. Pair with a `contractimport!`-generated WASM constant."
+  },
+  "Soroban contractimport another contract": {
+    "prefix": "sba-contractimport",
+    "body": [
+      "mod ${1:other} {",
+      "    soroban_sdk::contractimport!(file = \"${2:../other/target/wasm32-unknown-unknown/release/other.wasm}\");",
+      "}$0"
+    ],
+    "description": "Import a compiled contract's WASM + generated client into the current crate for cross-contract tests and deploys."
+  },
+  "Soroban event struct (contracttype data)": {
+    "prefix": "sba-event-struct",
+    "body": [
+      "#[contracttype]",
+      "#[derive(Clone)]",
+      "pub struct ${1:TransferEvent} {",
+      "    pub from: Address,",
+      "    pub to: Address,",
+      "    pub amount: i128,",
+      "}",
+      "",
+      "env.events().publish((symbol_short!(\"${2:transfer}\"),), ${1:TransferEvent} {",
+      "    from: ${3:from}.clone(),",
+      "    to: ${4:to}.clone(),",
+      "    amount: ${5:amount},",
+      "});$0"
+    ],
+    "description": "Structured event payload: a #[contracttype] struct as the event data, giving indexers a typed, self-describing body."
+  },
+  "Soroban assert event emitted (test)": {
+    "prefix": "sba-test-assert-event",
+    "body": [
+      "let events = env.events().all();",
+      "assert_eq!(events.len(), ${1:1});",
+      "let (contract_id, topics, data) = events.last().unwrap();",
+      "assert_eq!(topics, (symbol_short!(\"${2:transfer}\"),).into_val(&env));$0"
+    ],
+    "description": "Test assertion that the expected event was published, checking topics (and optionally data) against the env event log."
+  },
+  "Soroban property test (proptest)": {
+    "prefix": "sba-test-proptest",
+    "body": [
+      "#[cfg(test)]",
+      "mod prop {",
+      "    use super::*;",
+      "    use proptest::prelude::*;",
+      "",
+      "    proptest! {",
+      "        #[test]",
+      "        fn ${1:transfer_preserves_supply}(amount in 0i128..1_000_000) {",
+      "            let env = Env::default();",
+      "            env.mock_all_auths();",
+      "            $0",
+      "            prop_assert!(true);",
+      "        }",
+      "    }",
+      "}"
+    ],
+    "description": "Property-based test scaffold using proptest. Great for invariants like 'total supply is conserved across transfers'."
+  },
+  "Soroban test: advance ledger time": {
+    "prefix": "sba-test-ledger-advance",
+    "body": [
+      "env.ledger().with_mut(|li| {",
+      "    li.timestamp += ${1:3600};",
+      "    li.sequence_number += ${2:720};",
+      "});$0"
+    ],
+    "description": "Fast-forward ledger time and sequence in a test — essential for testing timelocks, deadlines, and TTL expiry."
+  },
+  "Soroban test: expect panic with error": {
+    "prefix": "sba-test-expect-error",
+    "body": [
+      "let res = client.try_${1:method}(&${2:arg});",
+      "assert_eq!(res, Err(Ok(Error::${3:Unauthorized})));$0"
+    ],
+    "description": "Assert that a call fails with a specific contract error, using the try_* client to capture the typed error."
+  },
+  "Soroban test: snapshot auths": {
+    "prefix": "sba-test-auths-assert",
+    "body": [
+      "assert_eq!(",
+      "    env.auths(),",
+      "    std::vec![(",
+      "        ${1:user}.clone(),",
+      "        soroban_sdk::testutils::AuthorizedInvocation {",
+      "            function: soroban_sdk::testutils::AuthorizedFunction::Contract((",
+      "                contract_id.clone(),",
+      "                symbol_short!(\"${2:transfer}\"),",
+      "                (${3:args}).into_val(&env),",
+      "            )),",
+      "            sub_invocations: std::vec![],",
+      "        }",
+      "    )]",
+      ");$0"
+    ],
+    "description": "Assert the exact authorization tree recorded by the env — verifies that the right address signed the right call."
+  },
+  "Soroban storage bump constants (recommended)": {
+    "prefix": "sba-ttl-policy",
+    "body": [
+      "const LEDGERS_PER_DAY: u32 = 17_280;",
+      "const INSTANCE_BUMP_THRESHOLD: u32 = 7 * LEDGERS_PER_DAY;",
+      "const INSTANCE_BUMP_AMOUNT: u32 = 30 * LEDGERS_PER_DAY;",
+      "const PERSISTENT_BUMP_THRESHOLD: u32 = 14 * LEDGERS_PER_DAY;",
+      "const PERSISTENT_BUMP_AMOUNT: u32 = 60 * LEDGERS_PER_DAY;",
+      "$0"
+    ],
+    "description": "A complete, conventional TTL policy (threshold + amount for instance and persistent storage) expressed in ledgers."
+  },
+  "Soroban bump instance TTL (policy)": {
+    "prefix": "sba-bump-instance",
+    "body": [
+      "env.storage().instance().extend_ttl(INSTANCE_BUMP_THRESHOLD, INSTANCE_BUMP_AMOUNT);$0"
+    ],
+    "description": "Bump instance storage TTL using the recommended policy constants. Call at the top of every public entry point."
+  },
+  "Soroban initialized guard": {
+    "prefix": "sba-require-init",
+    "body": [
+      "fn require_initialized(env: &Env) {",
+      "    if !env.storage().instance().has(&DataKey::Admin) {",
+      "        panic_with_error!(env, Error::NotInitialized);",
+      "    }",
+      "}$0"
+    ],
+    "description": "Guard that reverts if the contract was never initialized. Call before any operation that assumes an admin exists."
+  },
+  "Soroban Option return getter": {
+    "prefix": "sba-fn-get-option",
+    "body": [
+      "pub fn ${1:get_config}(env: Env) -> Option<${2:Config}> {",
+      "    env.storage().instance().get(&DataKey::${3:Config})",
+      "}$0"
+    ],
+    "description": "Getter that returns Option instead of panicking on a missing entry — lets clients distinguish 'unset' from a value."
+  },
+  "Soroban iterate Vec": {
+    "prefix": "sba-vec-iter",
+    "body": [
+      "for ${1:item} in ${2:items}.iter() {",
+      "    $0",
+      "}"
+    ],
+    "description": "Iterate a Soroban Vec by value. Items are cloned out of the host Vec on each step."
+  },
+  "Soroban Vec push pattern": {
+    "prefix": "sba-vec-push",
+    "body": [
+      "let mut ${1:list}: Vec<${2:Address}> = env.storage().persistent().get(&DataKey::${3:List}).unwrap_or(vec![&env]);",
+      "${1:list}.push_back(${4:value});",
+      "env.storage().persistent().set(&DataKey::${3:List}, &${1:list});$0"
+    ],
+    "description": "Read-modify-write an appendable list stored in persistent storage. Loads (or initializes), pushes, and writes back."
+  },
+  "Soroban Map upsert pattern": {
+    "prefix": "sba-map-upsert",
+    "body": [
+      "let mut ${1:m}: Map<${2:Address}, ${3:i128}> = env.storage().persistent().get(&DataKey::${4:Registry}).unwrap_or(Map::new(&env));",
+      "${1:m}.set(${5:key}, ${6:value});",
+      "env.storage().persistent().set(&DataKey::${4:Registry}, &${1:m});$0"
+    ],
+    "description": "Load-or-create a persistent Map, upsert a key, and persist it back — the standard registry update pattern."
+  },
+  "Soroban String from_str": {
+    "prefix": "sba-string-new",
+    "body": [
+      "let ${1:name} = String::from_str(&env, \"${2:value}\");$0"
+    ],
+    "description": "Construct a host String from a Rust &str. Soroban String is host-managed, not std::string::String."
+  },
+  "Soroban Bytes from slice": {
+    "prefix": "sba-bytes-from-slice",
+    "body": [
+      "let ${1:data} = Bytes::from_slice(&env, &${2:[0u8; 4]});$0"
+    ],
+    "description": "Build a variable-length Bytes value from a byte slice — used for hashing inputs and raw payloads."
+  },
+  "Soroban keccak256 hash": {
+    "prefix": "sba-hash-keccak",
+    "body": [
+      "let ${1:digest}: BytesN<32> = env.crypto().keccak256(&${2:bytes}).into();$0"
+    ],
+    "description": "Compute a keccak256 digest using the host crypto module — cheaper and deterministic vs. a Rust implementation."
+  },
+  "Soroban sha256 hash": {
+    "prefix": "sba-hash-sha256",
+    "body": [
+      "let ${1:digest}: BytesN<32> = env.crypto().sha256(&${2:bytes}).into();$0"
+    ],
+    "description": "Compute a sha256 digest via the host crypto module. Use for commit-reveal schemes and content addressing."
+  },
+  "Soroban ed25519 verify": {
+    "prefix": "sba-ed25519-verify",
+    "body": [
+      "env.crypto().ed25519_verify(&${1:public_key}, &${2:message}, &${3:signature});$0"
+    ],
+    "description": "Verify an Ed25519 signature on the host. Panics on failure — wrap in your own check if you need a soft result."
+  },
+  "Soroban secp256k1 recover": {
+    "prefix": "sba-secp256k1-recover",
+    "body": [
+      "let ${1:pubkey}: BytesN<65> = env.crypto().secp256k1_recover(&${2:message_digest}, &${3:signature}, ${4:recovery_id});$0"
+    ],
+    "description": "Recover a secp256k1 public key from a signature — handy for verifying Ethereum-style signed messages on Soroban."
+  },
+  "Soroban random salt (test)": {
+    "prefix": "sba-test-salt",
+    "body": [
+      "let salt = BytesN::from_array(&env, &[${1:1}u8; 32]);$0"
+    ],
+    "description": "Deterministic 32-byte salt for tests. Vary the fill byte to deploy multiple child contracts at distinct addresses."
+  },
+  "Soroban generate test address": {
+    "prefix": "sba-test-address",
+    "body": [
+      "let ${1:user} = Address::generate(&env);$0"
+    ],
+    "description": "Generate a fresh random Address in tests. Requires `use soroban_sdk::testutils::Address as _;`."
+  },
+  "Soroban register token (SAC) in test": {
+    "prefix": "sba-test-sac",
+    "body": [
+      "let sac = env.register_stellar_asset_contract_v2(${1:admin}.clone());",
+      "let token = soroban_sdk::token::Client::new(&env, &sac.address());",
+      "let token_admin = soroban_sdk::token::StellarAssetClient::new(&env, &sac.address());",
+      "token_admin.mint(&${2:user}, &${3:1_000});$0"
+    ],
+    "description": "Register a Stellar Asset Contract in a test and grab both the token client and admin client (for minting fixtures)."
+  },
+  "Soroban fee/share basis points": {
+    "prefix": "sba-bps",
+    "body": [
+      "const BPS_DENOMINATOR: i128 = 10_000;",
+      "fn apply_bps(env: &Env, amount: i128, bps: i128) -> i128 {",
+      "    mul_div(env, amount, bps, BPS_DENOMINATOR)",
+      "}$0"
+    ],
+    "description": "Basis-points helper (1 bp = 0.01%). Computes amount * bps / 10_000 with overflow-safe mul_div."
+  },
+  "Soroban min/max clamp": {
+    "prefix": "sba-clamp",
+    "body": [
+      "let ${1:clamped} = ${2:value}.max(${3:min}).min(${4:max});$0"
+    ],
+    "description": "Clamp an i128 into an inclusive [min, max] range using core Ord methods — no host call needed."
+  },
+  "Soroban storage remove": {
+    "prefix": "sba-storage-remove",
+    "body": [
+      "env.storage().${1|persistent,temporary,instance|}().remove(&${2:key});$0"
+    ],
+    "description": "Delete a storage entry. Frees the rent obligation; subsequent reads fall back to your unwrap_or default."
+  },
+  "Soroban contract constructor (__constructor)": {
+    "prefix": "sba-constructor",
+    "body": [
+      "#[contractimpl]",
+      "impl ${1:MyContract} {",
+      "    pub fn __constructor(env: Env, admin: Address) {",
+      "        env.storage().instance().set(&DataKey::Admin, &admin);",
+      "        env.storage().instance().extend_ttl(INSTANCE_BUMP_THRESHOLD, INSTANCE_BUMP_AMOUNT);",
+      "    }",
+      "}$0"
+    ],
+    "description": "Native contract constructor that runs once at deploy time (SDK 22+). Replaces the manual initialize() pattern."
+  },
+  "Soroban Val conversion (into_val/from_val)": {
+    "prefix": "sba-val-convert",
+    "body": [
+      "let ${1:val}: Val = ${2:value}.into_val(&env);",
+      "let ${3:back}: ${4:Type} = ${5:other_val}.into_val(&env);$0"
+    ],
+    "description": "Convert between typed Rust values and the host Val representation — needed for dynamic invoke and storage of Val."
+  },
+  "Soroban guarded withdraw pattern": {
+    "prefix": "sba-withdraw",
+    "body": [
+      "pub fn withdraw(env: Env, to: Address, amount: i128) {",
+      "    let admin = read_admin(&env);",
+      "    admin.require_auth();",
+      "    require_initialized(&env);",
+      "    let token = soroban_sdk::token::Client::new(&env, &read_token(&env));",
+      "    token.transfer(&env.current_contract_address(), &to, &amount);",
+      "    env.events().publish((symbol_short!(\"withdraw\"), to), amount);",
+      "    $0",
+      "}"
+    ],
+    "description": "Admin withdraw of the contract's own token balance to a destination, with auth + init guards and an event."
+  },
+  "Soroban deposit (pull funds in)": {
+    "prefix": "sba-deposit",
+    "body": [
+      "pub fn deposit(env: Env, from: Address, amount: i128) {",
+      "    from.require_auth();",
+      "    if amount <= 0 {",
+      "        panic_with_error!(&env, Error::InvalidAmount);",
+      "    }",
+      "    let token = soroban_sdk::token::Client::new(&env, &read_token(&env));",
+      "    token.transfer(&from, &env.current_contract_address(), &amount);",
+      "    write_balance(&env, &from, read_balance(&env, &from) + amount);",
+      "    $0",
+      "}"
+    ],
+    "description": "Deposit pattern: caller authorises, the contract pulls tokens into itself via token.transfer, and credits an internal balance."
+  },
+  "Soroban Makefile (build/test/optimize)": {
+    "prefix": "sba-makefile",
+    "body": [
+      "default: build",
+      "",
+      "build:",
+      "\tstellar contract build",
+      "",
+      "test: build",
+      "\tcargo test",
+      "",
+      "fmt:",
+      "\tcargo fmt --all",
+      "",
+      "optimize:",
+      "\tstellar contract optimize --wasm target/wasm32-unknown-unknown/release/${1:my_contract}.wasm$0"
+    ],
+    "description": "Conventional Soroban project Makefile with build, test, fmt, and optimize targets using the stellar CLI."
+  },
+  "Soroban Cargo.toml contract crate": {
+    "prefix": "sba-cargo-toml",
+    "body": [
+      "[package]",
+      "name = \"${1:my-contract}\"",
+      "version = \"0.0.0\"",
+      "edition = \"2021\"",
+      "",
+      "[lib]",
+      "crate-type = [\"cdylib\"]",
+      "doctest = false",
+      "",
+      "[dependencies]",
+      "soroban-sdk = \"${2:22.0.0}\"",
+      "",
+      "[dev-dependencies]",
+      "soroban-sdk = { version = \"${2:22.0.0}\", features = [\"testutils\"] }",
+      "",
+      "[profile.release]",
+      "opt-level = \"z\"",
+      "overflow-checks = true",
+      "debug = 0",
+      "strip = \"symbols\"",
+      "codegen-units = 1",
+      "lto = true",
+      "panic = \"abort\"$0"
+    ],
+    "description": "Complete Cargo.toml for a Soroban contract crate: cdylib lib, testutils dev-dep, and the recommended size-optimized release profile."
+  },
+  "Soroban stellar CLI deploy command": {
+    "prefix": "sba-cli-deploy",
+    "body": [
+      "# Build, then deploy to testnet",
+      "stellar contract build",
+      "stellar contract deploy \\",
+      "  --wasm target/wasm32-unknown-unknown/release/${1:my_contract}.wasm \\",
+      "  --source ${2:my-key} \\",
+      "  --network testnet \\",
+      "  -- \\",
+      "  --admin ${3:GADMIN...}$0"
+    ],
+    "description": "Reference stellar CLI build + deploy invocation, including passing constructor args after the -- separator."
+  },
+  "Soroban stellar CLI invoke command": {
+    "prefix": "sba-cli-invoke",
+    "body": [
+      "stellar contract invoke \\",
+      "  --id ${1:CONTRACT_ID} \\",
+      "  --source ${2:my-key} \\",
+      "  --network testnet \\",
+      "  -- \\",
+      "  ${3:transfer} --from ${4:GFROM...} --to ${5:GTO...} --amount ${6:100}$0"
+    ],
+    "description": "Reference stellar CLI invoke command. Function name and args go after the -- separator, one --flag per parameter."
+  }
+}

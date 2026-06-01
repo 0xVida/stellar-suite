@@ -10,10 +10,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "next-pwa": "^5.6.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -50,8 +46,12 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
+    "next": "16.1.6",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.4.4",
+    "react": "19.2.3",
     "react-day-picker": "^8.10.1",
+    "react-dom": "19.2.3",
     "react-hook-form": "^7.61.1",
     "react-resizable-panels": "^2.1.9",
     "recharts": "^2.15.4",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
-    "@types/react": "^19",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",

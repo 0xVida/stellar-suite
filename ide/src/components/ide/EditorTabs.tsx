@@ -9,7 +9,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { KeyboardEvent, useRef, useCallback } from "react";
+import { KeyboardEvent, useRef, useCallback, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,9 +81,11 @@ function FileIcon({ name }: { name: string }) {
 // ---------------------------------------------------------------------------
 
 export function EditorTabs({ onTabSelect, onTabClose }: EditorTabsProps) {
-  const { openTabs, activeTabPath, setActiveTabPath, closeTab, unsavedFiles } =
+  const { openTabs, activeTabPath, setActiveTabPath, closeTab, unsavedFiles, setOpenTabs } =
     useWorkspaceStore();
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const tabsWithStatus = openTabs.map((t) => ({
     ...t,
@@ -122,6 +124,32 @@ export function EditorTabs({ onTabSelect, onTabClose }: EditorTabsProps) {
     [tabsWithStatus, onTabSelect, onTabClose, setActiveTabPath, closeTab],
   );
 
+  const handleTabDragStart = useCallback((index: number) => {
+    dragIndexRef.current = index;
+  }, []);
+
+  const handleTabDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  }, []);
+
+  const handleTabDrop = useCallback((toIndex: number) => {
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      const next = [...openTabs];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      setOpenTabs(next);
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, [openTabs, setOpenTabs]);
+
+  const handleTabDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  }, []);
+
   if (tabsWithStatus.length === 0) {
     return (
       <div
@@ -135,79 +163,79 @@ export function EditorTabs({ onTabSelect, onTabClose }: EditorTabsProps) {
     <div
       role="tablist"
       aria-label="Open editor tabs"
-      className="flex bg-secondary border-b border-border overflow-x-auto scrollbar-none"
+      className="flex bg-secondary border-b border-border overflow-x-auto scrollbar-none ide-tab-bar"
     >
-      {tabsWithStatus.map((tab) => {
+      {tabsWithStatus.map((tab, index) => {
         const key = tab.path.join("/");
         const isActive = key === activeTabKey;
         const isDirty = tab.unsaved;
 
         return (
-          <button
+          <div
             key={key}
-            ref={(el) => {
-              if (el) tabRefs.current.set(key, el);
-              else tabRefs.current.delete(key);
-            }}
-            role="tab"
-            aria-selected={isActive}
-            aria-label={`${tab.name}${isDirty ? " (unsaved)" : ""}`}
-            tabIndex={isActive ? 0 : -1}
-            className={`group flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-mono border-r border-border transition-colors min-w-0 shrink-0 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/60 ${
-              isActive
-                ? "bg-tab-active text-foreground border-t-2 border-t-primary"
-                : "bg-tab-inactive text-muted-foreground hover:bg-tab-hover border-t-2 border-t-transparent"
+            draggable
+            onDragStart={() => handleTabDragStart(index)}
+            onDragOver={(e) => handleTabDragOver(e, index)}
+            onDrop={() => handleTabDrop(index)}
+            onDragEnd={handleTabDragEnd}
+            className={`shrink-0 transition-all ${
+              dragOverIndex === index ? "ring-1 ring-inset ring-primary/50" : ""
             }`}
-            onClick={() => {
-              if (onTabSelect) onTabSelect(tab.path);
-              else setActiveTabPath(tab.path);
-            }}
-            onKeyDown={(e) => handleKeyDown(e, tab.path)}
           >
-            {/* File type icon */}
-            <FileIcon name={tab.name} />
-
-            {/* Filename */}
-            <span className="truncate max-w-[80px] md:max-w-[120px]">
-              {tab.name}
-            </span>
-
-            {/*
-              Dirty indicator / close button:
-              - When dirty: show filled dot; on hover swap to X
-              - When clean: show X only on hover
-            */}
-            <span
-              role="button"
-              aria-label={`Close ${tab.name}`}
-              className="shrink-0 rounded p-0.5 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onTabClose) onTabClose(tab.path);
-                else closeTab(tab.path);
+            <button
+              ref={(el) => {
+                if (el) tabRefs.current.set(key, el);
+                else tabRefs.current.delete(key);
               }}
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`${tab.name}${isDirty ? " (unsaved)" : ""}`}
+              tabIndex={isActive ? 0 : -1}
+              className={`group flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 text-[11px] md:text-xs font-mono border-r border-border transition-colors min-w-0 shrink-0 outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/60 cursor-grab active:cursor-grabbing ide-tab ${
+                isActive
+                  ? "bg-tab-active text-foreground border-t-2 border-t-primary"
+                  : "bg-tab-inactive text-muted-foreground hover:bg-tab-hover border-t-2 border-t-transparent"
+              }`}
+              onClick={() => {
+                if (onTabSelect) onTabSelect(tab.path);
+                else setActiveTabPath(tab.path);
+              }}
+              onKeyDown={(e) => handleKeyDown(e, tab.path)}
             >
-              {isDirty ? (
-                <>
-                  {/* Dot visible by default, hidden on group hover */}
-                  <Circle
-                    className="h-2 w-2 fill-primary text-primary group-hover:hidden"
-                    aria-hidden="true"
-                  />
-                  {/* X hidden by default, shown on group hover */}
+              <FileIcon name={tab.name} />
+              <span className="truncate max-w-[80px] md:max-w-[120px]">
+                {tab.name}
+              </span>
+              <span
+                role="button"
+                aria-label={`Close ${tab.name}`}
+                className="shrink-0 rounded p-0.5 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onTabClose) onTabClose(tab.path);
+                  else closeTab(tab.path);
+                }}
+              >
+                {isDirty ? (
+                  <>
+                    <Circle
+                      className="h-2 w-2 fill-primary text-primary group-hover:hidden"
+                      aria-hidden="true"
+                    />
+                    <X
+                      className="h-3 w-3 hidden group-hover:block"
+                      aria-hidden="true"
+                    />
+                  </>
+                ) : (
                   <X
-                    className="h-3 w-3 hidden group-hover:block"
+                    className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-hidden="true"
                   />
-                </>
-              ) : (
-                <X
-                  className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-          </button>
+                )}
+              </span>
+            </button>
+          </div>
         );
       })}
     </div>

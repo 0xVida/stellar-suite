@@ -1,105 +1,121 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, X } from "lucide-react";
+/**
+ * MobileGatekeeper.tsx
+ * Responsive mobile layout for read-only code review — Issue #815
+ *
+ * On mobile: renders a read-only banner + bottom nav instead of blocking the IDE.
+ * On desktop: renders nothing (IDE renders normally).
+ */
+
+import { useEffect, useState, useCallback } from "react";
+import {
+  EyeOff,
+  FolderTree,
+  History,
+  Activity,
+  X,
+  Menu,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useWorkspaceStore, type MobilePanel } from "@/store/workspaceStore";
+
+const BOTTOM_NAV_ITEMS: {
+  id: MobilePanel;
+  icon: React.ReactNode;
+  label: string;
+}[] = [
+  { id: "explorer", icon: <FolderTree className="w-5 h-5" />, label: "Files" },
+  { id: "deployments", icon: <History className="w-5 h-5" />, label: "Deploy" },
+  { id: "identities", icon: <Activity className="w-5 h-5" />, label: "Status" },
+];
 
 export function MobileGatekeeper() {
   const [isMobile, setIsMobile] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { mobilePanel, setMobilePanel } = useWorkspaceStore();
 
   useEffect(() => {
-    // Hydration: Run only on client
     setIsHydrated(true);
-
-    // Check localStorage for dismissal state
-    try {
-      const dismissed = localStorage.getItem("mobile-warning-dismissed");
-      setIsDismissed(dismissed === "true");
-    } catch (error) {
-      // localStorage might not be available
-      console.debug("localStorage not available:", error);
-    }
-
-    // Media query for mobile viewport
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches);
-    };
-
-    // Initial check
-    setIsMobile(mediaQuery.matches);
-
-    // Add listener for viewport changes
-    mediaQuery.addEventListener("change", handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const handleDismiss = () => {
-    try {
-      localStorage.setItem("mobile-warning-dismissed", "true");
-    } catch (error) {
-      console.debug("localStorage not available:", error);
-    }
-    setIsDismissed(true);
-  };
+  const handleNavClick = useCallback(
+    (panel: MobilePanel) => {
+      if (mobilePanel === panel) {
+        setMobilePanel("none");
+        setSidebarOpen(false);
+      } else {
+        setMobilePanel(panel);
+        setSidebarOpen(true);
+      }
+    },
+    [mobilePanel, setMobilePanel]
+  );
 
-  // Don't show until hydrated to avoid hydration mismatch
-  if (!isHydrated || !isMobile || isDismissed) {
-    return null;
-  }
+  const closeSidebar = useCallback(() => {
+    setSidebarOpen(false);
+    setMobilePanel("none");
+  }, [setMobilePanel]);
+
+  if (!isHydrated || !isMobile) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-      {/* Modal */}
-      <div className="bg-card border border-border rounded-lg shadow-2xl max-w-md w-full p-8">
-        {/* Close button */}
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={handleDismiss}
-            className="p-2 hover:bg-secondary rounded-md transition-colors"
-            aria-label="Close warning"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Icon */}
-        <div className="flex justify-center mb-6">
-          <AlertCircle className="w-12 h-12 text-warning" />
-        </div>
-
-        {/* Content */}
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">
-            Desktop Recommended
-          </h2>
-
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Stellar Kit Canvas is best experienced on a Desktop environment.
-            Please switch devices to continue.
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-8 space-y-3">
-          <Button
-            onClick={handleDismiss}
-            className="w-full"
-            variant="default"
-          >
-            Continue Anyway
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            You can dismiss this warning at any time
-          </p>
-        </div>
+    <>
+      {/* Read-only banner */}
+      <div
+        className="ide-mobile-readonly-banner"
+        role="status"
+        aria-live="polite"
+      >
+        <EyeOff className="w-3 h-3 shrink-0" aria-hidden="true" />
+        <span>Read-only mode — editing disabled on mobile</span>
       </div>
-    </div>
+
+      {/* Sidebar backdrop */}
+      <div
+        className={`ide-sidebar-backdrop ${sidebarOpen ? "backdrop-visible" : ""}`}
+        aria-hidden="true"
+        onClick={closeSidebar}
+      />
+
+      {/* Bottom navigation */}
+      <nav
+        className="ide-bottom-nav"
+        aria-label="Mobile navigation"
+      >
+        <button
+          className="ide-bottom-nav-item"
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Toggle menu"
+          aria-expanded={sidebarOpen}
+        >
+          {sidebarOpen ? (
+            <X className="w-5 h-5" aria-hidden="true" />
+          ) : (
+            <Menu className="w-5 h-5" aria-hidden="true" />
+          )}
+          <span>Menu</span>
+        </button>
+
+        {BOTTOM_NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            className={`ide-bottom-nav-item ${mobilePanel === item.id ? "active" : ""}`}
+            onClick={() => handleNavClick(item.id)}
+            aria-label={item.label}
+            aria-pressed={mobilePanel === item.id}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }

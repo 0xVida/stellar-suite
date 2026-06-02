@@ -19,6 +19,7 @@ import { registerOpenInWebIDECommand } from './commands/OpenInWebIDE';
 import { getSharedOutputChannel } from './utils/outputChannel';
 import { SorobanCliService } from './services/sorobanCliService';
 import { SorobanLinterService } from './services/LinterService';
+import { DeprecationChecker } from './services/DeprecationChecker';
 import { HealthAlertsService } from './services/HealthAlerts';
 import { getLatencyMonitor } from './ui/networkStatusBar';
 import { registerSorobanCompletionProvider } from './providers/SorobanCompletionProvider';
@@ -76,6 +77,11 @@ export async function activate(context: vscode.ExtensionContext) {
         const linter = new SorobanLinterService();
         linter.register(context);
         context.subscriptions.push(linter);
+
+        // Soroban SDK deprecation warnings on Cargo.toml manifests (issue #933).
+        const deprecationChecker = new DeprecationChecker();
+        deprecationChecker.register(context);
+        context.subscriptions.push(deprecationChecker);
 
         const simulateCommand = vscode.commands.registerCommand(
             'stellarSuite.simulateTransaction',

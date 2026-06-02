@@ -18,6 +18,7 @@ import { ResourceUsageDashboard } from "@/components/settings/ResourceUsageDashb
 import { ThemeEditor } from "@/components/settings/ThemeEditor";
 import { Diagnostics } from "@/components/settings/Diagnostics";
 import { TerminalSettings } from "@/components/settings/TerminalSettings";
+import { EditorVisualSettings } from "@/components/settings/EditorVisualSettings";
 import { KeyboardShortcutEditor } from "@/components/settings/KeyboardShortcutEditor";
 import { useTranslation } from "react-i18next";
 import {
@@ -202,6 +203,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 className="data-[state=checked]:bg-amber-600"
               />
             </div>
+
+            <EditorVisualSettings />
 
             <TerminalSettings />
           </TabsContent>

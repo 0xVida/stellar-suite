@@ -38,8 +38,17 @@ pub struct EscrowCase {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AdminView {
+    pub admin: Address,
+    pub pending_admin: Option<Address>,
+}
+
+#[contracttype]
 #[derive(Clone)]
 enum StorageKey {
+    Admin,
+    PendingAdmin,
     EscrowCount,
     Escrow(u64),
 }
@@ -49,6 +58,56 @@ pub struct EscrowContract;
 
 #[contractimpl]
 impl EscrowContract {
+    /// Initialize the contract with an admin address.
+    pub fn initialize(env: Env, admin: Address) {
+        if env.storage().instance().has(&StorageKey::Admin) {
+            panic!("already initialized");
+        }
+
+        admin.require_auth();
+        env.storage().instance().set(&StorageKey::Admin, &admin);
+    }
+
+    /// Return the active admin and any pending admin transfer.
+    pub fn admin(env: Env) -> AdminView {
+        AdminView {
+            admin: Self::read_admin(&env),
+            pending_admin: env.storage().instance().get(&StorageKey::PendingAdmin),
+        }
+    }
+
+    /// Start transferring admin authority to a new address.
+    pub fn transfer_admin(env: Env, admin: Address, new_admin: Address) {
+        let current_admin = Self::read_admin(&env);
+        admin.require_auth();
+        if admin != current_admin {
+            panic!("not admin");
+        }
+
+        env.storage()
+            .instance()
+            .set(&StorageKey::PendingAdmin, &new_admin);
+    }
+
+    /// Accept a pending admin transfer.
+    pub fn accept_admin(env: Env, pending_admin: Address) {
+        pending_admin.require_auth();
+        let expected_admin: Address = env
+            .storage()
+            .instance()
+            .get(&StorageKey::PendingAdmin)
+            .expect("not pending admin");
+
+        if pending_admin != expected_admin {
+            panic!("not pending admin");
+        }
+
+        env.storage()
+            .instance()
+            .set(&StorageKey::Admin, &pending_admin);
+        env.storage().instance().remove(&StorageKey::PendingAdmin);
+    }
+
     /// Create a new escrow case and deposit funds into it.
     ///
     /// # Arguments
@@ -164,6 +223,13 @@ impl EscrowContract {
             .instance()
             .get(&StorageKey::EscrowCount)
             .unwrap_or(0)
+    }
+
+    fn read_admin(env: &Env) -> Address {
+        env.storage()
+            .instance()
+            .get(&StorageKey::Admin)
+            .expect("not initialized")
     }
 
     fn assert_is_party(escrow: &EscrowCase, addr: &Address) {

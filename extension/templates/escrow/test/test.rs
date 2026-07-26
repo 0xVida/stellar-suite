@@ -1,7 +1,10 @@
 #![cfg(test)]
 
 use escrow_contract::{EscrowContract, EscrowContractClient, EscrowStatus};
-use soroban_sdk::{testutils::{Address as _, Ledger as _}, Address, Env};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    Address, Env,
+};
 
 // --- Helpers ---
 
@@ -9,8 +12,8 @@ fn setup<'a>(env: &'a Env) -> (EscrowContractClient<'a>, Address, Address, Addre
     env.mock_all_auths();
     let contract_id = env.register_contract(None, EscrowContract);
     let client = EscrowContractClient::new(env, &contract_id);
-    let payer   = Address::generate(env);
-    let payee   = Address::generate(env);
+    let payer = Address::generate(env);
+    let payee = Address::generate(env);
     let arbiter = Address::generate(env);
     (client, payer, payee, arbiter)
 }
@@ -22,8 +25,77 @@ fn advance_time(env: &Env, seconds: u64) {
 }
 
 /// Create a standard escrow (release_after = current time, required_approvals = 1).
-fn create_escrow(client: &EscrowContractClient, payer: &Address, payee: &Address, arbiter: &Address, amount: u128, release_after: u64, approvals: u32) -> u64 {
+fn create_escrow(
+    client: &EscrowContractClient,
+    payer: &Address,
+    payee: &Address,
+    arbiter: &Address,
+    amount: u128,
+    release_after: u64,
+    approvals: u32,
+) -> u64 {
     client.deposit(payer, payee, arbiter, &amount, &release_after, &approvals)
+}
+
+// =====================
+// ADMIN TESTS
+// =====================
+
+#[test]
+fn test_initialize_sets_admin_view() {
+    let env = Env::default();
+    let (client, admin, _, _) = setup(&env);
+
+    client.initialize(&admin);
+
+    let view = client.admin();
+    assert_eq!(view.admin, admin);
+    assert_eq!(view.pending_admin, None);
+}
+
+#[test]
+fn test_transfer_admin_sets_pending_admin() {
+    let env = Env::default();
+    let (client, admin, next_admin, _) = setup(&env);
+
+    client.initialize(&admin);
+    client.transfer_admin(&admin, &next_admin);
+
+    let view = client.admin();
+    assert_eq!(view.admin, admin);
+    assert_eq!(view.pending_admin, Some(next_admin));
+}
+
+#[test]
+fn test_accept_admin_promotes_pending_admin() {
+    let env = Env::default();
+    let (client, admin, next_admin, _) = setup(&env);
+
+    client.initialize(&admin);
+    client.transfer_admin(&admin, &next_admin);
+    client.accept_admin(&next_admin);
+
+    let view = client.admin();
+    assert_eq!(view.admin, next_admin);
+    assert_eq!(view.pending_admin, None);
+}
+
+#[test]
+#[should_panic(expected = "not initialized")]
+fn test_admin_before_initialize_panics() {
+    let env = Env::default();
+    let (client, _, _, _) = setup(&env);
+    client.admin();
+}
+
+#[test]
+#[should_panic(expected = "not admin")]
+fn test_non_admin_cannot_transfer_admin() {
+    let env = Env::default();
+    let (client, admin, non_admin, next_admin) = setup(&env);
+
+    client.initialize(&admin);
+    client.transfer_admin(&non_admin, &next_admin);
 }
 
 // =====================
@@ -40,13 +112,13 @@ fn test_deposit_creates_escrow() {
 
     assert_eq!(id, 1);
     let escrow = client.get_escrow(&id);
-    assert_eq!(escrow.payer,   payer);
-    assert_eq!(escrow.payee,   payee);
+    assert_eq!(escrow.payer, payer);
+    assert_eq!(escrow.payee, payee);
     assert_eq!(escrow.arbiter, arbiter);
-    assert_eq!(escrow.amount,  1000);
-    assert_eq!(escrow.status,  EscrowStatus::Pending);
+    assert_eq!(escrow.amount, 1000);
+    assert_eq!(escrow.status, EscrowStatus::Pending);
     assert_eq!(escrow.release_approvers.len(), 0);
-    assert_eq!(escrow.refund_approvers.len(),  0);
+    assert_eq!(escrow.refund_approvers.len(), 0);
 }
 
 #[test]
